@@ -1,0 +1,14 @@
+{
+  "system_tags": [
+    {
+      "system_name": "Hop Fastpass System",
+      "tags": ["Cloud-Based", "Payment", "Public Facing"]
+    }
+  ],
+  "integration_tags": [
+    {
+      "integration_point_name": "GTFS-Realtime",
+      "tags": ["Public Facing", "Standardized"]
+    }
+  ]
+}

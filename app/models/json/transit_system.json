@@ -1,0 +1,67 @@
+{
+  "transit_systems": [
+    {
+      "name": "C-TRAN",
+      "location": "Vancouver, WA",
+      "description": "Clark County Public Transit System connecting people to opportunities, supporting economic vitality and enhancing quality of life.",
+      "functional_areas": [
+        {
+          "name": "Operations Management",
+          "description": "Handles real-time service delivery and operational control.",
+          "categories": [
+            {
+              "name": "Dispatch Systems",
+              "description": "Technology for command and control operations.",
+              "functions": [
+                {
+                  "name": "CAD",
+                  "description": "Computer-aided dispatch system",
+                  "criticality": "high"
+                },
+                {
+                  "name": "AVL",
+                  "description": "Automatic vehicle location",
+                  "criticality": "high"
+                }
+              ]
+            }
+          ],
+          "systems": [
+            {
+              "name": "C-TRAN CAD/AVL System",
+              "function_names": ["CAD", "AVL"],
+              "version": "2023",
+              "deployment_date": "2011-06-01",
+              "update_frequency": "Real-time",
+              "known_issues": "GPS dropouts occasionally.",
+              "additional_metadata": {
+                "priority": "high"
+              },
+              "tags": ["Mission Critical", "Real-Time", "Cloud-Based"],
+              "vendor": {
+                "name": "Clever Devices",
+                "website": "https://cleverdevices.com",
+                "vendor_email": "support@cleverdevices.com",
+                "description": "Transit tech leader"
+              },
+              "integration_points": [
+                {
+                  "name": "GTFS-Realtime",
+                  "description": "Provides real-time feed to apps",
+                  "standards": ["GTFS-RT"],
+                  "tags": ["Public Facing"]
+                }
+              ],
+              "user_roles": [
+                {
+                  "role_name": "Dispatcher",
+                  "description": "Manages dispatch operations"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

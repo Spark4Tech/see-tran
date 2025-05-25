@@ -1,0 +1,375 @@
+# Project Directory Structure
+./
+    setup.sh
+    .flaskenv
+    run.py
+    tailwind.config.js
+    config.py
+    combined.txt
+    requirements.txt
+    cat.py
+    README.md
+    .gitignore
+    package-lock.json
+    package.json
+    .nvmrc
+    postcss.config.js
+    app/
+        config.py
+        __init__.py
+        models/
+            tran.py
+            __init__.py
+            tran_json.json
+        static/
+            css/
+                .keep
+            js/
+                .keep
+        templates/
+            index.html
+            base.html
+        routes/
+            __init__.py
+            main.py
+    tests/
+        __init__.py
+        test_app.py
+    tailwind/
+        config.js
+        input.css
+    scripts/
+        load_tran_file.py
+    prompts/
+        Technical_Design.md
+
+# End of Directory Structure
+
+# Start of app/__init__.py
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+import os
+
+db = SQLAlchemy()
+migrate = Migrate()
+
+def create_app(test_config=None):
+    app = Flask(__name__)
+    
+    if test_config:
+        app.config.update(test_config)
+    else:
+        # Import config classes
+        from config import DevelopmentConfig, ProductionConfig, TestConfig
+        
+        # Use DevelopmentConfig by default, or based on environment
+        flask_env = os.environ.get('FLASK_ENV', 'development')
+        if flask_env == 'production':
+            app.config.from_object(ProductionConfig)
+        elif flask_env == 'testing':
+            app.config.from_object(TestConfig)
+        else:
+            app.config.from_object(DevelopmentConfig)
+    
+    # Ensure the instance folder exists
+    try:
+        os.makedirs(app.instance_path)
+    except OSError:
+        pass
+    
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
+    # register blueprints
+    from app.routes.main import main as main_bp
+    app.register_blueprint(main_bp)
+    
+    return app
+# End of app/__init__.py
+
+# Start of config.py
+# config.py
+
+import os
+from dotenv import load_dotenv
+from datetime import timedelta
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '.env'))
+
+class Config:
+    # Core Flask settings
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    DEBUG = os.environ.get('FLASK_ENV') == 'development'
+    
+    # Database settings - SQLite support
+    DB_TYPE = os.environ.get('DB_TYPE', 'sqlite')
+    
+    if DB_TYPE == 'postgres':
+        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    else:
+        # SQLite database
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(basedir, 'instance', 'app.db')}"
+    
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_COMMIT_ON_TEARDOWN = True
+    
+    # Security settings
+    CSRF_ENABLED = True
+    
+    # Application paths and cookies
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    SESSION_REFRESH_EACH_REQUEST = True
+
+    WTF_CSRF_TIME_LIMIT = 24 * 3600  # 24 hours in seconds
+    WTF_CSRF_SSL_STRICT = False
+    
+    # File upload settings
+    MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500 MB limit
+    
+    # Email settings
+    POSTMARK_API_KEY = os.getenv('POSTMARK_API_KEY')
+    POSTMARK_SENDER_EMAIL = os.getenv('POSTMARK_SENDER_EMAIL')
+    POSTMARK_NOTIFY_EMAIL = os.getenv('POSTMARK_NOTIFY_EMAIL')
+
+    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
+    CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
+    CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-3-5-haiku-20241022')
+    
+    # AWS settings
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_REGION = os.environ.get('AWS_REGION', 'us-west-2')
+    S3_BUCKET = os.environ.get('S3_BUCKET', 'well-app')
+    
+    # Application URLs
+    SMS_BASE_URL = os.environ.get('SMS_BASE_URL', 'https://well.voice4equity.com/app')
+    
+    @staticmethod
+    def get_s3_prefix(tenant_id):
+        """Generate S3 key prefix for tenant isolation"""
+        return f'tenant_{tenant_id}'
+    
+    # SMS settings
+    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+    TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
+
+    SMS_TEST_PHONE_NUMBER = os.environ.get('SMS_TEST_PHONE_NUMBER', '+18084649192')
+
+class DevelopmentConfig(Config):
+    """Development configuration."""
+    FLASK_ENV = 'development'
+    DEBUG = True
+    DEVELOPMENT = True
+    
+    # More permissive session cookie settings for development
+    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_DOMAIN = None  # Allow all domains in development
+
+class ProductionConfig(Config):
+    """Production configuration."""
+    DEBUG = False
+    DEVELOPMENT = False
+    SESSION_COOKIE_SECURE = True
+    PREFERRED_URL_SCHEME = 'https'
+    
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_FILE_DIR = '/home/ubuntu/see-tran/flask_session'
+
+class TestConfig(Config):
+    """Test configuration."""
+    TESTING = True
+    DEBUG = False
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    WTF_CSRF_ENABLED = False
+# End of config.py
+
+# Start of app/models/tran.py
+# models/tran.py
+from datetime import datetime
+from app import db
+
+# Association table for many-to-many relationship between systems and integration points
+system_integration = db.Table(
+    'system_integration',
+    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
+    db.Column('integration_point_id', db.Integer, db.ForeignKey('integration_points.id'), primary_key=True)
+)
+
+class TransitSystem(db.Model):
+    __tablename__ = 'transit_systems'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    location = db.Column(db.String(100))
+    description = db.Column(db.String(500))
+
+    functional_areas = db.relationship('FunctionalArea', back_populates='transit_system', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f"<TransitSystem(name={self.name}, location={self.location})>"
+
+class FunctionalArea(db.Model):
+    __tablename__ = 'functional_areas'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500))
+
+    transit_system_id = db.Column(db.Integer, db.ForeignKey('transit_systems.id'))
+    transit_system = db.relationship('TransitSystem', back_populates='functional_areas')
+
+    systems = db.relationship('System', back_populates='functional_area', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f"<FunctionalArea(name={self.name})>"
+
+class Vendor(db.Model):
+    __tablename__ = 'vendors'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    website = db.Column(db.String(255))
+    contact_info = db.Column(db.String(255))
+    description = db.Column(db.String(500))
+
+    systems = db.relationship('System', back_populates='vendor')
+
+    def __repr__(self):
+        return f"<Vendor(name={self.name}, website={self.website})>"
+
+class System(db.Model):
+    __tablename__ = 'systems'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    function = db.Column(db.String(255), nullable=False)
+    version = db.Column(db.String(50))
+    deployment_date = db.Column(db.Date)
+    update_frequency = db.Column(db.String(50))
+    known_issues = db.Column(db.String(500))
+    additional_metadata = db.Column(db.JSON)
+
+    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'))
+    functional_area = db.relationship('FunctionalArea', back_populates='systems')
+
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'))
+    vendor = db.relationship('Vendor', back_populates='systems')
+
+    integration_points = db.relationship(
+        'IntegrationPoint',
+        secondary=system_integration,
+        back_populates='systems'
+    )
+
+    user_roles = db.relationship('UserRole', back_populates='system', cascade='all, delete-orphan')
+
+    def add_metadata(self, key: str, value: str):
+        if not self.additional_metadata:
+            self.additional_metadata = {}
+        self.additional_metadata[key] = value
+
+    def __repr__(self):
+        return f"<System(name={self.name}, version={self.version})>"
+
+class IntegrationPoint(db.Model):
+    __tablename__ = 'integration_points'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    standard = db.Column(db.String(100))
+    description = db.Column(db.String(500))
+
+    systems = db.relationship(
+        'System',
+        secondary=system_integration,
+        back_populates='integration_points'
+    )
+
+    def __repr__(self):
+        return f"<IntegrationPoint(name={self.name}, standard={self.standard})>"
+
+class UserRole(db.Model):
+    __tablename__ = 'user_roles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    role_name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500))
+
+    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'))
+    system = db.relationship('System', back_populates='user_roles')
+
+    def __repr__(self):
+        return f"<UserRole(role_name={self.role_name})>"
+
+class UpdateLog(db.Model):
+    __tablename__ = 'update_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'), nullable=False)
+    updated_by = db.Column(db.String(100), nullable=False)
+    update_date = db.Column(db.DateTime, default=datetime.utcnow)
+    change_summary = db.Column(db.String(1000))
+
+    system = db.relationship('System')
+
+    def __repr__(self):
+        return f"<UpdateLog(system_id={self.system_id}, updated_by={self.updated_by})>"
+
+# End of app/models/tran.py
+
+# Start of app/templates/base.html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title|default("Flask-HTMX App") }}</title>
+  <link rel="stylesheet" href="{{ url_for("static", filename="css/tailwind.css") }}">
+</head>
+<body class="min-h-screen bg-gray-50 flex flex-col">
+  <nav class="bg-indigo-600 text-white p-4">
+    <div class="container mx-auto">
+      <a href="/" class="font-bold">{{ config.APP_NAME|default(""see-tran"") }}</a>
+    </div>
+  </nav>
+  
+  <main class="container mx-auto flex-grow p-4">
+    {% block content %}{% endblock %}
+  </main>
+  
+  <footer class="bg-gray-100 p-4 text-center text-gray-500 text-sm">
+    <div class="container mx-auto">
+      &copy; {% now "Y" %} {{ config.APP_NAME|default(""see-tran"") }}
+    </div>
+  </footer>
+  
+  <script src="{{ url_for("static", filename="js/htmx.min.js") }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+
+# End of app/templates/base.html
+
+# Start of app/templates/index.html
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-lg mx-auto my-12 p-6 bg-white rounded-lg shadow-md">
+  <h1 class="text-4xl font-bold text-indigo-600 text-center">It works! 🎉</h1>
+  <p class="mt-4 text-center">Edit <code class="bg-gray-100 px-2 py-1 rounded">app/routes/main.py</code> & reload.</p>
+  
+  <div class="mt-8 border-t pt-4">
+    <h2 class="text-lg font-medium text-gray-700 mb-2">Try HTMX:</h2>
+    <button hx-get="/api/health" hx-swap="innerHTML" hx-target="#htmx-demo" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+      Click me
+    </button>
+    <div id="htmx-demo" class="mt-2 p-3 bg-gray-50 rounded"></div>
+  </div>
+</div>
+{% endblock %}
+
+# End of app/templates/index.html
+

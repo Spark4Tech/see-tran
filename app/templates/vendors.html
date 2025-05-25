@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  
+  <!-- Page Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Vendor Management</h1>
+    <p class="text-slate-400">Manage vendor relationships and track system portfolios across your transit network.</p>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/vendors" hx-trigger="load">--</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium">Total Vendors</h3>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" id="active-vendors-count">--</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium">Active Vendors</h3>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" id="avg-systems-count">--</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium">Avg Systems/Vendor</h3>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" id="top-vendor-count">--</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium">Top Vendor Systems</h3>
+    </div>
+  </div>
+
+  <!-- Search and Filters -->
+  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
+    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+      
+      <!-- Search and Sort -->
+      <div class="flex flex-col sm:flex-row gap-4 flex-1">
+        
+        <!-- Search -->
+        <div class="relative flex-1 max-w-md">
+          <input type="text" id="vendor-search" placeholder="Search vendors..." 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                 hx-get="/api/vendors/list" hx-target="#vendors-list" hx-trigger="keyup changed delay:300ms" 
+                 hx-include="[id='sort-select']" hx-vals='js:{"search": event.target.value}'>
+          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+
+        <!-- Sort Options -->
+        <select id="sort-select" 
+                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+                hx-get="/api/vendors/list" hx-target="#vendors-list" hx-include="[id='vendor-search']" hx-vals='js:{"sort": event.target.value}'>
+          <option value="name">Sort by Name</option>
+          <option value="systems">Sort by System Count</option>
+          <option value="recent">Sort by Recent Activity</option>
+        </select>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2">
+        <button class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          Add Vendor
+        </button>
+        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+          Export List
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Vendors List -->
+    <div class="lg:col-span-2">
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white">Vendor Portfolio</h2>
+          <button hx-get="/api/vendors/list" hx-target="#vendors-list" 
+                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        
+        <div id="vendors-list" class="space-y-6" hx-get="/api/vendors/list" hx-trigger="load">
+          <!-- Vendors will be loaded here -->
+          <div class="animate-pulse space-y-6">
+            <div class="h-32 bg-slate-800 rounded-lg"></div>
+            <div class="h-32 bg-slate-800 rounded-lg"></div>
+            <div class="h-32 bg-slate-800 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vendor Details Sidebar -->
+    <div class="space-y-6">
+      
+      <!-- Vendor Details Panel -->
+      <div id="vendor-details">
+        <!-- Default state -->
+        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
+          <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, system portfolio, and contact details.</p>
+        </div>
+      </div>
+
+      <!-- Top Integration Standards -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Integration Standards</h3>
+        <div id="integration-standards" hx-get="/api/integration/standards" hx-trigger="load" class="space-y-2">
+          <!-- Integration standards will be loaded here -->
+          <div class="animate-pulse space-y-2">
+            <div class="h-6 bg-slate-800 rounded"></div>
+            <div class="h-6 bg-slate-800 rounded"></div>
+            <div class="h-6 bg-slate-800 rounded"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vendor Performance Insights -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Performance Insights</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
+            <span class="text-slate-300 text-sm">Most Reliable</span>
+            <span class="text-green-400 font-medium text-sm" id="most-reliable-vendor">--</span>
+          </div>
+          <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
+            <span class="text-slate-300 text-sm">Newest Partnership</span>
+            <span class="text-blue-400 font-medium text-sm" id="newest-vendor">--</span>
+          </div>
+          <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
+            <span class="text-slate-300 text-sm">Most Systems</span>
+            <span class="text-purple-400 font-medium text-sm" id="largest-vendor">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+        <div class="space-y-3">
+          <button class="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            Add New Vendor
+          </button>
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+              <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
+            </svg>
+            Vendor Report
+          </button>
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            Export Contacts
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load vendor stats
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/vendors/stats')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('active-vendors-count').textContent = data.active_vendors;
+      document.getElementById('avg-systems-count').textContent = data.avg_systems_per_vendor;
+      
+      if (data.top_vendor) {
+        document.getElementById('top-vendor-count').textContent = data.top_vendor.system_count;
+        document.getElementById('largest-vendor').textContent = data.top_vendor.name;
+      }
+    });
+});
+
+// Add vendor card hover effects
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  const vendorCards = document.querySelectorAll('.vendor-card');
+  vendorCards.forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-4px)';
+      this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+    });
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0)';
+      this.style.boxShadow = 'none';
+    });
+  });
+});
+
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+  elements.forEach(el => htmx.trigger(el, 'refresh'));
+}, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,187 @@
+{
+  "transit_systems": [
+    {
+      "name": "C-TRAN",
+      "location": "Vancouver, WA",
+      "description": "Clark County Public Transit System connecting people to opportunities, supporting economic vitality and enhancing quality of life.",
+      "functional_areas": [
+        {
+          "name": "Operations Management",
+          "description": "Handles real-time service delivery and operational control.",
+          "systems": [
+            {
+              "name": "C-TRAN CAD/AVL System",
+              "function": "Real-time fleet tracking, dispatch management, and communication.",
+              "version": "2023",
+              "deployment_date": "2011-06-01",
+              "update_frequency": "Real-time",
+              "known_issues": "GPS/communication dropouts can occur occasionally.",
+              "additional_metadata": {
+                "priority": "high",
+                "criticality": "business-critical"
+              },
+              "vendor": {
+                "name": "Clever Devices",
+                "website": "https://cleverdevices.com",
+                "contact_info": "support@cleverdevices.com",
+                "description": "AVL and transit technology solutions."
+              },
+              "integration_points": [
+                {
+                  "name": "GTFS-Realtime",
+                  "standard": "GTFS-RT",
+                  "description": "Provides vehicle positions to apps."
+                }
+              ],
+              "user_roles": [
+                {"role_name": "Dispatcher", "description": "Monitors and manages vehicle dispatch."}
+              ]
+            },
+            {
+              "name": "Transit Signal Priority System (Mill Plain BRT)",
+              "function": "Optimizes traffic signals to favor buses.",
+              "version": "2025 AI-based",
+              "deployment_date": "2025-02-01",
+              "update_frequency": "Real-time",
+              "known_issues": "Requires city coordination.",
+              "additional_metadata": {},
+              "vendor": {
+                "name": "LYT.cloud",
+                "website": "https://lyt.cloud",
+                "contact_info": "info@lyt.cloud",
+                "description": "AI-based traffic signal management."
+              },
+              "integration_points": [],
+              "user_roles": []
+            }
+          ]
+        },
+        {
+          "name": "Customer Experience & Information",
+          "description": "Passenger information and engagement tools.",
+          "systems": [
+            {
+              "name": "Transit App Integration",
+              "function": "Real-time bus tracking, alerts, trip planning.",
+              "version": "5.12.0",
+              "deployment_date": "2021-12-01",
+              "update_frequency": "Real-time",
+              "known_issues": "Accuracy depends on AVL data.",
+              "additional_metadata": {
+                "supported_languages": ["en", "es"]
+              },
+              "vendor": {
+                "name": "Transit App",
+                "website": "https://transitapp.com",
+                "contact_info": "info@transitapp.com",
+                "description": "Public transit mobile app."
+              },
+              "integration_points": [
+                {
+                  "name": "GTFS-Realtime",
+                  "standard": "GTFS-RT",
+                  "description": "Real-time data feeds integration."
+                }
+              ],
+              "user_roles": [{"role_name": "Public User", "description": "Riders using the app."}]
+            }
+          ]
+        },
+        {
+          "name": "Fare Collection & Revenue Management",
+          "description": "Fare collection and payment processing.",
+          "systems": [
+            {
+              "name": "Hop Fastpass System",
+              "function": "Regional e-fare payment and account-based fare collection.",
+              "version": "v3.0",
+              "deployment_date": "2017-07-01",
+              "update_frequency": "Real-time",
+              "known_issues": "Extensive inter-agency testing required.",
+              "additional_metadata": {
+                "fare_capping": "enabled"
+              },
+              "vendor": {
+                "name": "INIT",
+                "website": "https://www.initse.com",
+                "contact_info": "info@initse.com",
+                "description": "Transit fare solutions integrator."
+              },
+              "integration_points": [],
+              "user_roles": []
+            }
+          ]
+        },
+        {
+          "name": "Fleet Management & Vehicle Maintenance",
+          "description": "Management of transit vehicles, maintenance, and fueling.",
+          "systems": [
+            {
+              "name": "INIT MOBILEvhm",
+              "function": "Real-time vehicle health monitoring, especially for electric buses.",
+              "version": "2023",
+              "deployment_date": "2023-01-01",
+              "update_frequency": "Real-time",
+              "known_issues": "Alert fatigue management needed.",
+              "additional_metadata": {},
+              "vendor": {
+                "name": "INIT CarMedialab",
+                "website": "https://www.initse.com",
+                "contact_info": "support@initse.com",
+                "description": "Real-time vehicle diagnostics and monitoring solutions."
+              },
+              "integration_points": [],
+              "user_roles": []
+            }
+          ]
+        },
+        {
+          "name": "Paratransit & On-Demand Services",
+          "description": "Management of ADA paratransit and microtransit services.",
+          "systems": [
+            {
+              "name": "The Current Microtransit",
+              "function": "On-demand microtransit for flexible rider services.",
+              "version": "2022",
+              "deployment_date": "2022-01-01",
+              "update_frequency": "Real-time",
+              "known_issues": "Demand variability can cause wait times.",
+              "additional_metadata": {},
+              "vendor": {
+                "name": "Spare Labs",
+                "website": "https://sparelabs.com",
+                "contact_info": "info@sparelabs.com",
+                "description": "On-demand mobility platform provider."
+              },
+              "integration_points": [],
+              "user_roles": []
+            }
+          ]
+        },
+        {
+          "name": "Safety & Security Systems",
+          "description": "Security, incident tracking, and accessibility support.",
+          "systems": [
+            {
+              "name": "Aira Visual Interpretation",
+              "function": "Visual interpretation service for accessibility.",
+              "version": "2025",
+              "deployment_date": "2025-03-01",
+              "update_frequency": "Real-time",
+              "known_issues": "Requires smartphone and good cellular connection.",
+              "additional_metadata": {},
+              "vendor": {
+                "name": "Aira",
+                "website": "https://aira.io",
+                "contact_info": "support@aira.io",
+                "description": "Accessibility service for visually impaired riders."
+              },
+              "integration_points": [],
+              "user_roles": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

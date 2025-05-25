@@ -1,0 +1,69 @@
+{
+  "transit_systems": [
+    {
+      "name": "New York City Transit (MTA)",
+      "location": "New York, NY",
+      "description": "The largest public transit agency in the U.S., operating subways, buses, and paratransit across the five boroughs of New York City."
+    },
+    {
+      "name": "Chicago Transit Authority (CTA)",
+      "location": "Chicago, IL",
+      "description": "Operates the second-largest public transit system in the U.S., providing rail and bus services throughout Chicago and surrounding suburbs."
+    },
+    {
+      "name": "Bay Area Rapid Transit (BART)",
+      "location": "San Francisco Bay Area, CA",
+      "description": "Regional heavy rail system serving the San Francisco Bay Area with high-capacity rapid transit across multiple counties."
+    },
+    {
+      "name": "Los Angeles Metro",
+      "location": "Los Angeles County, CA",
+      "description": "Integrated transit system operating buses and rail lines, with one of the largest bus fleets in the country."
+    },
+    {
+      "name": "King County Metro",
+      "location": "Seattle, WA",
+      "description": "Known for innovative transit technology and frequent service, Metro operates buses, water taxis, and partnerships for regional rail."
+    },
+    {
+      "name": "Portland TriMet",
+      "location": "Portland, OR",
+      "description": "Operates buses, light rail (MAX), and commuter rail (WES) with a focus on accessibility, equity, and environmental sustainability."
+    },
+    {
+      "name": "Denver RTD",
+      "location": "Denver, CO",
+      "description": "Provides multimodal transit including bus, light rail, and commuter rail, with a focus on regional connectivity across the Denver metro area."
+    },
+    {
+      "name": "C-TRAN",
+      "location": "Clark County, WA",
+      "description": "Small but high-performing transit agency offering fixed-route, express, and paratransit services, including Bus Rapid Transit."
+    },
+    {
+      "name": "GoDurham",
+      "location": "Durham, NC",
+      "description": "Well-regarded small urban system offering local and regional bus services with growing investment in transit infrastructure."
+    },
+    {
+      "name": "Chapel Hill Transit",
+      "location": "Chapel Hill, NC",
+      "description": "University-town system known for fare-free service and high rider satisfaction; jointly operated by Chapel Hill, Carrboro, and UNC."
+    },
+    {
+      "name": "Corvallis Transit System",
+      "location": "Corvallis, OR",
+      "description": "Small-city system providing fare-free fixed-route services focused on sustainability and serving Oregon State University."
+    },
+    {
+      "name": "Mountain Line",
+      "location": "Missoula, MT",
+      "description": "Award-winning fare-free system recognized for sustainability, strong community partnerships, and high per-capita ridership."
+    },
+    {
+      "name": "Island Transit",
+      "location": "Whidbey Island, WA",
+      "description": "Provides fare-free rural and small-town transit services across island communities with a focus on access and equity."
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.python-version
+
+# Flask
+instance/
+.webassets-cache
+
+# SQLAlchemy
+*.sqlite
+*.sqlite3
+migrations/
+
+# Frontend
+node_modules/
+app/static/css/tailwind.css
+app/static/js/htmx.min.js
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+zzz*
+ZZZ*
+

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "GTFS-RT",
+    "description": "General Transit Feed Specification for Real-Time data",
+    "version": "1.0",
+    "standard_url": "https://gtfs.org/reference/realtime/v1/"
+  },
+  {
+    "name": "Cloud API",
+    "description": "Vendor-managed secure API platform",
+    "version": "N/A",
+    "standard_url": ""
+  }
+]
