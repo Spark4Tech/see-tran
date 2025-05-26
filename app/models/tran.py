@@ -49,11 +49,37 @@ class TransitSystem(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     location = db.Column(db.String(100))
     description = db.Column(db.String(500))
+    website = db.Column(db.String(255))
+    ceo = db.Column(db.String(128))
+    address_hq = db.Column(db.String(256))
+    phone_number = db.Column(db.String(64))
+    transit_map_link = db.Column(db.String(256))
+    contact_email = db.Column(db.String(255))
+    contact_phone = db.Column(db.String(50))
+    contact_name = db.Column(db.String(100))
+    additional_metadata = db.Column(db.JSON)
+    __table_args__ = (
+        db.UniqueConstraint('name', name='uq_transit_system_name'),
+    )
+    systems_used = db.relationship('TransitSystemSystem', back_populates='transit_system', cascade='all, delete-orphan')
+    
 
     functional_areas = db.relationship('FunctionalArea', back_populates='transit_system', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<TransitSystem(name={self.name}, location={self.location})>"
+
+class TransitSystemSystem(db.Model):
+    __tablename__ = 'transit_system_system'
+    id = db.Column(db.Integer, primary_key=True)
+    transit_system_id = db.Column(db.Integer, db.ForeignKey('transit_systems.id'), nullable=False)
+    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'), nullable=False)
+    deployment_notes = db.Column(db.String(1000))
+    deployment_date = db.Column(db.Date)
+    
+    # Use back_populates consistently (remove backref)
+    system = db.relationship('System', back_populates='deployments')
+    transit_system = db.relationship('TransitSystem', back_populates='systems_used')
 
 class FunctionalArea(db.Model):
     __tablename__ = 'functional_areas'
@@ -121,7 +147,24 @@ class Vendor(db.Model):
 
     def __repr__(self):
         return f"<Vendor(name={self.name})>"
-
+    
+    @property
+    def contact_info(self):
+        """
+        Consolidated contact information for backward compatibility
+        """
+        if self.contact_email:
+            return self.contact_email
+        elif self.contact_name:
+            return self.contact_name
+        elif self.contact_phone:
+            return self.contact_phone
+        elif self.vendor_email:
+            return self.vendor_email
+        elif self.vendor_phone:
+            return self.vendor_phone
+        else:
+            return None
 
 class System(db.Model):
     __tablename__ = 'systems'
@@ -137,9 +180,10 @@ class System(db.Model):
     functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'))
     functional_area = db.relationship('FunctionalArea')
 
-    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
     vendor = db.relationship('Vendor', back_populates='systems')
 
+    deployments = db.relationship('TransitSystemSystem', back_populates='system', cascade='all, delete-orphan')
     functions = db.relationship('Function', secondary=system_function, back_populates='systems')
     integration_points = db.relationship('IntegrationPoint', secondary=system_integration, back_populates='systems')
     tags = db.relationship('Tag', secondary=system_tag, back_populates='systems')
@@ -161,6 +205,7 @@ class IntegrationPoint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
+    website = db.Column(db.String(255))
 
     standards = db.relationship('Standard', secondary=integration_standard, back_populates='integration_points')
     systems = db.relationship('System', secondary=system_integration, back_populates='integration_points')

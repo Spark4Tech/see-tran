@@ -1,0 +1,56 @@
+<!-- app/templates/fragments/transit_system_details.html -->
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-2xl font-bold text-white">{{ transit_system.name }}</h2>
+    <div class="flex gap-2">
+      <button hx-get="/api/transit-systems/{{ transit_system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
+        Edit
+      </button>
+      <button onclick="document.getElementById('transit-system-details').innerHTML = `
+              <div class='glass-effect rounded-xl p-6 border border-slate-700/50 text-center'>
+                  <div class='w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4'>
+                      <svg class='w-8 h-8 text-slate-500' fill='currentColor' viewBox='0 0 20 20'>
+                          <path d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z'/>
+                      </svg>
+                  </div>
+                  <h3 class='text-lg font-medium text-slate-400 mb-2'>Transit System Details</h3>
+                  <p class='text-slate-500 text-sm'>Click on a transit system to view details or use the Add button to create a new one.</p>
+              </div>`"
+              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+        ✕ Close
+      </button>
+    </div>
+  </div>
+  
+  <div class="space-y-6">
+    <div>
+      <h3 class="font-medium text-white mb-3">Basic Information</h3>
+      <div class="space-y-2 text-sm">
+        <p class="text-slate-300"><strong>Location:</strong> {{ transit_system.location or 'Not specified' }}</p>
+        {% if transit_system.description %}
+        <p class="text-slate-300"><strong>Description:</strong> {{ transit_system.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if transit_system.functional_areas %}
+    <div>
+      <h3 class="font-medium text-white mb-3">Functional Areas ({{ transit_system.functional_areas|length }})</h3>
+      <div class="space-y-2">
+        {% for area in transit_system.functional_areas %}
+        <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+          <div>
+            <p class="text-sm font-medium text-white">{{ area.name }}</p>
+            {% if area.description %}
+            <p class="text-xs text-slate-400">{{ area.description }}</p>
+            {% endif %}
+          </div>
+          <span class="text-xs text-slate-500">{{ area.categories|length }} categories</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

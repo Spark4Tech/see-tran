@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  
+  <!-- Page Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Functional Areas Management</h1>
+    <p class="text-slate-400">Manage functional areas within your transit systems and their organizational structure.</p>
+  </div>
+
+  <!-- Actions Bar -->
+  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
+    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+      
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row gap-4 flex-1">
+        <!-- Transit System Filter -->
+        <select id="transit-system-filter" 
+                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+                hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" hx-include="[id='area-search']" hx-vals="js:{transit_system: event.target.value}">
+          <option value="">All Transit Systems</option>
+          <!-- Options will be populated by HTMX -->
+        </select>
+
+        <!-- Search -->
+        <div class="relative flex-1 max-w-md">
+          <input type="text" id="area-search" placeholder="Search functional areas..." 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                 hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" hx-trigger="keyup changed delay:300ms" 
+                 hx-include="[id='transit-system-filter']" hx-vals="js:{search: event.target.value}">
+          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2">
+        <button hx-get="/api/functional-areas/form" hx-target="#functional-area-details" hx-swap="innerHTML"
+                class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          Add Functional Area
+        </button>
+        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+          Export
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Functional Areas List -->
+    <div class="lg:col-span-2">
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white">Functional Areas</h2>
+          <button hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" 
+                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        
+        <div id="functional-areas-list" hx-get="/api/functional-areas/list" hx-trigger="load">
+          <!-- Functional areas will be loaded here -->
+          <div class="animate-pulse space-y-4">
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details/Form Sidebar -->
+    <div class="space-y-6">
+      
+      <!-- Functional Area Details Panel -->
+      <div id="functional-area-details">
+        <!-- Default state -->
+        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
+          <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Total Areas</span>
+            <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Categories</span>
+            <span class="text-white font-medium" hx-get="/api/count/categories" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Functions</span>
+            <span class="text-white font-medium" hx-get="/api/count/functions" hx-trigger="load">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transit System Selector -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50" hx-get="/api/transit-systems/selector" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
+        <!-- Transit system selector will be loaded here -->
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+  elements.forEach(el => htmx.trigger(el, 'refresh'));
+}, 30000);
+
+// Success/error handling for forms
+document.body.addEventListener('htmx:afterRequest', function(e) {
+  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
+    // Success: refresh list and show success message
+    htmx.trigger('#functional-areas-list', 'refresh');
+  }
+});
+
+// Load transit system options on page load
+document.addEventListener('DOMContentLoaded', function() {
+  htmx.ajax('GET', '/api/transit-systems/options', {
+    target: '#transit-system-filter',
+    swap: 'innerHTML'
+  });
+});
+</script>
+{% endblock %}

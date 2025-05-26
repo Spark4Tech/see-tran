@@ -1,0 +1,214 @@
+{
+  "transit_system": "Portland TriMet",
+  "systems": [
+    {
+      "name": "CAD/AVL System (MOBILE-ITCS)",
+      "version": null,
+      "deployment_date": "2013-03-01",
+      "update_frequency": "Annually",
+      "known_issues": "Occasional AVL dropouts in low-signal areas; radio integration has periodic software updates.",
+      "functional_area": "Operations Management (Real-Time)",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Fleet Location Tracking",
+        "Schedule Adherence Monitoring",
+        "Historical Vehicle Data Analysis"
+      ]
+    },
+    {
+      "name": "Hop Fastpass (Regional Account-Based Fare Collection)",
+      "version": null,
+      "deployment_date": "2017-07-01",
+      "update_frequency": "Semiannually",
+      "known_issues": "Occasional delays in fare capping or interagency transaction sync during system maintenance.",
+      "functional_area": "Fare Collection & Revenue Management",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Rider Account Management",
+        "Interagency Fare Integration",
+        "Fare Media Issuance & Inventory",
+        "Sales Channel Management",
+        "Contactless & Mobile Payments"
+      ]
+    },
+    {
+      "name": "Onboard Farebox System",
+      "version": "LECIP Next Generation (to be deployed 2025)",
+      "deployment_date": null,
+      "update_frequency": "Annually",
+      "known_issues": "Current legacy fareboxes nearing end-of-life; new LECIP units to replace and add cloud back office.",
+      "functional_area": "Fare Collection & Revenue Management",
+      "vendor": "LECIP Inc.",
+      "functions": [
+        "Fare Equipment Operations",
+        "Cash Handling & Secure Collection",
+        "Fare Equipment Repair & Support"
+      ]
+    },
+    {
+      "name": "Fixed-Route Scheduling and Operations (HASTUS)",
+      "version": "2023+",
+      "deployment_date": "2000-01-01",
+      "update_frequency": "Annually",
+      "known_issues": "Currently upgrading to HASTUS BidWeb and DailyCrew for operator self-service and daily dispatch.",
+      "functional_area": "Service Planning & Scheduling",
+      "vendor": "GIRO Inc. (HASTUS)",
+      "functions": [
+        "Schedule Creation & Timetable Generation",
+        "Runcutting",
+        "Blocking",
+        "Labor Rule Validation",
+        "Operator Shift Assignment",
+        "Operator Bidding & Seniority Management"
+      ]
+    },
+    {
+      "name": "Paratransit Scheduling & Dispatch (LIFT Paratransit)",
+      "version": null,
+      "deployment_date": "1994-07-01",
+      "update_frequency": "Annually",
+      "known_issues": "Legacy code base, integration with INIT/CAD-AVL requires periodic data format updates.",
+      "functional_area": "On-Demand Mobility & MaaS",
+      "vendor": "Trapeze Group",
+      "functions": [
+        "Paratransit Trip Booking",
+        "Eligibility Certification Management",
+        "Paratransit No-Show & Cancellation Tracking"
+      ]
+    },
+    {
+      "name": "Rail Operations Control Center",
+      "version": null,
+      "deployment_date": "1998-01-01",
+      "update_frequency": "Annually",
+      "known_issues": "None reported; Siemens-based system periodically upgraded with new train control modules.",
+      "functional_area": "Operations Management (Real-Time)",
+      "vendor": "Siemens Mobility",
+      "functions": [
+        "Vehicle Dispatching",
+        "Service Adjustment",
+        "Incident Logging & Notification"
+      ]
+    },
+    {
+      "name": "Positive Train Control (WES Commuter Rail)",
+      "version": null,
+      "deployment_date": "2019-01-01",
+      "update_frequency": "Annually",
+      "known_issues": "None reported; PTC integration with Wabtec on shared tracks.",
+      "functional_area": "Safety, Security & Incident Management",
+      "vendor": "Wabtec Corporation",
+      "functions": [
+        "Hazard Identification & Risk Assessment",
+        "Safety Incident Reporting"
+      ]
+    },
+    {
+      "name": "Transit Signal Priority",
+      "version": null,
+      "deployment_date": "2005-01-01",
+      "update_frequency": "Annually",
+      "known_issues": "Priority request latency varies with cellular network conditions.",
+      "functional_area": "Facilities, Stations & Curbside Management",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Transit Signal Priority Operations"
+      ]
+    },
+    {
+      "name": "Real-Time Passenger Information (TransitTracker/Connectpoint)",
+      "version": null,
+      "deployment_date": "2012-01-01",
+      "update_frequency": "Quarterly",
+      "known_issues": "Some older MAX LED signs have limited message capacity.",
+      "functional_area": "Customer Experience & Information Services",
+      "vendor": "Connectpoint",
+      "functions": [
+        "Passenger Display Installation & Maintenance",
+        "Service Alert Communication"
+      ]
+    },
+    {
+      "name": "OpenTripPlanner (Trip Planning)",
+      "version": null,
+      "deployment_date": "2012-09-01",
+      "update_frequency": "Quarterly",
+      "known_issues": "Multimodal data sources can result in occasional route suggestion mismatches.",
+      "functional_area": "Customer Experience & Information Services",
+      "vendor": null,
+      "functions": [
+        "Multi-Modal Trip Planner Administration",
+        "Rider Information Content Management"
+      ]
+    },
+    {
+      "name": "GTFS & Open Data Feed Management",
+      "version": null,
+      "deployment_date": "2010-01-01",
+      "update_frequency": "As needed",
+      "known_issues": null,
+      "functional_area": "Data Infrastructure & Systems Integration",
+      "vendor": null,
+      "functions": [
+        "GTFS Feed Generation",
+        "GTFS Feed Publishing",
+        "Open Data Feed Publishing"
+      ]
+    },
+    {
+      "name": "Fleet Vehicle Health Monitoring",
+      "version": null,
+      "deployment_date": null,
+      "update_frequency": null,
+      "known_issues": "Not publicly detailed; legacy system (Oracle or Maximo) likely in use.",
+      "functional_area": "Asset Management & Maintenance",
+      "vendor": null,
+      "functions": [
+        "Real-Time Asset Condition Monitoring",
+        "Predictive Maintenance Analytics"
+      ]
+    },
+    {
+      "name": "ERP System (Oracle E-Business Suite)",
+      "version": null,
+      "deployment_date": "2005-01-01",
+      "update_frequency": "Annually",
+      "known_issues": "Planned for upgrade or replacement; integration with new workforce management systems in progress.",
+      "functional_area": "Financial Management & Procurement",
+      "vendor": "Oracle Corporation",
+      "functions": [
+        "Financial Transaction Processing",
+        "Financial Reporting & Reconciliation",
+        "Payroll Processing",
+        "HRIS & Employee Record Management"
+      ]
+    },
+    {
+      "name": "HR/Workforce Management (HASTUS SelfService modules)",
+      "version": "2024",
+      "deployment_date": "2025-01-01",
+      "update_frequency": "Annually",
+      "known_issues": "Currently in rollout; some legacy integration gaps under review.",
+      "functional_area": "Workforce Management & Human Resources",
+      "vendor": "GIRO Inc. (HASTUS)",
+      "functions": [
+        "Operator Shift Assignment",
+        "Operator Bidding & Seniority Management",
+        "Employee Training & Recertification"
+      ]
+    },
+    {
+      "name": "Customer Feedback & Complaint Tracking",
+      "version": null,
+      "deployment_date": null,
+      "update_frequency": null,
+      "known_issues": null,
+      "functional_area": "Customer Experience & Information Services",
+      "vendor": null,
+      "functions": [
+        "Customer Feedback Capture & Logging",
+        "Complaint Resolution Workflow"
+      ]
+    }
+  ]
+}

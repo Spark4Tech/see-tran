@@ -61,10 +61,16 @@ def load_transit_systems_from_file(filename, replace_mode=False):
             stats['skipped'] += 1
             continue
 
+        # All fields present in your model
         system = TransitSystem(
             name=ts_data['name'],
             location=ts_data.get('location'),
-            description=ts_data.get('description')
+            description=ts_data.get('description'),
+            website=ts_data.get('website'),
+            ceo=ts_data.get('ceo'),
+            address_hq=ts_data.get('address_hq'),
+            phone_number=ts_data.get('phone_number'),
+            transit_map_link=ts_data.get('transit_map_link')
         )
         db.session.add(system)
         stats['added'] += 1

@@ -1,4 +1,5 @@
 {
+  "transit_system": "Portland TriMet",
   "vendors": [
     {
       "name": "Trapeze Group",
@@ -320,6 +321,36 @@
       "contact_email": null,
       "contact_phone": null,
       "description": "LYT.ai delivers cloud-based transit signal priority (TSP) and emergency vehicle preemption (EVP) systems using artificial intelligence and vehicle-to-infrastructure communication. Their platform optimizes traffic signal timing in real time to improve transit speed, reliability, and safety."
+    },
+    {
+      "name": "Connectpoint, Inc.",
+      "website": "https://connectpoint.com/",
+      "vendor_email": "info@connectpoint.com",
+      "vendor_phone": "805-682-8900",
+      "contact_name": "Not publicly listed",
+      "contact_email": "info@connectpoint.com",
+      "contact_phone": "805-682-8900",
+      "description": "Connectpoint is the leading provider of solar-powered ePaper digital signage solutions for public transit agencies across the U.S., including TriMet in Portland. Their award-winning Digital Bus Stop® products deliver real-time transit information via solar or AC-powered displays, enhancing rider experience and accessibility."
+    },
+    {
+      "name": "Oracle Corporation",
+      "website": "https://www.oracle.com/",
+      "vendor_email": "sales@oracle.com",
+      "vendor_phone": "800-633-0738",
+      "contact_name": "Not publicly listed",
+      "contact_email": "sales@oracle.com",
+      "contact_phone": "800-633-0738",
+      "description": "Oracle Corporation is a global leader in enterprise software, cloud computing, and database technologies. Headquartered in Austin, Texas, Oracle provides a comprehensive suite of cloud applications and infrastructure services, including Oracle Cloud Infrastructure (OCI), Oracle Fusion Cloud Applications, and the Oracle Database. The company serves a wide range of industries, offering solutions for enterprise resource planning, customer relationship management, human capital management, and more."
+    },
+    {
+      "name": "LECIP Inc.",
+      "website": "https://www.lecipinc.com/",
+      "vendor_email": "sales@lecipinc.com",
+      "vendor_phone": "312-626-2525",
+      "contact_name": "Tony Torrence",
+      "contact_email": "sales@lecipinc.com",
+      "contact_phone": "847-217-5470",
+      "description": "LECIP Inc. is the U.S. subsidiary of LECIP Holdings Corporation, a Japanese company specializing in transportation equipment. LECIP Inc. provides automated fare collection systems, LED lighting for buses and trains, and passenger information systems to the North American transit market. The company focuses on delivering state-of-the-art technology solutions that comply with federal regulations such as ADA and Buy America(n)."
     }
   ]
 }

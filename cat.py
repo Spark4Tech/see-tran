@@ -2,31 +2,47 @@ import os
 from gitignore_parser import parse_gitignore
 
 files_to_concatenate = [
-'app/__init__.py',
-'config.py',
-#'run.py',
-
-#'app/forms/forms.py',
-
-#'app/utils.py',
-
-#'app/models/__init__.py',
-'app/models/tran.py',
-
-#'app/email_service/email_service.py',
-
-#'app/static/js/main.js',
-
-#'app/static/css/styles.css',
-#'app/static/css/output.css',
-
-'app/templates/base.html',
-#'app/templates/landing.html',
-'app/templates/index.html',
-#'app/templates/profile.html',
-
-
-#'app/templates/macros.html',
+    # Core application files
+    'app/__init__.py',           # Flask app initialization
+    'run.py',                    # Application entry point
+    
+    # Routes and Views
+    'app/routes/__init__.py',    # Routes initialization
+    'app/routes/main.py',        # Main route handlers
+    
+    # Models and Data
+    'app/models/__init__.py',    # Models initialization
+    'app/models/tran.py',        # Core data model
+    
+    # Configuration
+    '.flaskenv',                  # Flask-specific configuration
+    'config.py',                 # Main configuration
+    
+    # Frontend Assets
+    #'app/static/js/main.js',     # JavaScript functionality
+    #'app/static/css/styles.css', # Custom styles
+    #'app/static/css/output.css', # Compiled Tailwind CSS
+    #'tailwind/input.css',        # Tailwind source CSS
+    'tailwind.config.js',        # Tailwind configuration
+    
+    # Templates
+    'app/templates/base.html',   # Base template
+    'app/templates/index.html',  # Main page template
+    'app/templates/systems.html',# Systems page
+    'app/templates/vendors.html',# Vendors page
+    
+    # Data Loading Scripts
+    #'scripts/load_tran.py',      # TRAN data loader
+    #'scripts/load_vendors.py',   # Vendors data loader
+    #'scripts/load_standards.py', # Standards data loader
+    
+    # Tests
+    #'tests/test_app.py',        # Application tests
+    
+    # Documentation
+    #'prompts/Technical_Design.md',# Technical documentation
+    #'prompts/Data_Model.md',     # Data model documentation
+    #'README.md'                  # Project overview
 ]
 
 # Define the output file

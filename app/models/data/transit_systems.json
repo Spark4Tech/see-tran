@@ -3,67 +3,132 @@
     {
       "name": "New York City Transit (MTA)",
       "location": "New York, NY",
-      "description": "The largest public transit agency in the U.S., operating subways, buses, and paratransit across the five boroughs of New York City."
+      "description": "The largest public transit agency in the U.S., operating subways, buses, and paratransit across the five boroughs of New York City.",
+      "website": "https://new.mta.info",
+      "ceo": "Demetrius Crichlow (President, MTA New York City Transit)",
+      "address_hq": "2 Broadway, New York, NY 10004",
+      "phone_number": "Dial 511 (MTA information line)",
+      "transit_map_link": "https://new.mta.info/maps"
     },
     {
       "name": "Chicago Transit Authority (CTA)",
       "location": "Chicago, IL",
-      "description": "Operates the second-largest public transit system in the U.S., providing rail and bus services throughout Chicago and surrounding suburbs."
+      "description": "Operates the second-largest public transit system in the U.S., providing rail and bus services throughout Chicago and surrounding suburbs.",
+      "website": "https://www.transitchicago.com",
+      "ceo": "Nora Leerhsen (Acting President)",
+      "address_hq": "567 W. Lake Street, Chicago, IL 60661",
+      "phone_number": "1-888-968-7282 (\"1-888-YOUR-CTA\")",
+      "transit_map_link": "https://www.transitchicago.com/maps/system/"
     },
     {
       "name": "Bay Area Rapid Transit (BART)",
       "location": "San Francisco Bay Area, CA",
-      "description": "Regional heavy rail system serving the San Francisco Bay Area with high-capacity rapid transit across multiple counties."
+      "description": "Regional heavy rail system serving the San Francisco Bay Area with high-capacity rapid transit across multiple counties.",
+      "website": "https://www.bart.gov",
+      "ceo": "Robert \"Bob\" M. Powers (General Manager)",
+      "address_hq": "P.O. Box 12688, Oakland, CA 94604-2688",
+      "phone_number": "510-464-6000 (BART main line)",
+      "transit_map_link": "https://www.bart.gov/system-map"
     },
     {
       "name": "Los Angeles Metro",
       "location": "Los Angeles County, CA",
-      "description": "Integrated transit system operating buses and rail lines, with one of the largest bus fleets in the country."
+      "description": "Integrated transit system operating buses and rail lines, with one of the largest bus fleets in the country.",
+      "website": "https://www.metro.net",
+      "ceo": "Stephanie Wiggins (Chief Executive Officer)",
+      "address_hq": "1 Gateway Plaza, Los Angeles, CA 90012",
+      "phone_number": "323-466-3876 (323 GO METRO)",
+      "transit_map_link": "https://media.metro.net/documents/a5e11b4f-11ac-4807-8cd2-0e7cff6aa94e.pdf"
     },
     {
       "name": "King County Metro",
       "location": "Seattle, WA",
-      "description": "Known for innovative transit technology and frequent service, Metro operates buses, water taxis, and partnerships for regional rail."
+      "description": "Known for innovative transit technology and frequent service, Metro operates buses, water taxis, and partnerships for regional rail.",
+      "website": "https://kingcounty.gov/metro",
+      "ceo": "Michelle Allison (General Manager)",
+      "address_hq": "201 S. Jackson St., Seattle, WA 98104",
+      "phone_number": "206-553-3000",
+      "transit_map_link": "https://experience.arcgis.com/experience/b165327a8a244cf3b3491020783ffbe4"
     },
     {
       "name": "Portland TriMet",
       "location": "Portland, OR",
-      "description": "Operates buses, light rail (MAX), and commuter rail (WES) with a focus on accessibility, equity, and environmental sustainability."
+      "description": "Operates buses, light rail (MAX), and commuter rail (WES) with a focus on accessibility, equity, and environmental sustainability.",
+      "website": "https://trimet.org",
+      "ceo": "Sam Desue, Jr. (General Manager)",
+      "address_hq": "101 SW Main St., Suite 700, Portland, OR 97204",
+      "phone_number": "503-238-7433 (Customer Service)",
+      "transit_map_link": "https://trimet.org/maps/pdf/trimetsystem.pdf"
     },
     {
       "name": "Denver RTD",
       "location": "Denver, CO",
-      "description": "Provides multimodal transit including bus, light rail, and commuter rail, with a focus on regional connectivity across the Denver metro area."
+      "description": "Provides multimodal transit including bus, light rail, and commuter rail, with a focus on regional connectivity across the Denver metro area.",
+      "website": "https://www.rtd-denver.com",
+      "ceo": "Debra A. Johnson (General Manager and CEO)",
+      "address_hq": "1660 Blake Street, Denver, CO 80202",
+      "phone_number": "303-299-6000 (RTD Customer Care)",
+      "transit_map_link": "https://rtd-denver.maps.arcgis.com/apps/webappviewer/index.html?id=213a8d61194647ecb22bb5eb26accb8b"
     },
     {
       "name": "C-TRAN",
       "location": "Clark County, WA",
-      "description": "Small but high-performing transit agency offering fixed-route, express, and paratransit services, including Bus Rapid Transit."
+      "description": "Small but high-performing transit agency offering fixed-route, express, and paratransit services, including Bus Rapid Transit.",
+      "website": "https://www.c-tran.com",
+      "ceo": "Leann M. Caver (Chief Executive Officer)",
+      "address_hq": "10600 NE 51st Circle, Vancouver, WA 98682",
+      "phone_number": "360-695-0123",
+      "transit_map_link": "https://mail.c-tran.com/system-maps/c-tran-full-system-map"
     },
     {
       "name": "GoDurham",
       "location": "Durham, NC",
-      "description": "Well-regarded small urban system offering local and regional bus services with growing investment in transit infrastructure."
+      "description": "Well-regarded small urban system offering local and regional bus services with growing investment in transit infrastructure.",
+      "website": "https://godurhamtransit.org",
+      "ceo": "Doug Middleton (General Manager)",
+      "address_hq": "1903 Fay Street, Durham, NC 27704",
+      "phone_number": "919-485-7433",
+      "transit_map_link": "https://godurhamtransit.org/system-map"
     },
     {
       "name": "Chapel Hill Transit",
       "location": "Chapel Hill, NC",
-      "description": "University-town system known for fare-free service and high rider satisfaction; jointly operated by Chapel Hill, Carrboro, and UNC."
+      "description": "University-town system known for fare-free service and high rider satisfaction; jointly operated by Chapel Hill, Carrboro, and UNC.",
+      "website": "https://www.townofchapelhill.org/transit",
+      "ceo": "Brian Litchfield (Transit Director)",
+      "address_hq": "6900 Millhouse Rd., Chapel Hill, NC 27516",
+      "phone_number": "919-969-4900",
+      "transit_map_link": "https://www.townofchapelhill.org/home/showpublisheddocument/51208"
     },
     {
       "name": "Corvallis Transit System",
       "location": "Corvallis, OR",
-      "description": "Small-city system providing fare-free fixed-route services focused on sustainability and serving Oregon State University."
+      "description": "Small-city system providing fare-free fixed-route services focused on sustainability and serving Oregon State University.",
+      "website": "https://www.corvallisoregon.gov/cts",
+      "ceo": "Tim Bates (Transit Coordinator)",
+      "address_hq": "1245 NE 3rd St., Corvallis, OR 97330",
+      "phone_number": "541-766-6998",
+      "transit_map_link": "https://www.corvallisoregon.gov/cts/page/cts-system-map"
     },
     {
       "name": "Mountain Line",
       "location": "Missoula, MT",
-      "description": "Award-winning fare-free system recognized for sustainability, strong community partnerships, and high per-capita ridership."
+      "description": "Award-winning fare-free system recognized for sustainability, strong community partnerships, and high per-capita ridership.",
+      "website": "https://mountainline.com",
+      "ceo": "Jordan Hess (CEO and General Manager)",
+      "address_hq": "1221 Shakespeare St., Missoula, MT 59802",
+      "phone_number": "406-721-3333",
+      "transit_map_link": "https://mountainline.com/wp-content/uploads/2024/04/ML-System-Folded-Map-2024-WEB.pdf"
     },
     {
       "name": "Island Transit",
       "location": "Whidbey Island, WA",
-      "description": "Provides fare-free rural and small-town transit services across island communities with a focus on access and equity."
+      "description": "Provides fare-free rural and small-town transit services across island communities with a focus on access and equity.",
+      "website": "https://www.islandtransit.org",
+      "ceo": "Melinda Adams (Executive Director)",
+      "address_hq": "19758 SR 20, Coupeville, WA 98239",
+      "phone_number": "360-678-7771",
+      "transit_map_link": "https://irp.cdn-website.com/ac3d33af/files/uploaded/IT-WhidbeyServiceGuide-Jan25-Final-2.pdf"
     }
   ]
 }

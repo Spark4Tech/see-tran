@@ -1,73 +1,78 @@
 {
   "functional_areas": [
     {
-      "name": "Planning and Scheduling",
-      "description": "Covers strategic and operational planning of routes, service frequency, vehicle and crew scheduling, and run-cutting.",
+      "name": "Service Planning & Scheduling",
+      "description": "Covers the design of transit routes and schedules, using data-driven methods to optimize service for demand and efficiency. Includes timetabling, blocking, runcutting, and GTFS data publishing. Modern systems integrate GIS, equity metrics, and digital planning tools.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Operations Management",
-      "description": "Encompasses real-time vehicle tracking, dispatching, service monitoring, and control center functions for day-to-day transit operations.",
+      "name": "Operations Management (Real-Time)",
+      "description": "Encompasses day-to-day oversight of vehicle movements, schedule adherence, detours, and emergency response. Involves CAD/AVL systems, dispatch consoles, and performance dashboards used in the control center.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Customer Information and Engagement",
-      "description": "Includes trip planning, real-time arrival information, service alerts, digital signage, mobile apps, and rider communication channels.",
+      "name": "Fare Collection & Revenue Management",
+      "description": "Manages how fares are paid, validated, and processed. Supports fare media, validators, contactless payment, account-based systems, and backend reconciliation across all channels and partners.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Fare Collection and Revenue Management",
-      "description": "Involves fare media, mobile ticketing, contactless payments, account-based ticketing, fare policy enforcement, and revenue reconciliation.",
+      "name": "Asset Management & Maintenance",
+      "description": "Tracks the full lifecycle of vehicles, equipment, and facilities, including preventive maintenance, work orders, inspections, and FTA TAM compliance. Integrates with inventory and capital planning.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Paratransit and Demand-Responsive Services",
-      "description": "Supports eligibility management, trip booking, scheduling, dispatch, and service delivery for ADA paratransit and microtransit.",
+      "name": "Safety, Security & Incident Management",
+      "description": "Ensures rider and employee safety through proactive hazard management, incident logging, emergency response planning, and oversight of physical and cybersecurity infrastructure.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Asset and Fleet Management",
-      "description": "Covers vehicle maintenance, asset tracking, parts inventory, lifecycle management, and condition-based monitoring of assets.",
+      "name": "Workforce Management & Human Resources",
+      "description": "Covers operator scheduling, timekeeping, payroll, labor compliance, training, certification tracking, and HR information systems. Integrates with run-cutting and workforce availability tools.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Safety, Security, and Incident Management",
-      "description": "Addresses onboard surveillance, operator safety systems, incident response coordination, and emergency communication.",
+      "name": "Performance Analytics & Reporting",
+      "description": "Supports KPI tracking, dashboards, service productivity analysis, NTD submissions, and public transparency. Leverages data pipelines and warehousing to support planning and operations teams.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Human Resources and Workforce Management",
-      "description": "Manages operator and staff assignments, rostering, timekeeping, labor rule compliance, and training.",
+      "name": "Data Infrastructure & Systems Integration",
+      "description": "Enables interoperability across applications and vendors using APIs, microservices, cloud hosting, and integration middleware. Supports GTFS, GTFS-RT, data validation, and system-level architecture.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Financial and Grants Management",
-      "description": "Supports budgeting, financial reporting, grant tracking, and compliance with local, state, and federal funding requirements.",
+      "name": "Regulatory Compliance & Policy",
+      "description": "Manages adherence to ADA, Title VI, environmental, and federal grant reporting requirements. Supports internal reviews and external audits to maintain public funding and legal compliance.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Performance Management and Analytics",
-      "description": "Enables KPI tracking, service performance analysis, reporting, and continuous improvement across transit functions.",
+      "name": "On-Demand Mobility & MaaS",
+      "description": "Provides demand-responsive services (paratransit, microtransit) and integration with other mobility providers. Enables multimodal trip planning, booking, and payment through partner APIs.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Technology Infrastructure and Systems Integration",
-      "description": "Manages IT systems, data exchange, system interoperability, cloud services, and support for open standards.",
+      "name": "Facilities, Stations & Curbside Management",
+      "description": "Oversees infrastructure at bus stops, stations, and layover points. Covers signage, amenities, real-time displays, shelter maintenance, and policy coordination for street and curbside access.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Policy and Regulatory Compliance",
-      "description": "Ensures adherence to accessibility, equity, environmental, and transportation regulations at all jurisdictional levels.",
+      "name": "Cybersecurity",
+      "description": "Protects digital infrastructure including IT and OT systems, fare systems, and rider data. Includes access control, network segmentation, security audits, and incident response protocols.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Mobility as a Service (MaaS) Integration",
-      "description": "Facilitates interoperability with shared mobility services, integrated trip planning, booking, and payment across multiple modes.",
+      "name": "Climate Resilience & Environmental Management",
+      "description": "Plans for climate impacts, sustainability initiatives, emissions reduction, and disaster preparedness. Tracks compliance with environmental mandates and supports long-term adaptation strategies.",
       "transit_system": "C-TRAN"
     },
     {
-      "name": "Curb and Infrastructure Management",
-      "description": "Oversees the use, reservation, and optimization of physical infrastructure such as curbs, stops, stations, and priority lanes.",
+      "name": "Financial Management & Procurement",
+      "description": "Handles accounting, budgeting, capital programs, grant oversight, and procurement processes. Integrates with ERP systems and ensures transparency, auditability, and cost control.",
+      "transit_system": "C-TRAN"
+    },
+    {
+      "name": "Customer Experience & Information Services",
+      "description": "Supports real-time passenger information, trip planning tools, mobile apps, service alerts, marketing, and customer feedback systems. Aims to build trust, ease of use, and rider retention.",
       "transit_system": "C-TRAN"
     }
   ]

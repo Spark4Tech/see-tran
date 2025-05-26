@@ -1,0 +1,248 @@
+<!-- app/templates/fragments/transit_system_details.html -->
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex-1">
+      <h2 class="text-2xl font-bold text-white mb-2">{{ transit_system.name }}</h2>
+      <div class="flex items-center space-x-4 text-sm text-slate-400">
+        {% if transit_system.location %}
+        <span class="flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+          </svg>
+          {{ transit_system.location }}
+        </span>
+        {% endif %}
+        
+        {% if transit_system.website %}
+        <a href="{{ transit_system.website }}" target="_blank" 
+           class="flex items-center text-blue-400 hover:text-blue-300 transition-colors">
+          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
+          </svg>
+          Website
+        </a>
+        {% endif %}
+        
+        {% if transit_system.transit_map_link %}
+        <a href="{{ transit_system.transit_map_link }}" target="_blank" 
+           class="flex items-center text-green-400 hover:text-green-300 transition-colors">
+          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z" clip-rule="evenodd"/>
+          </svg>
+          Transit Map
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button hx-get="/api/transit-systems/{{ transit_system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
+        Edit
+      </button>
+      <button onclick="closeDetails()"
+              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+        ✕ Close
+      </button>
+    </div>
+  </div>
+  
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- Left Column: Basic & Contact Info -->
+    <div class="space-y-6">
+      
+      <!-- Basic Information -->
+      <div>
+        <h3 class="font-medium text-white mb-3">Basic Information</h3>
+        <div class="space-y-3 text-sm">
+          {% if transit_system.description %}
+          <div class="p-3 bg-slate-700/30 rounded-lg">
+            <p class="text-slate-300">{{ transit_system.description }}</p>
+          </div>
+          {% endif %}
+          
+          {% if transit_system.address_hq %}
+          <div class="flex items-start space-x-3">
+            <svg class="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-6a1 1 0 00-1-1H9a1 1 0 00-1 1v6a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 8a1 1 0 011-1h1a1 1 0 011 1v1a1 1 0 01-1 1H8a1 1 0 01-1-1v-1z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+              <p class="text-slate-400 text-xs uppercase tracking-wide mb-1">Headquarters</p>
+              <p class="text-slate-300">{{ transit_system.address_hq }}</p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Leadership & Contact -->
+      <div>
+        <h3 class="font-medium text-white mb-3">Leadership & Contact</h3>
+        <div class="space-y-3">
+          
+          {% if transit_system.ceo %}
+          <div class="flex items-center space-x-3 p-3 bg-slate-700/30 rounded-lg">
+            <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-slate-400 text-xs uppercase tracking-wide">Chief Executive Officer</p>
+              <p class="text-white font-medium">{{ transit_system.ceo }}</p>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if transit_system.contact_name or transit_system.contact_email or transit_system.contact_phone %}
+          <div class="p-3 bg-slate-700/30 rounded-lg">
+            <p class="text-slate-400 text-xs uppercase tracking-wide mb-2">Primary Contact</p>
+            <div class="space-y-2">
+              {% if transit_system.contact_name %}
+              <p class="text-white font-medium">{{ transit_system.contact_name }}</p>
+              {% endif %}
+              
+              <div class="flex flex-col space-y-1">
+                {% if transit_system.contact_email %}
+                <a href="mailto:{{ transit_system.contact_email }}" 
+                   class="text-blue-400 hover:text-blue-300 text-sm flex items-center transition-colors">
+                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                  </svg>
+                  {{ transit_system.contact_email }}
+                </a>
+                {% endif %}
+                
+                {% if transit_system.contact_phone %}
+                <a href="tel:{{ transit_system.contact_phone }}" 
+                   class="text-green-400 hover:text-green-300 text-sm flex items-center transition-colors">
+                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                  </svg>
+                  {{ transit_system.contact_phone }}
+                </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if transit_system.phone_number and transit_system.phone_number != transit_system.contact_phone %}
+          <div class="p-3 bg-slate-700/30 rounded-lg">
+            <p class="text-slate-400 text-xs uppercase tracking-wide mb-1">Main Phone</p>
+            <a href="tel:{{ transit_system.phone_number }}" 
+               class="text-green-400 hover:text-green-300 flex items-center transition-colors">
+              <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+              </svg>
+              {{ transit_system.phone_number }}
+            </a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Functional Areas & Metadata -->
+    <div class="space-y-6">
+      
+      <!-- Functional Areas -->
+      {% if transit_system.functional_areas %}
+      <div>
+        <h3 class="font-medium text-white mb-3">Functional Areas ({{ transit_system.functional_areas|length }})</h3>
+        <div class="space-y-2">
+          {% for area in transit_system.functional_areas %}
+          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
+            <div>
+              <p class="text-sm font-medium text-white">{{ area.name }}</p>
+              {% if area.description %}
+              <p class="text-xs text-slate-400">{{ area.description[:60] }}{% if area.description|length > 60 %}...{% endif %}</p>
+              {% endif %}
+            </div>
+            <span class="text-xs text-slate-500">{{ area.categories|length }} categories</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Additional Metadata -->
+      {% if transit_system.additional_metadata %}
+      <div>
+        <h3 class="font-medium text-white mb-3">Additional Information</h3>
+        <div class="space-y-2">
+          {% for key, value in transit_system.additional_metadata.items() %}
+          <div class="flex justify-between items-start p-2 bg-slate-700/20 rounded">
+            <span class="text-slate-400 text-sm font-medium">{{ key.replace('_', ' ').title() }}:</span>
+            <span class="text-slate-300 text-sm text-right ml-2">{{ value }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Quick Actions -->
+      <div>
+        <h3 class="font-medium text-white mb-3">Quick Actions</h3>
+        <div class="grid grid-cols-2 gap-2">
+          {% if transit_system.website %}
+          <a href="{{ transit_system.website }}" target="_blank" 
+             class="flex items-center justify-center p-3 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/30 transition-colors text-blue-300 text-sm">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
+            </svg>
+            Visit Website
+          </a>
+          {% endif %}
+          
+          {% if transit_system.transit_map_link %}
+          <a href="{{ transit_system.transit_map_link }}" target="_blank" 
+             class="flex items-center justify-center p-3 bg-green-600/20 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-colors text-green-300 text-sm">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z" clip-rule="evenodd"/>
+            </svg>
+            View Map
+          </a>
+          {% endif %}
+          
+          {% if transit_system.contact_email %}
+          <a href="mailto:{{ transit_system.contact_email }}" 
+             class="flex items-center justify-center p-3 bg-purple-600/20 border border-purple-600/30 rounded-lg hover:bg-purple-600/30 transition-colors text-purple-300 text-sm">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+            </svg>
+            Send Email
+          </a>
+          {% endif %}
+          
+          {% if transit_system.contact_phone or transit_system.phone_number %}
+          <a href="tel:{{ transit_system.contact_phone or transit_system.phone_number }}" 
+             class="flex items-center justify-center p-3 bg-yellow-600/20 border border-yellow-600/30 rounded-lg hover:bg-yellow-600/30 transition-colors text-yellow-300 text-sm">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+            </svg>
+            Call
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function closeDetails() {
+  document.getElementById('transit-system-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Transit System Details</h3>
+      <p class="text-slate-500 text-sm">Click on a transit system to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+</script>

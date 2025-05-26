@@ -1,0 +1,78 @@
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-bold text-white">
+      {% if functional_area %}Edit Functional Area{% else %}Add Functional Area{% endif %}
+    </h2>
+    <button onclick="closeForm()"
+            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+      ✕ Cancel
+    </button>
+  </div>
+
+  <form {% if functional_area %}hx-put="/api/functional-areas/{{ functional_area.id }}"{% else %}hx-post="/api/functional-areas"{% endif %}
+        hx-target="#result-message" hx-swap="innerHTML">
+    
+    <div class="space-y-4">
+      <div>
+        <label for="transit_system_id" class="block text-sm font-medium text-slate-300 mb-2">Transit System *</label>
+        <select id="transit_system_id" name="transit_system_id" required
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none">
+          <option value="">Select Transit System</option>
+          {% for ts in transit_systems %}
+          <option value="{{ ts.id }}" {% if functional_area and functional_area.transit_system_id == ts.id %}selected{% endif %}>
+            {{ ts.name }}{% if ts.location %} ({{ ts.location }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="name" class="block text-sm font-medium text-slate-300 mb-2">Name *</label>
+        <input type="text" id="name" name="name" required
+               value="{{ functional_area.name if functional_area else '' }}"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+               placeholder="e.g., Operations Management">
+      </div>
+
+      <div>
+        <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Description</label>
+        <textarea id="description" name="description" rows="3"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                  placeholder="Brief description of this functional area">{{ functional_area.description if functional_area else '' }}</textarea>
+      </div>
+    </div>
+
+    <div id="result-message" class="mt-4"></div>
+
+    <div class="flex gap-3 mt-6">
+      <button type="submit" 
+              class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all">
+        {% if functional_area %}Update Functional Area{% else %}Create Functional Area{% endif %}
+      </button>
+      {% if functional_area %}
+      <button type="button" 
+              hx-delete="/api/functional-areas/{{ functional_area.id }}"
+              hx-confirm="Are you sure you want to delete this functional area? This will also delete all associated categories and functions."
+              hx-target="#result-message"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors">
+        Delete
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<script>
+function closeForm() {
+  document.getElementById('functional-area-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
+      <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+</script>

@@ -1,0 +1,146 @@
+{
+  "transit_system": "C-TRAN",
+  "systems": [
+    {
+      "name": "CAD/AVL System",
+      "version": null,
+      "deployment_date": "2012-06-01",
+      "update_frequency": "Annually",
+      "known_issues": "Some integration limitations with legacy fareboxes prior to Hop Fastpass rollout.",
+      "functional_area": "Operations Management (Real-Time)",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Fleet Location Tracking",
+        "Schedule Adherence Monitoring",
+        "Historical Vehicle Data Analysis"
+      ]
+    },
+    {
+      "name": "Hop Fastpass (Account-Based Fare Collection)",
+      "version": null,
+      "deployment_date": "2017-07-01",
+      "update_frequency": "Semiannually",
+      "known_issues": "Occasional delays in transaction reconciliation during system outages; integration issues with some legacy GFI fareboxes.",
+      "functional_area": "Fare Collection & Revenue Management",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Rider Account Management",
+        "Interagency Fare Integration",
+        "Fare Media Issuance & Inventory",
+        "Sales Channel Management",
+        "Contactless & Mobile Payments"
+      ]
+    },
+    {
+      "name": "Onboard Farebox System",
+      "version": null,
+      "deployment_date": "2009-01-01",
+      "update_frequency": "As needed",
+      "known_issues": "Legacy DOS-based system; planned replacement but still active for cash fares.",
+      "functional_area": "Fare Collection & Revenue Management",
+      "vendor": "Genfare (SPX Technologies)",
+      "functions": [
+        "Fare Equipment Operations",
+        "Cash Handling & Secure Collection",
+        "Fare Equipment Repair & Support"
+      ]
+    },
+    {
+      "name": "Paratransit Scheduling & Dispatch",
+      "version": null,
+      "deployment_date": null,
+      "update_frequency": "Annually",
+      "known_issues": null,
+      "functional_area": "On-Demand Mobility & MaaS",
+      "vendor": "Trapeze Group",
+      "functions": [
+        "Paratransit Trip Booking",
+        "Eligibility Certification Management",
+        "Paratransit No-Show & Cancellation Tracking"
+      ]
+    },
+    {
+      "name": "Microtransit Management (The Current)",
+      "version": null,
+      "deployment_date": "2022-01-10",
+      "update_frequency": "Quarterly",
+      "known_issues": "Service area and hours may be confusing to some users; high demand at peak times causes virtual queue.",
+      "functional_area": "On-Demand Mobility & MaaS",
+      "vendor": "Spare Labs",
+      "functions": [
+        "Microtransit Real-Time Dispatch",
+        "Microtransit Service Performance Analytics"
+      ]
+    },
+    {
+      "name": "Real-Time Passenger Information (GTFS-RT Feed)",
+      "version": null,
+      "deployment_date": "2014-07-01",
+      "update_frequency": "As needed",
+      "known_issues": "GTFS-RT data is occasionally delayed for a few routes during high network traffic.",
+      "functional_area": "Customer Experience & Information Services",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Open Data Feed Publishing",
+        "Open Data Quality Assurance",
+        "Passenger Display Installation & Maintenance"
+      ]
+    },
+    {
+      "name": "Transit App Integration",
+      "version": null,
+      "deployment_date": "2021-01-01",
+      "update_frequency": "Quarterly",
+      "known_issues": "Some microtransit trips occasionally not shown in-app due to GTFS-Flex limitations.",
+      "functional_area": "Customer Experience & Information Services",
+      "vendor": "Transit App",
+      "functions": [
+        "Multi-Modal Trip Planner Administration",
+        "Rider Information Content Management",
+        "On-Demand Integration for Trip Planners"
+      ]
+    },
+    {
+      "name": "Fleet Vehicle Health Monitoring (MOBILEvhm)",
+      "version": null,
+      "deployment_date": "2023-08-01",
+      "update_frequency": "Quarterly",
+      "known_issues": "Early-stage deployment; occasional sensor calibration issues on electric buses.",
+      "functional_area": "Asset Management & Maintenance",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Real-Time Asset Condition Monitoring",
+        "Predictive Maintenance Analytics"
+      ]
+    },
+    {
+      "name": "Electric Bus Charge Management (MOBILEcharge)",
+      "version": null,
+      "deployment_date": "2023-08-01",
+      "update_frequency": "Quarterly",
+      "known_issues": "Integration with utility peak load scheduling in progress.",
+      "functional_area": "Asset Management & Maintenance",
+      "vendor": "INIT (Innovations in Transportation)",
+      "functions": [
+        "Fleet Inventory Management",
+        "Energy Efficiency Program Management",
+        "Fleet Emissions Tracking"
+      ]
+    },
+    {
+      "name": "ERP/HRIS System",
+      "version": null,
+      "deployment_date": null,
+      "update_frequency": null,
+      "known_issues": "Transition in progress to new ERP and HRIS solution.",
+      "functional_area": "Financial Management & Procurement",
+      "vendor": null,
+      "functions": [
+        "Financial Transaction Processing",
+        "Financial Reporting & Reconciliation",
+        "Payroll Processing",
+        "HRIS & Employee Record Management"
+      ]
+    }
+  ]
+}
