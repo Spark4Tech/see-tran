@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title|default("SeeTran - Transit System Intelligence") }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for("static", filename="css/tailwind.css") }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -101,10 +102,13 @@
         <div class="text-slate-400 text-sm">
           SeeTran Platform. Transit system visibility and intelligence.
         </div>
-        <div class="flex space-x-6 mt-4 md:mt-0">
+        <div class="flex space-x-6 mt-4 md:mt-0 items-center">
           <a href="#" class="text-slate-400 hover:text-slate-300 text-sm">Documentation</a>
           <a href="#" class="text-slate-400 hover:text-slate-300 text-sm">API</a>
           <a href="#" class="text-slate-400 hover:text-slate-300 text-sm">Support</a>
+          <a href="/contribute" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 text-sm font-medium">
+            🌐 Open Source <span class="hidden sm:inline">&nbsp;| See how it works</span>
+          </a>
         </div>
       </div>
     </div>
