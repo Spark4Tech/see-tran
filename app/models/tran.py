@@ -140,6 +140,7 @@ class Component(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(1000))
     version = db.Column(db.String(50))
     deployment_date = db.Column(db.Date)
     update_frequency = db.Column(db.String(50))

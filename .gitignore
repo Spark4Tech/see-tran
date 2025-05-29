@@ -1,3 +1,10 @@
+# Project Specific
+data/
+prompts/
+combined.txt
+setup.sh 
+scripts/
+
 # Python
 __pycache__/
 *.py[cod]
