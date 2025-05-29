@@ -1,7 +1,7 @@
 # run.py
 from app import create_app, db
 from app.models.tran import (
-    TransitSystem, FunctionalArea, Vendor, System,
+    Agency, FunctionalArea, Vendor, Component,
     IntegrationPoint, UserRole, UpdateLog
 )
 import os
@@ -16,10 +16,10 @@ def make_shell_context():
     return {
         'app': app,
         'db': db,
-        'TransitSystem': TransitSystem,
+        'Agency': Agency,                    # was TransitSystem
         'FunctionalArea': FunctionalArea,
         'Vendor': Vendor,
-        'System': System,
+        'Component': Component,              # was System
         'IntegrationPoint': IntegrationPoint,
         'UserRole': UserRole,
         'UpdateLog': UpdateLog

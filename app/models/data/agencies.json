@@ -1,0 +1,124 @@
+{
+  "agencies": [
+    {
+      "id": 1,
+      "name": "C-TRAN",
+      "location": "Vancouver, Washington",
+      "description": "Public transit agency serving Clark County, Washington, providing fixed-route, express commuter, and demand-response services.",
+      "website": "https://www.c-tran.com",
+      "ceo": "Leann Caver",
+      "address_hq": "10600 NE 51st Circle, Vancouver, WA 98682",
+      "phone_number": "360-695-0123",
+      "transit_map_link": "https://www.c-tran.com/routes",
+      "contact_email": "customerservice@c-tran.com",
+      "contact_phone": "360-695-0123",
+      "contact_name": "Customer Service",
+      "additional_metadata": {
+        "service_area_population": "500,000+",
+        "fleet_size": 100,
+        "annual_ridership": "5 million"
+      }
+    },
+    {
+      "id": 2,
+      "name": "TriMet",
+      "location": "Portland, Oregon",
+      "description": "Primary public transportation provider in Portland metro area, offering bus, MAX light rail, WES commuter rail, and paratransit services.",
+      "website": "https://trimet.org",
+      "ceo": "Sam Desue, Jr. (GM)",
+      "address_hq": "1800 SW 1st Ave, Portland, OR 97201",
+      "phone_number": "503-238-7433",
+      "transit_map_link": "https://trimet.org/schedules",
+      "contact_email": "hello@trimet.org",
+      "contact_phone": "503-238-7433",
+      "contact_name": "Customer Service",
+      "additional_metadata": {
+        "service_area_population": "1.8 million",
+        "fleet_size": 700,
+        "annual_ridership": "50 million"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Spokane Transit Authority (STA)",
+      "location": "Spokane, Washington",
+      "description": "Public transportation provider serving the Spokane metro area, offering fixed-route bus, paratransit, and vanpool services.",
+      "website": "https://www.spokanetransit.com",
+      "ceo": "E. Susan Meyer",
+      "address_hq": "1230 W Boone Ave, Spokane, WA 99201",
+      "phone_number": "509-328-7433",
+      "transit_map_link": "https://www.spokanetransit.com/routes-schedules/",
+      "contact_email": "customerservice@spokanetransit.com",
+      "contact_phone": "509-328-7433",
+      "contact_name": "Customer Service",
+      "additional_metadata": {
+        "service_area_population": "450,000",
+        "fleet_size": 150,
+        "annual_ridership": "11 million"
+      }
+    },
+    {
+      "id": 4,
+      "name": "King County Metro",
+      "location": "Seattle, WA",
+      "description": "Known for innovative transit technology and frequent service, Metro operates buses, water taxis, and partnerships for regional rail.",
+      "website": "https://kingcounty.gov/metro",
+      "ceo": "Michelle Allison (General Manager)",
+      "address_hq": "201 S. Jackson St., Seattle, WA 98104",
+      "phone_number": "206-553-3000",
+      "transit_map_link": "https://experience.arcgis.com/experience/b165327a8a244cf3b3491020783ffbe4"
+    },
+    {
+      "id": 5,
+      "name": "GoDurham",
+      "location": "Durham, NC",
+      "description": "Well-regarded small urban system offering local and regional bus services with growing investment in transit infrastructure.",
+      "website": "https://godurhamtransit.org",
+      "ceo": "Doug Middleton (General Manager)",
+      "address_hq": "1903 Fay Street, Durham, NC 27704",
+      "phone_number": "919-485-7433",
+      "transit_map_link": "https://godurhamtransit.org/system-map"
+    },
+    {
+      "id": 6,
+      "name": "Chapel Hill Transit",
+      "location": "Chapel Hill, NC",
+      "description": "University-town system known for fare-free service and high rider satisfaction; jointly operated by Chapel Hill, Carrboro, and UNC.",
+      "website": "https://www.townofchapelhill.org/transit",
+      "ceo": "Brian Litchfield (Transit Director)",
+      "address_hq": "6900 Millhouse Rd., Chapel Hill, NC 27516",
+      "phone_number": "919-969-4900",
+      "transit_map_link": "https://www.townofchapelhill.org/home/showpublisheddocument/51208"
+    },
+    {
+      "id": 7,
+      "name": "Island Transit",
+      "location": "Whidbey Island, WA",
+      "description": "Provides fare-free rural and small-town transit services across island communities with a focus on access and equity.",
+      "website": "https://www.islandtransit.org",
+      "ceo": "Melinda Adams (Executive Director)",
+      "address_hq": "19758 SR 20, Coupeville, WA 98239",
+      "phone_number": "360-678-7771",
+      "transit_map_link": "https://irp.cdn-website.com/ac3d33af/files/uploaded/IT-WhidbeyServiceGuide-Jan25-Final-2.pdf"
+    },
+    {
+      "id": 8,
+      "name": "Central Ohio Transit Authority (COTA)",
+      "location": "Columbus, Ohio",
+      "description": "The primary public transportation provider for Columbus and Central Ohio, offering fixed-route bus, paratransit, and innovative mobility services, including bus rapid transit (BRT) and microtransit solutions.",
+      "website": "https://www.cota.com",
+      "ceo": "Joanna Pinkerton",
+      "address_hq": "33 N. High Street, Columbus, OH 43215",
+      "phone_number": "614-228-1776",
+      "transit_map_link": "https://www.cota.com/maps-schedules",
+      "contact_email": "customerservice@cota.com",
+      "contact_phone": "614-228-1776",
+      "contact_name": "Customer Service",
+      "additional_metadata": {
+        "service_area_population": "1.2 million",
+        "fleet_size": 322,
+        "annual_ridership": "18 million"
+      }
+    }
+  ]
+}

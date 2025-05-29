@@ -1,0 +1,134 @@
+{
+  "implementations": [
+    {
+      "agency": "C-TRAN",
+      "component": "Electronic Farebox (Cash Fare Collection)",
+      "function": "Fare Collection",
+      "deployment_date": "2016-01-01",
+      "version": "LECIP LF-7000 series",
+      "status": "Active",
+      "deployment_notes": "Replaced 25-year-old fareboxes across entire fleet",
+      "implementation_notes": "Improved transaction speed with deep coin hopper and modular design. Eliminated manual transfer punching for drivers.",
+      "additional_metadata": {
+        "fleet_coverage": "100%",
+        "units_deployed": 105,
+        "replacement_cycle": "Expected 15+ years"
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "Contactless Smart Card Validator (Hop Fastpass Reader)",
+      "function": "Fare Collection",
+      "deployment_date": "2017-07-01",
+      "version": "INIT / FEIG contactless validator",
+      "status": "Active",
+      "deployment_notes": "Part of regional Hop Fastpass rollout with TriMet and Portland Streetcar",
+      "implementation_notes": "Enables account-based fare capping and seamless transfers across regional transit systems",
+      "additional_metadata": {
+        "fleet_coverage": "100%",
+        "units_deployed": 105,
+        "regional_integration": true,
+        "partners": ["TriMet", "Portland Streetcar"]
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "CAD/AVL Driver Console (INIT Onboard Unit)",
+      "function": "Vehicle Operations Management",
+      "deployment_date": "2014-01-01",
+      "version": "INIT MOBILE-ITCS CAD/AVL (2014 release)",
+      "status": "Active",
+      "deployment_notes": "Major upgrade from 2004 system, integrated with Hop e-fare system",
+      "implementation_notes": "Provides real-time GPS tracking, schedule adherence monitoring, and driver messaging. Integrated with fare collection and passenger information systems.",
+      "additional_metadata": {
+        "fleet_coverage": "100%",
+        "units_deployed": 105,
+        "previous_system": "INIT 2004 generation",
+        "integrations": ["fare_collection", "passenger_info"]
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "Digital Two-Way Radio Communication System", 
+      "function": "Operator Communications",
+      "deployment_date": "2013-01-01",
+      "version": "Tait P25 digital radio network",
+      "status": "Active",
+      "deployment_notes": "System-wide upgrade completed, replacing older analog UHF radios",
+      "implementation_notes": "Provides clear, encrypted voice channels with emergency alarm functionality. Improved reliability and interoperability with other agencies.",
+      "additional_metadata": {
+        "fleet_coverage": "100%",
+        "mobile_radios": 120,
+        "portable_radios": 45,
+        "base_stations": 3,
+        "coverage_area": "Clark County"
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "Electronic Destination Sign System",
+      "function": "Real-Time Passenger Information",
+      "deployment_date": "2010-01-01",
+      "version": "Luminator LED Destination Displays",
+      "status": "Active",
+      "deployment_notes": "Phased replacement of older flip-dot signs with LED technology",
+      "implementation_notes": "Automatically updates when driver logs into route via CAD system. Provides high-visibility route and destination information in all lighting conditions.",
+      "additional_metadata": {
+        "fleet_coverage": "100%",
+        "units_per_bus": 3,
+        "locations": ["front", "side", "rear"],
+        "automation": "cad_integration"
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "Onboard Video Surveillance System",
+      "function": "Onboard Safety & Security",
+      "deployment_date": "2014-01-01",
+      "version": "Apollo Video RoadRunner DVR with ViM software",
+      "status": "Active",
+      "deployment_notes": "Full fleet retrofit completed, replacing older limited-coverage DVR systems",
+      "implementation_notes": "8-12 HD cameras per bus covering 95% of interior and surroundings. Wireless footage offload and health monitoring for failed cameras.",
+      "additional_metadata": {
+        "fleet_coverage": "100%",
+        "cameras_per_bus": "8-12",
+        "coverage_percentage": 95,
+        "data_offload": "wireless",
+        "health_monitoring": true
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "Collision Avoidance Driver Assistance System",
+      "function": "Onboard Safety & Security",
+      "deployment_date": "2015-01-01",
+      "version": "Mobileye Shield+ (Transit Pedestrian Collision Warning)",
+      "status": "Pilot",
+      "deployment_notes": "Initial deployment on 7 buses as part of statewide pilot program",
+      "implementation_notes": "Provides up to 3 seconds warning for pedestrians, cyclists, or vehicles in collision path. Drivers reported positive feedback during pilot phase.",
+      "additional_metadata": {
+        "fleet_coverage": "7%",
+        "units_deployed": 7,
+        "pilot_program": true,
+        "warning_time": "up_to_3_seconds",
+        "driver_feedback": "positive"
+      }
+    },
+    {
+      "agency": "C-TRAN",
+      "component": "Eco-Driving Driver Assistance (Efficiency Coaching)",
+      "function": "Driver Assistance & Coaching",
+      "deployment_date": "2024-01-01",
+      "version": "INIT MOBILEefficiency (CarMedialab)",
+      "status": "Active",
+      "deployment_notes": "Deployed with new electric bus fleet to optimize energy efficiency",
+      "implementation_notes": "Analyzes driving behavior and battery usage on electric buses. Provides real-time coaching for smooth acceleration, optimal coasting, and regenerative braking.",
+      "additional_metadata": {
+        "fleet_coverage": "Electric buses only",
+        "vehicle_types": ["electric"],
+        "deployment_scope": "new_electric_fleet",
+        "energy_optimization": true
+      }
+    }
+  ]
+}

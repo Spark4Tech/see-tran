@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Transit System Data Loader
+Agency Data Loader
 
 Usage:
     python load_transit_systems.py                           # Load systems (skip duplicates)
@@ -16,7 +16,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app, db
-from app.models.tran import TransitSystem
+from app.models.tran import Agency
 
 def normalize_name(name):
     """Case-insensitive name normalization"""
@@ -25,7 +25,7 @@ def normalize_name(name):
 def clear_data():
     """Deletes all transit systems"""
     print("🗑️  Clearing all transit systems...")
-    TransitSystem.query.delete()
+    Agency.query.delete()
     db.session.commit()
     print("✅ All transit systems deleted.")
 
@@ -51,7 +51,7 @@ def load_transit_systems_from_file(filename, replace_mode=False):
     }
 
     existing = {
-        normalize_name(ts.name): ts for ts in TransitSystem.query.all()
+        normalize_name(ts.name): ts for ts in Agency.query.all()
     }
 
     for ts_data in data.get("transit_systems", []):
@@ -62,7 +62,7 @@ def load_transit_systems_from_file(filename, replace_mode=False):
             continue
 
         # All fields present in your model
-        system = TransitSystem(
+        system = Agency(
             name=ts_data['name'],
             location=ts_data.get('location'),
             description=ts_data.get('description'),
@@ -117,7 +117,7 @@ def main():
         success = load_transit_systems_from_file(args.file, replace_mode=args.replace)
 
         if success:
-            print(f"\n📈 Total Transit Systems: {TransitSystem.query.count()}")
+            print(f"\n📈 Total Transit Systems: {Agency.query.count()}")
         else:
             sys.exit(1)
 

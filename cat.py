@@ -26,10 +26,10 @@ files_to_concatenate = [
     'tailwind.config.js',        # Tailwind configuration
     
     # Templates
-    'app/templates/base.html',   # Base template
-    'app/templates/index.html',  # Main page template
-    'app/templates/systems.html',# Systems page
-    'app/templates/vendors.html',# Vendors page
+    #'app/templates/base.html',   # Base template
+    #'app/templates/index.html',  # Main page template
+    #'app/templates/systems.html',# Systems page
+    #'app/templates/vendors.html',# Vendors page
     
     # Data Loading Scripts
     #'scripts/load_tran.py',      # TRAN data loader

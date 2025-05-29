@@ -6,7 +6,7 @@
   <!-- Page Header -->
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-white mb-2">Functional Areas Management</h1>
-    <p class="text-slate-400">Manage functional areas within your transit systems and their organizational structure.</p>
+    <p class="text-slate-400">Manage global functional areas that organize transit technology functions across all agencies.</p>
   </div>
 
   <!-- Actions Bar -->
@@ -15,20 +15,12 @@
       
       <!-- Filters -->
       <div class="flex flex-col sm:flex-row gap-4 flex-1">
-        <!-- Transit System Filter -->
-        <select id="transit-system-filter" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" hx-include="[id='area-search']" hx-vals="js:{transit_system: event.target.value}">
-          <option value="">All Transit Systems</option>
-          <!-- Options will be populated by HTMX -->
-        </select>
-
         <!-- Search -->
         <div class="relative flex-1 max-w-md">
           <input type="text" id="area-search" placeholder="Search functional areas..." 
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
                  hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" hx-trigger="keyup changed delay:300ms" 
-                 hx-include="[id='transit-system-filter']" hx-vals="js:{search: event.target.value}">
+                 hx-vals="js:{search: event.target.value}">
           <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
           </svg>
@@ -105,19 +97,48 @@
             <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Categories</span>
-            <span class="text-white font-medium" hx-get="/api/count/categories" hx-trigger="load">--</span>
-          </div>
-          <div class="flex justify-between items-center">
             <span class="text-slate-400 text-sm">Functions</span>
             <span class="text-white font-medium" hx-get="/api/count/functions" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Components</span>
+            <span class="text-white font-medium" hx-get="/api/count/components" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Agencies</span>
+            <span class="text-white font-medium" hx-get="/api/count/agencies" hx-trigger="load">--</span>
           </div>
         </div>
       </div>
 
-      <!-- Transit System Selector -->
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50" hx-get="/api/transit-systems/selector" hx-trigger="load" hx-target="this" hx-swap="innerHTML">
-        <!-- Transit system selector will be loaded here -->
+      <!-- Global Info Panel -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+          </svg>
+          Global Structure
+        </h3>
+        <div class="space-y-3 text-sm text-slate-300">
+          <p>Functional areas are shared across all transit agencies, providing a consistent framework for organizing technology functions.</p>
+          <div class="bg-slate-700/30 rounded-lg p-3">
+            <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">Hierarchy</p>
+            <div class="space-y-1 text-xs">
+              <div class="flex items-center">
+                <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                <span>Functional Areas (Global)</span>
+              </div>
+              <div class="flex items-center ml-4">
+                <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                <span>Functions</span>
+              </div>
+              <div class="flex items-center ml-8">
+                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                <span>Components (Agency-specific)</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -138,14 +159,6 @@ document.body.addEventListener('htmx:afterRequest', function(e) {
     // Success: refresh list and show success message
     htmx.trigger('#functional-areas-list', 'refresh');
   }
-});
-
-// Load transit system options on page load
-document.addEventListener('DOMContentLoaded', function() {
-  htmx.ajax('GET', '/api/transit-systems/options', {
-    target: '#transit-system-filter',
-    swap: 'innerHTML'
-  });
 });
 </script>
 {% endblock %}

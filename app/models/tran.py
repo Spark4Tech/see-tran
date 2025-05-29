@@ -5,21 +5,21 @@ from app import db
 import enum
 
 # Association Tables
-system_integration = db.Table(
-    'system_integration',
-    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
+component_integration = db.Table(
+    'component_integration',
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True),
     db.Column('integration_point_id', db.Integer, db.ForeignKey('integration_points.id'), primary_key=True)
 )
 
-system_function = db.Table(
-    'system_function',
-    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
-    db.Column('function_id', db.Integer, db.ForeignKey('functions.id'), primary_key=True)
+function_component = db.Table(
+    'function_component',
+    db.Column('function_id', db.Integer, db.ForeignKey('functions.id'), primary_key=True),
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True)
 )
 
-system_tag = db.Table(
-    'system_tag',
-    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
+component_tag = db.Table(
+    'component_tag',
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True),
     db.Column('tag_id', db.Integer, db.ForeignKey('tags.id'), primary_key=True)
 )
 
@@ -42,8 +42,8 @@ class Criticality(enum.Enum):
     low = "low"
 
 # Core Models
-class TransitSystem(db.Model):
-    __tablename__ = 'transit_systems'
+class Agency(db.Model):
+    __tablename__ = 'agencies'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -61,25 +61,11 @@ class TransitSystem(db.Model):
     __table_args__ = (
         db.UniqueConstraint('name', name='uq_transit_system_name'),
     )
-    systems_used = db.relationship('TransitSystemSystem', back_populates='transit_system', cascade='all, delete-orphan')
+
+    function_implementations = db.relationship('AgencyFunctionImplementation', back_populates='agency', cascade='all, delete-orphan')
     
-
-    functional_areas = db.relationship('FunctionalArea', back_populates='transit_system', cascade='all, delete-orphan')
-
     def __repr__(self):
-        return f"<TransitSystem(name={self.name}, location={self.location})>"
-
-class TransitSystemSystem(db.Model):
-    __tablename__ = 'transit_system_system'
-    id = db.Column(db.Integer, primary_key=True)
-    transit_system_id = db.Column(db.Integer, db.ForeignKey('transit_systems.id'), nullable=False)
-    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'), nullable=False)
-    deployment_notes = db.Column(db.String(1000))
-    deployment_date = db.Column(db.Date)
-    
-    # Use back_populates consistently (remove backref)
-    system = db.relationship('System', back_populates='deployments')
-    transit_system = db.relationship('TransitSystem', back_populates='systems_used')
+        return f"<Agency(name={self.name}, location={self.location})>"
 
 class FunctionalArea(db.Model):
     __tablename__ = 'functional_areas'
@@ -88,28 +74,10 @@ class FunctionalArea(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
 
-    transit_system_id = db.Column(db.Integer, db.ForeignKey('transit_systems.id'), nullable=False)
-    transit_system = db.relationship('TransitSystem', back_populates='functional_areas')
-
-    categories = db.relationship('Category', back_populates='functional_area', cascade='all, delete-orphan')
+    functions = db.relationship('Function', back_populates='functional_area', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<FunctionalArea(name={self.name})>"
-
-class Category(db.Model):
-    __tablename__ = 'categories'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.String(500))
-
-    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'), nullable=False)
-    functional_area = db.relationship('FunctionalArea', back_populates='categories')
-
-    functions = db.relationship('Function', back_populates='category', cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f"<Category(name={self.name})>"
 
 class Function(db.Model):
     __tablename__ = 'functions'
@@ -119,10 +87,11 @@ class Function(db.Model):
     description = db.Column(db.String(500))
     criticality = db.Column(db.Enum(Criticality), default=Criticality.medium, nullable=False)
 
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    category = db.relationship('Category', back_populates='functions')
+    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'), nullable=False)
+    functional_area = db.relationship('FunctionalArea', back_populates='functions')
 
-    systems = db.relationship('System', secondary=system_function, back_populates='functions')
+    components = db.relationship('Component', secondary='function_component', back_populates='functions')
+    agency_implementations = db.relationship('AgencyFunctionImplementation', back_populates='function', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Function(name={self.name}, criticality={self.criticality.value})>"
@@ -143,7 +112,7 @@ class Vendor(db.Model):
     contact_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 
-    systems = db.relationship('System', back_populates='vendor', cascade='all, delete-orphan')
+    components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Vendor(name={self.name})>"
@@ -166,8 +135,8 @@ class Vendor(db.Model):
         else:
             return None
 
-class System(db.Model):
-    __tablename__ = 'systems'
+class Component(db.Model):
+    __tablename__ = 'components'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -176,28 +145,52 @@ class System(db.Model):
     update_frequency = db.Column(db.String(50))
     known_issues = db.Column(db.String(500))
     additional_metadata = db.Column(db.JSON)
-
-    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'))
-    functional_area = db.relationship('FunctionalArea')
-
+    # Component nesting functionality
+    parent_component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
+    parent_component = db.relationship('Component', remote_side=[id], backref='child_components')
+    is_composite = db.Column(db.Boolean, default=False, nullable=False)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
-    vendor = db.relationship('Vendor', back_populates='systems')
 
-    deployments = db.relationship('TransitSystemSystem', back_populates='system', cascade='all, delete-orphan')
-    functions = db.relationship('Function', secondary=system_function, back_populates='systems')
-    integration_points = db.relationship('IntegrationPoint', secondary=system_integration, back_populates='systems')
-    tags = db.relationship('Tag', secondary=system_tag, back_populates='systems')
-
-    user_roles = db.relationship('UserRole', back_populates='system', cascade='all, delete-orphan')
-    update_logs = db.relationship('UpdateLog', back_populates='system', cascade='all, delete-orphan')
-
-    def add_metadata(self, key: str, value: str):
-        if not self.additional_metadata:
-            self.additional_metadata = {}
-        self.additional_metadata[key] = value
+    vendor = db.relationship('Vendor', back_populates='components')
+    functions = db.relationship('Function', secondary='function_component', back_populates='components')
+    integration_points = db.relationship('IntegrationPoint', secondary='component_integration', back_populates='components')
+    tags = db.relationship('Tag', secondary='component_tag', back_populates='components')
+    user_roles = db.relationship('UserRole', back_populates='component', cascade='all, delete-orphan')
+    update_logs = db.relationship('UpdateLog', back_populates='component', cascade='all, delete-orphan')
+    agency_usages = db.relationship('AgencyFunctionImplementation', back_populates='component', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<System(name={self.name}, version={self.version})>"
+        return f"<Component(name={self.name}, version={self.version})>"
+    
+class AgencyFunctionImplementation(db.Model):
+    __tablename__ = 'agency_function_implementations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False)
+    function_id = db.Column(db.Integer, db.ForeignKey('functions.id'), nullable=False)
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False)
+    
+    # Agency-specific deployment details
+    deployment_date = db.Column(db.Date)
+    version = db.Column(db.String(50))
+    deployment_notes = db.Column(db.String(1000))
+    status = db.Column(db.String(50), default='Active')  # Active, Planned, Retired
+    implementation_notes = db.Column(db.String(1000))
+    additional_metadata = db.Column(db.JSON)
+    
+    # Relationships
+    agency = db.relationship('Agency', back_populates='function_implementations')
+    function = db.relationship('Function', back_populates='agency_implementations')  
+    component = db.relationship('Component', back_populates='agency_usages')
+    
+    # Unique constraint
+    __table_args__ = (
+        db.UniqueConstraint('agency_id', 'function_id', 'component_id', 
+                          name='uq_agency_function_component'),
+    )
+    
+    def __repr__(self):
+        return f"<AgencyFunctionImplementation(agency={self.agency.name if self.agency else None}, function={self.function.name if self.function else None}, component={self.component.name if self.component else None})>"
 
 class IntegrationPoint(db.Model):
     __tablename__ = 'integration_points'
@@ -208,7 +201,7 @@ class IntegrationPoint(db.Model):
     website = db.Column(db.String(255))
 
     standards = db.relationship('Standard', secondary=integration_standard, back_populates='integration_points')
-    systems = db.relationship('System', secondary=system_integration, back_populates='integration_points')
+    components = db.relationship('Component', secondary='component_integration', back_populates='integration_points')
     tags = db.relationship('Tag', secondary=integration_tag, back_populates='integration_points')
 
     def __repr__(self):
@@ -251,7 +244,7 @@ class Tag(db.Model):
     tag_group_id = db.Column(db.Integer, db.ForeignKey('tag_groups.id'), nullable=False)
     tag_group = db.relationship('TagGroup', back_populates='tags')
 
-    systems = db.relationship('System', secondary=system_tag, back_populates='tags')
+    components = db.relationship('Component', secondary='component_tag', back_populates='tags')
     integration_points = db.relationship('IntegrationPoint', secondary=integration_tag, back_populates='tags')
 
     def __repr__(self):
@@ -264,8 +257,8 @@ class UserRole(db.Model):
     role_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
 
-    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'))
-    system = db.relationship('System', back_populates='user_roles')
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'))
+    component = db.relationship('Component', back_populates='user_roles')
 
     def __repr__(self):
         return f"<UserRole(role_name={self.role_name})>"
@@ -274,12 +267,12 @@ class UpdateLog(db.Model):
     __tablename__ = 'update_logs'
 
     id = db.Column(db.Integer, primary_key=True)
-    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'), nullable=False)
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False)
     updated_by = db.Column(db.String(100), nullable=False)
     update_date = db.Column(db.DateTime, default=datetime.utcnow)
     change_summary = db.Column(db.String(1000))
 
-    system = db.relationship('System', back_populates='update_logs')
+    component = db.relationship('Component', back_populates='update_logs')
 
     def __repr__(self):
-        return f"<UpdateLog(system_id={self.system_id}, updated_by={self.updated_by})>"
+        return f"<UpdateLog(component_id={self.component_id}, updated_by={self.updated_by})>"

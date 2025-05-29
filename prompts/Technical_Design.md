@@ -2,7 +2,7 @@
 
 ## Core Functional Areas and Supporting Systems
 
-This is a general functional organization, designed be representable visually.
+This is a general functional organization, designed to be representable visually.
 
 ### 1. Operations Management (Service Dispatch & Control)
 

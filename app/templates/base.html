@@ -53,14 +53,15 @@
         
         <!-- Logo and Brand -->
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
+          <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" 
+                 alt="SeeTran Logo" 
+                 class="w-5 h-5 object-contain">
           </div>
           <div>
             <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              SeeTran
+              see-tran
             </h1>
             <p class="text-xs text-slate-400">Transit System Intelligence</p>
           </div>
@@ -68,9 +69,9 @@
 
         <div class="hidden md:flex items-center space-x-8">
           <a href="/" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Dashboard</a>
-          <a href="/transit-systems" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Transit Systems</a>
+          <a href="/agencies" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Transit Agencies</a>
           <a href="/functional-areas" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Functional Areas</a>
-          <a href="/systems" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Systems</a>
+          <a href="/components" class="nav-link text-slate-300 hover:text-white text-sm font-medium">System Components</a>
           <a href="/vendors" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Vendors</a>
           <a href="/integration" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Integration</a>
           <a href="/reports" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Reports</a>

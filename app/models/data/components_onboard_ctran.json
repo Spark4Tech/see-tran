@@ -1,0 +1,146 @@
+{
+  "components": [
+    {
+      "name": "Electronic Farebox (Cash Fare Collection)",
+      "description": "A bus-mounted farebox that securely accepts coins and bills, prints transfers, and counts fares. C-TRAN replaced its 25-year-old fareboxes with this modern LECIP model in 2016, improving transaction speed with a deep coin hopper and modular design for easy maintenance.",
+      "is_composite": false,
+      "version": "LECIP LF-7000 series farebox",
+      "deployment_date": "2016-01-01",
+      "update_frequency": "Rare firmware updates; 5-year maintenance cycles with periodic software support",
+      "known_issues": "Occasional coin jams handled via routine maintenance. Initial installation challenges were resolved through collaborative effort.",
+      "vendor": "LECIP Inc.",
+      "additional_metadata": {
+        "system_type": "Fare Collection Hardware",
+        "payment_methods": ["coins", "bills"],
+        "features": ["transfer_printing", "fare_counting"]
+      }
+    },
+    {
+      "name": "Contactless Smart Card Validator (Hop Fastpass Reader)",
+      "description": "An on-board contactless payment validator that allows riders to 'tap' Hop Fastpass cards, mobile wallets, or QR codes to pay fares. These INIT-manufactured readers provide quick (<0.5s) fare validation and support open-loop payments and offline mode transactions.",
+      "is_composite": false,
+      "version": "INIT / FEIG contactless validator",
+      "deployment_date": "2017-07-01",
+      "update_frequency": "Remotely updated and monitored through INIT's management application; firmware/configuration updates rolled out centrally as needed",
+      "known_issues": null,
+      "vendor": "INIT Innovations in Transportation, Inc.",
+      "additional_metadata": {
+        "system_type": "Fare Collection Hardware",
+        "response_time": "< 0.5 seconds",
+        "payment_methods": ["contactless_cards", "mobile_wallets", "qr_codes"],
+        "offline_capable": true
+      }
+    },
+    {
+      "name": "CAD/AVL Driver Console (INIT Onboard Unit)",
+      "description": "An integrated Computer-Aided Dispatch/Automatic Vehicle Location unit by INIT that provides the driver interface for route information, GPS-based tracking, on-time performance, and messaging. Includes a touchscreen/keyboard MDT for log-in, real-time navigation and emergency alarms.",
+      "is_composite": false,
+      "version": "INIT MOBILE-ITCS CAD/AVL (2014 release)",
+      "deployment_date": "2014-01-01",
+      "update_frequency": "Major system upgrades approximately every 10 years; incremental software patches and map updates periodically via maintenance contract",
+      "known_issues": "Occasional GPS dropouts or software glitches are addressed by vendor updates; overall system is stable with ongoing support",
+      "vendor": "INIT Innovations in Transportation, Inc.",
+      "additional_metadata": {
+        "system_type": "CAD/AVL",
+        "features": ["gps_tracking", "dispatch_messaging", "emergency_alarms", "route_navigation"],
+        "interface": "touchscreen_keyboard"
+      }
+    },
+    {
+      "name": "CAD/AVL Driver Console (Trapeze Onboard System)",
+      "description": "The onboard bus control unit from Trapeze Group providing CAD/AVL functionality for dispatch communication, GPS tracking, and automated passenger information. Integrates with automated passenger counters and next-stop audio/visual announcements.",
+      "is_composite": false,
+      "version": "Trapeze TransitMaster CAD/AVL",
+      "deployment_date": "2013-01-01",
+      "update_frequency": "Software updates provided via vendor support; major upgrades aligned with 5–10 year technology refresh cycles",
+      "known_issues": null,
+      "vendor": "Trapeze Group (Volaris)",
+      "additional_metadata": {
+        "system_type": "CAD/AVL",
+        "features": ["gps_tracking", "dispatch_messaging", "passenger_counters", "stop_announcements"],
+        "integration": "automated_passenger_info"
+      }
+    },
+    {
+      "name": "Digital Two-Way Radio Communication System",
+      "description": "A trunked digital radio system (Project 25 standard) that provides voice communications between bus operators and dispatch. Features include one-touch emergency alarm and silent alarm functionality that alert dispatch with the vehicle's GPS location.",
+      "is_composite": false,
+      "version": "Tait P25 digital radio network",
+      "deployment_date": "2013-01-01",
+      "update_frequency": "Infrequent firmware updates; infrastructure and mobile units have a lifecycle of ~15+ years",
+      "known_issues": null,
+      "vendor": "Tait Communications",
+      "additional_metadata": {
+        "system_type": "Radio Communications",
+        "standard": "Project 25 (P25)",
+        "features": ["emergency_alarm", "silent_alarm", "gps_location", "encrypted_voice"],
+        "coverage": "system_wide"
+      }
+    },
+    {
+      "name": "Electronic Destination Sign System",
+      "description": "LED destination displays mounted on the front, side, and rear of the bus to inform passengers of the route number and destination. Energy-efficient and durable with brightness sensors to adjust to ambient light.",
+      "is_composite": false,
+      "version": "Luminator LED Destination Displays (Horizon series)",
+      "deployment_date": "2010-01-01",
+      "update_frequency": "Route database updated as needed when routes or names change; hardware replaced during fleet renewal or when failures occur (typical lifespan ~12 years)",
+      "known_issues": "Occasionally, failed LED segments or driver input errors can display incorrect information, which maintenance or the driver can correct",
+      "vendor": "Luminator Technology Group",
+      "additional_metadata": {
+        "system_type": "Passenger Information Display",
+        "display_type": "LED",
+        "locations": ["front", "side", "rear"],
+        "features": ["brightness_sensors", "route_automation"]
+      }
+    },
+    {
+      "name": "Onboard Video Surveillance System",
+      "description": "A multi-camera CCTV system that records video and audio on the bus for safety and security. Each bus has a network of 8 to 12 high-definition cameras covering about 95% of the bus's interior and surroundings. Footage is offloaded wirelessly to the central system.",
+      "is_composite": false,
+      "version": "Apollo Video RoadRunner DVR with ViM software",
+      "deployment_date": "2014-01-01",
+      "update_frequency": "Software/firmware updates occasionally to improve video quality or storage efficiency; storage drives replaced periodically",
+      "known_issues": null,
+      "vendor": "Apollo Video Technology (Luminator Transit Division)",
+      "additional_metadata": {
+        "system_type": "Video Surveillance",
+        "camera_count": "8-12",
+        "coverage": "95%",
+        "recording": "video_and_audio",
+        "data_transfer": "wireless_offload"
+      }
+    },
+    {
+      "name": "Collision Avoidance Driver Assistance System",
+      "description": "An active safety system that warns bus operators of pedestrians, cyclists, or vehicles in blind spots or when a forward collision risk is detected. Uses multiple vision sensors/cameras and provides audible/visual alerts with up to 3 seconds of warning.",
+      "is_composite": false,
+      "version": "Mobileye Shield+ (Transit Pedestrian Collision Warning)",
+      "deployment_date": "2015-01-01",
+      "update_frequency": "Installed as an aftermarket kit; calibration updates or software enhancements applied occasionally during regular vehicle servicing",
+      "known_issues": null,
+      "vendor": "Mobileye (Intel Company)",
+      "additional_metadata": {
+        "system_type": "Driver Assistance",
+        "warning_time": "up_to_3_seconds",
+        "detection": ["pedestrians", "cyclists", "vehicles"],
+        "installation": "aftermarket_kit"
+      }
+    },
+    {
+      "name": "Eco-Driving Driver Assistance (Efficiency Coaching)",
+      "description": "An in-cab driver assistance tool that provides real-time feedback for efficient driving, particularly on hybrid or electric buses. Analyzes driving behavior and battery usage, giving operators instantaneous coaching for smoother acceleration, optimal coasting, and regenerative braking techniques.",
+      "is_composite": false,
+      "version": "INIT MOBILEefficiency (CarMedialab)",
+      "deployment_date": "2024-01-01",
+      "update_frequency": "Software-based system updated periodically as algorithms improve; feedback parameters can be adjusted without hardware changes",
+      "known_issues": null,
+      "vendor": "INIT Innovations in Transportation, Inc.",
+      "additional_metadata": {
+        "system_type": "Driver Assistance",
+        "vehicle_types": ["hybrid", "electric"],
+        "coaching_areas": ["acceleration", "coasting", "regenerative_braking"],
+        "interface": "in_cab_display"
+      }
+    }
+  ]
+}

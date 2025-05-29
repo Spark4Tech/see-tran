@@ -16,14 +16,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app, db
-from app.models.tran import Category, FunctionalArea
-
-def clear_category_data():
-    """Clear all categories."""
-    print("🗑️  Clearing all category data...")
-    Category.query.delete()
-    db.session.commit()
-    print("✅ Category data cleared.")
+from app.models.tran import FunctionalArea
 
 def normalize_name(name):
     return name.strip().lower()
