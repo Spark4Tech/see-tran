@@ -5,8 +5,8 @@
   
   <!-- Page Header -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Transit Systems Management</h1>
-    <p class="text-slate-400">Manage transit systems and their organizational structure.</p>
+    <h1 class="text-3xl font-bold text-white mb-2">Transit Agency Management</h1>
+    <p class="text-slate-400">Manage transit agencies and their organizational structure.</p>
   </div>
 
   <!-- Actions Bar -->
@@ -15,9 +15,9 @@
       
       <!-- Search -->
       <div class="relative flex-1 max-w-md">
-        <input type="text" id="transit-search" placeholder="Search transit systems..." 
+        <input type="text" id="agency-search" placeholder="Search transit agencies..." 
                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-               hx-get="/api/transit-systems/list" hx-target="#transit-systems-list" hx-trigger="keyup changed delay:300ms" 
+               hx-get="/api/agencies/list" hx-target="#agencies-list" hx-trigger="keyup changed delay:300ms" 
                hx-vals="js:{search: event.target.value}">
         <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
@@ -26,12 +26,12 @@
 
       <!-- Actions -->
       <div class="flex gap-2">
-        <button hx-get="/api/transit-systems/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+        <button hx-get="/api/agencies/form" hx-target="#agency-details" hx-swap="innerHTML"
                 class="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
           <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
           </svg>
-          Add Transit System
+          Add Transit Agency
         </button>
         <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
           Export
@@ -43,12 +43,12 @@
   <!-- Main Content Area -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
-    <!-- Transit Systems List -->
+    <!-- Agencies List -->
     <div class="lg:col-span-2">
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold text-white">Transit Systems</h2>
-          <button hx-get="/api/transit-systems/list" hx-target="#transit-systems-list" 
+          <h2 class="text-xl font-semibold text-white">Transit Agencies</h2>
+          <button hx-get="/api/agencies/list" hx-target="#agencies-list" 
                   class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
             <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
@@ -57,8 +57,8 @@
           </button>
         </div>
         
-        <div id="transit-systems-list" hx-get="/api/transit-systems/list" hx-trigger="load">
-          <!-- Transit systems will be loaded here -->
+        <div id="agencies-list" hx-get="/api/agencies/list" hx-trigger="load">
+          <!-- Agencies will be loaded here -->
           <div class="animate-pulse space-y-4">
             <div class="h-24 bg-slate-800 rounded-lg"></div>
             <div class="h-24 bg-slate-800 rounded-lg"></div>
@@ -69,10 +69,10 @@
     </div>
 
     <!-- Details/Form Sidebar -->
-    <div class="space-y-6">
+    <div class="space-y-6 sticky top-24 max-h-[calc(100vh-3rem)] overflow-y-auto">
       
-      <!-- Transit System Details Panel -->
-      <div id="transit-system-details">
+      <!-- Agency Details Panel -->
+      <div id="agency-details">
         <!-- Default state -->
         <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
           <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -80,8 +80,8 @@
               <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
             </svg>
           </div>
-          <h3 class="text-lg font-medium text-slate-400 mb-2">Transit System Details</h3>
-          <p class="text-slate-500 text-sm">Click on a transit system to view details or use the Add button to create a new one.</p>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Agency Details</h3>
+          <p class="text-slate-500 text-sm">Click on a transit agency to view details or use the Add button to create a new one.</p>
         </div>
       </div>
 
@@ -90,16 +90,16 @@
         <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
         <div class="space-y-3">
           <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Total Systems</span>
-            <span class="text-white font-medium" hx-get="/api/count/transit-systems" hx-trigger="load">--</span>
+            <span class="text-slate-400 text-sm">Total Agencies</span>
+            <span class="text-white font-medium" hx-get="/api/count/agencies" hx-trigger="load">--</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-slate-400 text-sm">Functional Areas</span>
             <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Active Systems</span>
-            <span class="text-white font-medium" hx-get="/api/count/systems" hx-trigger="load">--</span>
+            <span class="text-slate-400 text-sm">Active Components</span>
+            <span class="text-white font-medium" hx-get="/api/count/components" hx-trigger="load">--</span>
           </div>
         </div>
       </div>
@@ -120,7 +120,7 @@ setInterval(function() {
 document.body.addEventListener('htmx:afterRequest', function(e) {
   if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
     // Success: refresh list and show success message
-    htmx.trigger('#transit-systems-list', 'refresh');
+    htmx.trigger('#agencies-list', 'refresh');
   }
 });
 </script>

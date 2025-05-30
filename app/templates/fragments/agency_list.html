@@ -1,0 +1,91 @@
+{% if agencies %}
+  {% for agency in agencies %}
+  <div class="agency-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
+       hx-get="/api/agencies/{{ agency.id }}/details" hx-target="#agency-details" hx-swap="innerHTML">
+    
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-start space-x-4 flex-1">
+        <!-- Agency Logo -->
+        {% if agency.logo_url %}
+        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+          <img src="{{ agency.logo_url }}" alt="{{ agency.name }} logo" 
+               class="w-full h-full object-contain">
+        </div>
+        {% else %}
+        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <span class="text-lg font-bold text-white">{{ agency.name[0].upper() }}</span>
+        </div>
+        {% endif %}
+        
+        <!-- Agency Info -->
+        <div class="flex-1">
+          <div class="flex items-center space-x-3 mb-2">
+            <h3 class="font-semibold text-white text-lg">{{ agency.name }}</h3>
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+          </div>
+          
+          {% if agency.location %}
+          <p class="text-slate-300 text-sm mb-2">📍 {{ agency.location }}</p>
+          {% endif %}
+          
+          {% if agency.description %}
+          <p class="text-slate-400 text-sm mb-3">{{ agency.description[:120] }}{% if agency.description|length > 120 %}...{% endif %}</p>
+          {% endif %}
+          
+          <div class="flex items-center space-x-4 text-xs text-slate-400">
+            <span>🔧 {{ agency.function_implementations|length }} implementations</span>
+            {% if agency.contact_name %}
+            <span>👤 {{ agency.contact_name }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stats Badge -->
+      <div class="text-center">
+        <div class="w-10 h-10 bg-blue-600/20 border border-blue-600/30 rounded-full flex items-center justify-center mb-1">
+          <span class="text-sm font-bold text-blue-300">{{ agency.function_implementations|length }}</span>
+        </div>
+        <div class="text-xs text-slate-500">Tech</div>
+      </div>
+    </div>
+    
+    <!-- Footer with Quick Actions -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
+      <div class="flex items-center space-x-3">
+        {% if agency.website %}
+        <a href="{{ agency.website }}" target="_blank" 
+           class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+           onclick="event.stopPropagation()" title="Website">
+          🌐 Website
+        </a>
+        {% endif %}
+        
+        {% if agency.contact_email %}
+        <a href="mailto:{{ agency.contact_email }}" 
+           class="text-xs text-green-400 hover:text-green-300 transition-colors"
+           onclick="event.stopPropagation()" title="Email">
+          📧 Contact
+        </a>
+        {% endif %}
+      </div>
+      
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
+              onclick="event.stopPropagation()">
+        Edit →
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="text-center py-12">
+  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+    </svg>
+  </div>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No Transit Agencies Found</h3>
+  <p class="text-slate-500">Try adjusting your search or add a new transit agency.</p>
+</div>
+{% endif %}

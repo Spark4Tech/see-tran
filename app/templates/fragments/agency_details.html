@@ -1,22 +1,28 @@
-<!-- app/templates/fragments/transit_system_details.html -->
-<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-bold text-white">{{ transit_system.name }}</h2>
-    <div class="flex gap-2">
-      <button hx-get="/api/transit-systems/{{ transit_system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+<div class="glass-effect rounded-xl overflow-hidden border border-slate-700/50">
+  <!-- Header Image -->
+  <div class="relative aspect-[2/1] bg-gradient-to-r from-slate-800 to-slate-700">
+    <img src="{{ agency.header_url }}" 
+         alt="{{ agency.name }} header" 
+         class="w-full h-full object-cover"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <!-- Fallback gradient when image doesn't exist -->
+    <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 hidden items-center justify-center">
+      <svg class="w-12 h-12 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+      </svg>
+    </div>
+  </div>
+  
+  <!-- Content with name and buttons -->
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-white">{{ agency.name }}</h2>
+      <div class="flex gap-2">
+      <button hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
         Edit
       </button>
-      <button onclick="document.getElementById('transit-system-details').innerHTML = `
-              <div class='glass-effect rounded-xl p-6 border border-slate-700/50 text-center'>
-                  <div class='w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4'>
-                      <svg class='w-8 h-8 text-slate-500' fill='currentColor' viewBox='0 0 20 20'>
-                          <path d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z'/>
-                      </svg>
-                  </div>
-                  <h3 class='text-lg font-medium text-slate-400 mb-2'>Transit System Details</h3>
-                  <p class='text-slate-500 text-sm'>Click on a transit system to view details or use the Add button to create a new one.</p>
-              </div>`"
+      <button onclick="closeAgencyDetails()"
               class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
         ✕ Close
       </button>
@@ -35,19 +41,19 @@
       <div class="space-y-3 text-sm">
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Location:</span>
-          <span class="text-white">{{ transit_system.location or 'Not specified' }}</span>
+          <span class="text-white">{{ agency.location or 'Not specified' }}</span>
         </div>
-        {% if transit_system.description %}
+        {% if agency.description %}
         <div class="pt-1">
           <span class="text-slate-400 block mb-2">Description:</span>
-          <p class="text-slate-300 leading-relaxed">{{ transit_system.description }}</p>
+          <p class="text-slate-300 leading-relaxed">{{ agency.description }}</p>
         </div>
         {% endif %}
       </div>
     </div>
 
     <!-- Leadership & Organization -->
-    {% if transit_system.ceo %}
+    {% if agency.ceo %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -58,14 +64,14 @@
       <div class="text-sm">
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">CEO:</span>
-          <span class="text-white">{{ transit_system.ceo }}</span>
+          <span class="text-white">{{ agency.ceo }}</span>
         </div>
       </div>
     </div>
     {% endif %}
 
     <!-- Contact Information -->
-    {% if transit_system.contact_name or transit_system.contact_email or transit_system.contact_phone or transit_system.phone_number %}
+    {% if agency.contact_name or agency.contact_email or agency.contact_phone or agency.phone_number %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
@@ -74,28 +80,28 @@
         Contact Information
       </h3>
       <div class="space-y-3 text-sm">
-        {% if transit_system.contact_name %}
+        {% if agency.contact_name %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Contact Person:</span>
-          <span class="text-white">{{ transit_system.contact_name }}</span>
+          <span class="text-white">{{ agency.contact_name }}</span>
         </div>
         {% endif %}
-        {% if transit_system.contact_email %}
+        {% if agency.contact_email %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Email:</span>
-          <a href="mailto:{{ transit_system.contact_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ transit_system.contact_email }}</a>
+          <a href="mailto:{{ agency.contact_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ agency.contact_email }}</a>
         </div>
         {% endif %}
-        {% if transit_system.contact_phone %}
+        {% if agency.contact_phone %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Phone:</span>
-          <a href="tel:{{ transit_system.contact_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ transit_system.contact_phone }}</a>
+          <a href="tel:{{ agency.contact_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ agency.contact_phone }}</a>
         </div>
         {% endif %}
-        {% if transit_system.phone_number and transit_system.phone_number != transit_system.contact_phone %}
+        {% if agency.phone_number and agency.phone_number != agency.contact_phone %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Main Phone:</span>
-          <a href="tel:{{ transit_system.phone_number }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ transit_system.phone_number }}</a>
+          <a href="tel:{{ agency.phone_number }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ agency.phone_number }}</a>
         </div>
         {% endif %}
       </div>
@@ -103,7 +109,7 @@
     {% endif %}
 
     <!-- Address & Location -->
-    {% if transit_system.address_hq %}
+    {% if agency.address_hq %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
@@ -112,13 +118,13 @@
         Headquarters
       </h3>
       <div class="text-sm">
-        <p class="text-slate-300 leading-relaxed">{{ transit_system.address_hq }}</p>
+        <p class="text-slate-300 leading-relaxed">{{ agency.address_hq }}</p>
       </div>
     </div>
     {% endif %}
 
     <!-- Online Resources -->
-    {% if transit_system.website or transit_system.transit_map_link %}
+    {% if agency.website or agency.agency_map_link %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
@@ -127,10 +133,10 @@
         Online Resources
       </h3>
       <div class="space-y-3 text-sm">
-        {% if transit_system.website %}
+        {% if agency.website %}
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
           <span class="text-slate-400 mb-2 sm:mb-0">Website:</span>
-          <a href="{{ transit_system.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+          <a href="{{ agency.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
             Visit Site
             <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
@@ -139,10 +145,10 @@
           </a>
         </div>
         {% endif %}
-        {% if transit_system.transit_map_link %}
+        {% if agency.agency_map_link %}
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
           <span class="text-slate-400 mb-2 sm:mb-0">Transit Map:</span>
-          <a href="{{ transit_system.transit_map_link }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+          <a href="{{ agency.agency_map_link }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
             View Map
             <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
@@ -156,7 +162,7 @@
     {% endif %}
 
     <!-- Additional Metadata -->
-    {% if transit_system.additional_metadata %}
+    {% if agency.additional_metadata %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -165,7 +171,7 @@
         Additional Information
       </h3>
       <div class="text-sm space-y-2">
-        {% for key, value in transit_system.additional_metadata.items() %}
+        {% for key, value in agency.additional_metadata.items() %}
         <div class="flex flex-col sm:flex-row sm:justify-between py-1">
           <span class="text-slate-400 mb-1 sm:mb-0">{{ key|title }}:</span>
           <span class="text-white">{{ value }}</span>
@@ -175,27 +181,38 @@
     </div>
     {% endif %}
 
-    <!-- Functional Areas -->
-    {% if transit_system.functional_areas %}
+    <!-- Function Implementations -->
+    {% if agency.function_implementations %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
           <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
         </svg>
-        Functional Areas ({{ transit_system.functional_areas|length }})
+        Technology Implementations ({{ agency.function_implementations|length }})
       </h3>
-      <div class="space-y-3">
-        {% for area in transit_system.functional_areas %}
+      <div class="space-y-3 max-h-64 overflow-y-auto">
+        {% for impl in agency.function_implementations %}
         <div class="bg-slate-600/30 rounded-lg p-3">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ area.name }}</span>
-            <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded w-fit">
-              {{ area.categories|length }} categories
-            </span>
+            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ impl.function.name }}</span>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded">
+                {{ impl.function.functional_area.name }}
+              </span>
+              <span class="text-xs px-2 py-1 rounded 
+                {% if impl.status == 'Active' %}bg-green-600/20 text-green-300
+                {% elif impl.status == 'Planned' %}bg-yellow-600/20 text-yellow-300
+                {% else %}bg-slate-600/20 text-slate-300{% endif %}">
+                {{ impl.status }}
+              </span>
+            </div>
           </div>
-          {% if area.description %}
-          <p class="text-xs text-slate-400 mt-2">{{ area.description }}</p>
-          {% endif %}
+          <div class="text-xs text-slate-400 flex items-center justify-between">
+            <span>Component: {{ impl.component.name }}</span>
+            {% if impl.deployment_date %}
+            <span>Deployed: {{ impl.deployment_date.strftime('%Y-%m-%d') }}</span>
+            {% endif %}
+          </div>
         </div>
         {% endfor %}
       </div>
@@ -203,3 +220,18 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+function closeAgencyDetails() {
+  document.getElementById('agency-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Agency Details</h3>
+      <p class="text-slate-500 text-sm">Click on a transit agency to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+</script>

@@ -1,10 +1,11 @@
 # app/routes/main.py - Enhanced version
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, url_for
 from app import db
 from app.models.tran import (
     Agency, FunctionalArea, Component, Vendor, IntegrationPoint, 
     UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation
 )
+from app.forms.forms import AgencyForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
@@ -862,165 +863,147 @@ def agencies_list():
             query = query.filter(Agency.name.ilike(f'%{search}%'))
         
         agencies = query.order_by(Agency.name).all()
-        
-        return render_template('fragments/agency_component_list.html', 
+        for agency in agencies:
+            agency.logo_url = url_for('static', filename=f'images/transit_logos/{agency.short_name.lower().replace(" ", "_")}_logo.png')
+            
+        return render_template('fragments/agency_list.html', 
                              agencies=agencies)
     except Exception as e:
         return html_error_fragment(f"Error loading agencys: {str(e)}")
 
-@main.route("/api/agencies/<int:agency_component_id>/details")
-def agency_component_details(agency_component_id):
+@main.route("/api/agencies/<int:agency_id>/details")
+def agency_details(agency_id):
     """Get detailed information about a specific agency"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
+        agency = Agency.query.get_or_404(agency_id)
+        agency.header_url = url_for('static', filename=f'images/transit_headers/{agency.short_name.lower().replace(" ", "_")}_header.png')
+
         
-        return render_template('fragments/agency_component_details.html', 
-                             agency_component=agency_component)
+        return render_template('fragments/agency_details.html', 
+                             agency=agency)
     except Exception as e:
         return html_error_fragment(f"Error loading agency details: {str(e)}")
 
 @main.route("/api/agencies/form")
-def agency_component_form():
+def agency_form():
     """Return new agency form"""
     try:
-        return render_template('fragments/agency_component_form.html', 
-                             agency_component=None)
+        form = AgencyForm()
+        return render_template('fragments/agency_form.html', 
+                             form=form, 
+                             agency=None)
     except Exception as e:
         return html_error_fragment(f"Error loading form: {str(e)}")
 
-@main.route("/api/agencies/<int:agency_component_id>/form")
-def agency_component_edit_form(agency_component_id):
+
+@main.route("/api/agencies/<int:agency_id>/form")
+def agency_edit_form(agency_id):
     """Return edit agency form"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
+        agency = Agency.query.get_or_404(agency_id)
+        form = AgencyForm()
+        form.populate_from_agency(agency)
         
-        return render_template('fragments/agency_component_form.html', 
-                             agency_component=agency_component)
+        return render_template('fragments/agency_form.html', 
+                             form=form, 
+                             agency=agency)
     except Exception as e:
         return html_error_fragment(f"Error loading edit form: {str(e)}")
 
 @main.route("/api/agencies", methods=['POST'])
 @login_required
-def create_agency_component():
+def create_agency():
     """Create a new agency"""
     try:
-        data = request.form
+        form = AgencyForm()
         
-        # Validate required fields
-        if not data.get('name'):
-            return html_error_fragment("Agency name is required")
-        
-        # Check for duplicate names
-        existing = Agency.query.filter_by(name=data['name']).first()
-        if existing:
-            return html_error_fragment(f"Agency '{data['name']}' already exists")
-        
-        # Process additional metadata
-        additional_metadata = {}
-        metadata_keys = data.getlist('metadata_key[]')
-        metadata_values = data.getlist('metadata_value[]')
-        
-        for key, value in zip(metadata_keys, metadata_values):
-            if key.strip() and value.strip():  # Only add non-empty pairs
-                additional_metadata[key.strip()] = value.strip()
-        
-        # Create new agency with all fields
-        agency_component = Agency(
-            name=data['name'],
-            location=data.get('location') or None,
-            description=data.get('description') or None,
-            website=data.get('website') or None,
-            ceo=data.get('ceo') or None,
-            address_hq=data.get('address_hq') or None,
-            phone_number=data.get('phone_number') or None,
-            agency_map_link=data.get('agency_map_link') or None,
-            contact_email=data.get('contact_email') or None,
-            contact_phone=data.get('contact_phone') or None,
-            contact_name=data.get('contact_name') or None,
-            additional_metadata=additional_metadata if additional_metadata else None
-        )
-        
-        db.session.add(agency_component)
-        db.session.commit()
-        
-        return html_success_fragment(f"Agency '{agency_component.name}' created successfully")
+        if form.validate_on_submit():
+            # Check for duplicate names
+            existing = Agency.query.filter_by(name=form.name.data).first()
+            if existing:
+                return html_error_fragment(f"Agency '{form.name.data}' already exists")
+            
+            # Process additional metadata
+            additional_metadata = {}
+            metadata_keys = request.form.getlist('metadata_key[]')
+            metadata_values = request.form.getlist('metadata_value[]')
+            
+            for key, value in zip(metadata_keys, metadata_values):
+                if key.strip() and value.strip():
+                    additional_metadata[key.strip()] = value.strip()
+            
+            # Create new agency
+            agency = Agency()
+            form.populate_agency(agency)
+            agency.additional_metadata = additional_metadata if additional_metadata else None
+            
+            db.session.add(agency)
+            db.session.commit()
+            
+            return html_success_fragment(f"Agency '{agency.name}' created successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/agency_form.html', 
+                                 form=form, 
+                                 agency=None)
         
     except Exception as e:
         db.session.rollback()
         return html_error_fragment(f"Error creating agency: {str(e)}")
-
-@main.route("/api/agencies/<int:agency_component_id>", methods=['PUT'])
+    
+@main.route("/api/agencies/<int:agency_id>", methods=['POST'])  # Note: Using POST with _method=PUT for HTMX
 @login_required
-def update_agency_component(agency_component_id):
+def update_agency(agency_id):
     """Update an existing agency"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
-        data = request.form
+        agency = Agency.query.get_or_404(agency_id)
+        form = AgencyForm()
         
-        # Validate required fields
-        if not data.get('name'):
-            return html_error_fragment("Agency name is required")
-        
-        # Check for duplicate names (excluding current component)
-        existing = Agency.query.filter(
-            Agency.name == data['name'],
-            Agency.id != agency_component_id
-        ).first()
-        if existing:
-            return html_error_fragment(f"Agency '{data['name']}' already exists")
-        
-        # Process additional metadata
-        additional_metadata = {}
-        metadata_keys = data.getlist('metadata_key[]')
-        metadata_values = data.getlist('metadata_value[]')
-        
-        for key, value in zip(metadata_keys, metadata_values):
-            if key.strip() and value.strip():  # Only add non-empty pairs
-                additional_metadata[key.strip()] = value.strip()
-        
-        # Track changes for logging
-        changes = []
-        if agency_component.name != data['name']:
-            changes.append(f"name: '{agency_component.name}' → '{data['name']}'")
-        if agency_component.location != data.get('location'):
-            changes.append(f"location updated")
-        if agency_component.ceo != data.get('ceo'):
-            changes.append(f"CEO updated")
-        
-        # Update all fields
-        agency_component.name = data['name']
-        agency_component.location = data.get('location') or None
-        agency_component.description = data.get('description') or None
-        agency_component.website = data.get('website') or None
-        agency_component.ceo = data.get('ceo') or None
-        agency_component.address_hq = data.get('address_hq') or None
-        agency_component.phone_number = data.get('phone_number') or None
-        agency_component.agency_map_link = data.get('transit_map_link') or None
-        agency_component.contact_email = data.get('contact_email') or None
-        agency_component.contact_phone = data.get('contact_phone') or None
-        agency_component.contact_name = data.get('contact_name') or None
-        agency_component.additional_metadata = additional_metadata if additional_metadata else None
-        
-        db.session.commit()
-        
-        return html_success_fragment(f"Agency '{agency_component.name}' updated successfully")
+        if form.validate_on_submit():
+            # Check for duplicate names (excluding current agency)
+            existing = Agency.query.filter(
+                Agency.name == form.name.data,
+                Agency.id != agency_id
+            ).first()
+            if existing:
+                return html_error_fragment(f"Agency '{form.name.data}' already exists")
+            
+            # Process additional metadata
+            additional_metadata = {}
+            metadata_keys = request.form.getlist('metadata_key[]')
+            metadata_values = request.form.getlist('metadata_value[]')
+            
+            for key, value in zip(metadata_keys, metadata_values):
+                if key.strip() and value.strip():
+                    additional_metadata[key.strip()] = value.strip()
+            
+            # Update agency
+            form.populate_agency(agency)
+            agency.additional_metadata = additional_metadata if additional_metadata else None
+            
+            db.session.commit()
+            
+            return html_success_fragment(f"Agency '{agency.name}' updated successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/agency_form.html', 
+                                 form=form, 
+                                 agency=agency)
         
     except Exception as e:
         db.session.rollback()
         return html_error_fragment(f"Error updating agency: {str(e)}")
 
-@main.route("/api/agencies/<int:agency_component_id>", methods=['DELETE'])
+@main.route("/api/agencies/<int:agency_id>", methods=['DELETE'])
 @login_required
-def delete_agency_component(agency_component_id):
-    """Delete a agency"""
+def delete_agency(agency_id):
+    """Delete an agency"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
-        name = agency_component.name
-        
-        # Note: Skip logging for agencys since UpdateLog is for individual components
+        agency = Agency.query.get_or_404(agency_id)
+        name = agency.name
         
         # Delete the agency (cascade will handle related records)
-        db.session.delete(agency_component)
+        db.session.delete(agency)
         db.session.commit()
         
         return html_success_fragment(f"Agency '{name}' deleted successfully")
@@ -1104,32 +1087,32 @@ def create_functional_area():
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('agency_component_id'):
+        if not data.get('agency_id'):
             return html_error_fragment("Agency is required")
         
         try:
-            agency_component_id = int(data['agency_component_id'])
+            agency_id = int(data['agency_id'])
         except ValueError:
             return html_error_fragment("Invalid agency selected")
         
         # Verify agency exists
-        agency_component = Agency.query.get(agency_component_id)
-        if not agency_component:
+        agency = Agency.query.get(agency_id)
+        if not agency:
             return html_error_fragment("Selected agency does not exist")
         
         # Check for duplicate names within the same agency
         existing = FunctionalArea.query.filter_by(
             name=data['name'], 
-            agency_component_id=agency_component_id
+            agency_id=agency_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency_component.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency.name}")
         
         # Create new functional area
         functional_area = FunctionalArea(
             name=data['name'],
             description=data.get('description') or None,
-            agency_component_id=agency_component_id
+            agency_id=agency_id
         )
         
         db.session.add(functional_area)
@@ -1153,32 +1136,32 @@ def update_functional_area(functional_area_id):
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('agency_component_id'):
+        if not data.get('agency_id'):
             return html_error_fragment("Agency is required")
         
         try:
-            agency_component_id = int(data['agency_component_id'])
+            agency_id = int(data['agency_id'])
         except ValueError:
             return html_error_fragment("Invalid agency selected")
         
         # Verify agency exists
-        agency_component = Agency.query.get(agency_component_id)
-        if not agency_component:
+        agency = Agency.query.get(agency_id)
+        if not agency:
             return html_error_fragment("Selected agency does not exist")
         
         # Check for duplicate names within the same agency (excluding current area)
         existing = FunctionalArea.query.filter(
             FunctionalArea.name == data['name'],
-            FunctionalArea.agency_component_id == agency_component_id,
+            FunctionalArea.agency_id == agency_id,
             FunctionalArea.id != functional_area_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency_component.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency.name}")
         
         # Update functional area
         functional_area.name = data['name']
         functional_area.description = data.get('description') or None
-        functional_area.agency_component_id = agency_component_id
+        functional_area.agency_id = agency_id
         
         db.session.commit()
         
@@ -1195,13 +1178,13 @@ def delete_functional_area(functional_area_id):
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         name = functional_area.name
-        agency_component_name = functional_area.agency_component.name
+        agency_name = functional_area.agency.name
         
         # Delete the functional area (cascade will handle related records)
         db.session.delete(functional_area)
         db.session.commit()
         
-        return html_success_fragment(f"Functional area '{name}' from {agency_component_name} deleted successfully")
+        return html_success_fragment(f"Functional area '{name}' from {agency_name} deleted successfully")
         
     except Exception as e:
         db.session.rollback()

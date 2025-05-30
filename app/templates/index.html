@@ -14,7 +14,7 @@
         <span class="text-white">Intelligence Platform</span>
       </h1>
       <p class="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-        Comprehensive visibility into your transit infrastructure, vendor relationships, 
+        Comprehensive visibility into public transit system infrastructure, vendor relationships, 
         and system integrations in real-time.
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4">
@@ -24,7 +24,7 @@
           Test System Health
         </button>
         <button class="px-8 py-3 border border-slate-600 rounded-lg font-semibold hover:bg-slate-800 transition-all">
-          View Documentation
+          View the Docs
         </button>
       </div>
     </div>
@@ -37,7 +37,7 @@
   <!-- Metrics Overview -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
     
-    <!-- Transit Systems Card -->
+    <!-- Transit Agency Card -->
     <div class="metric-card rounded-xl p-6 border border-slate-700/50">
       <div class="flex items-center justify-between mb-4">
         <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -45,9 +45,9 @@
             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/transit-systems" hx-trigger="load">0</span>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/agencies" hx-trigger="load">0</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Systems</h3>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Agencies</h3>
       <p class="text-xs text-slate-500">Active transportation networks</p>
     </div>
 
@@ -65,7 +65,7 @@
       <p class="text-xs text-slate-500">Operational domains</p>
     </div>
 
-    <!-- Active Systems Card -->
+    <!-- Active Components Card -->
     <div class="metric-card rounded-xl p-6 border border-slate-700/50">
       <div class="flex items-center justify-between mb-4">
         <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -73,10 +73,10 @@
             <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/systems" hx-trigger="load">0</span>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/components" hx-trigger="load">0</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Active Systems</h3>
-      <p class="text-xs text-slate-500">Deployed technology systems</p>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Active Components</h3>
+      <p class="text-xs text-slate-500">Deployed technology components</p>
     </div>
 
     <!-- Integration Points Card -->
@@ -180,7 +180,7 @@
             <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
               <span class="text-xs font-bold text-white">1</span>
             </div>
-            <p class="text-sm text-slate-300">Add your first transit system</p>
+            <p class="text-sm text-slate-300">Add your first transit agency</p>
           </div>
           <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
             <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -205,7 +205,7 @@
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
             </svg>
-            Add Transit System
+            Add Transit Agency
           </button>
           <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -234,7 +234,7 @@
         </svg>
       </div>
       <h3 class="text-lg font-semibold text-white mb-2">System Tracking</h3>
-      <p class="text-slate-400 text-sm">Monitor all your transit technology systems, versions, and deployment status in one centralized dashboard.</p>
+      <p class="text-slate-400 text-sm">Monitor all your transit technology components, versions, and deployment status in one centralized dashboard.</p>
     </div>
 
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50">

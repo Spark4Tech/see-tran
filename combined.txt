@@ -1,11 +1,9 @@
 # Project Directory Structure
 ./
-    setup.sh
     .flaskenv
     run.py
     tailwind.config.js
     config.py
-    combined.txt
     requirements.txt
     cat.py
     README.md
@@ -16,31 +14,17 @@
     postcss.config.js
     app/
         auth.py
-        config_delete_me.py
         __init__.py
+        agents/
+            agency_agent.py
+            __init__.py
+            component_agent.py
         utils/
             __init__.py
             errors.py
         models/
             tran.py
             __init__.py
-            agents/
-                agency_agent.py
-                __init__.py
-                system_agent.py
-            data/
-                categories.json
-                systems_ctran.json
-                transit_systems.json
-                functional_areas.json
-                vendors_trimet.json
-                integrations.json
-                systems_trimax.json
-                tag_assignments.json
-                tran.json
-                standards.json
-                tags.json
-                functions.json
         static/
             css/
                 .keep
@@ -53,18 +37,20 @@
         templates/
             index.html
             base.html
-            systems.html
+            components.html
+            standards.html
+            integrations.html
             functional_areas.html
+            agencies.html
             contribute.html
             vendors.html
-            transit_systems.html
             fragments/
-                transit_system_details.html
+                agency_details.html
                 functional_area_details.html
-                transit_system_list.html
+                agency_list.html
                 functional_area_form.html
                 functional_area_list.html
-                transit_system_form.html
+                agency_form.html
         routes/
             __init__.py
             main.py
@@ -77,22 +63,6 @@
     tailwind/
         config.js
         input.css
-    scripts/
-        load_integrations.py
-        load_systems.py
-        load_functional_areas.py
-        load_tran.py
-        load_transit_systems.py
-        load_vendors.py
-        load_categories.py
-        load_functions.py
-        load_standards.py
-    prompts/
-        Data_Model.md
-        Vendors.md
-        More_Vendors.md
-        Full_Vendors.md
-        Technical_Design.md
 
 # End of Directory Structure
 
@@ -143,7 +113,7 @@ def create_app(test_config=None):
 # run.py
 from app import create_app, db
 from app.models.tran import (
-    TransitSystem, FunctionalArea, Vendor, System,
+    Agency, FunctionalArea, Vendor, Component,
     IntegrationPoint, UserRole, UpdateLog
 )
 import os
@@ -158,10 +128,10 @@ def make_shell_context():
     return {
         'app': app,
         'db': db,
-        'TransitSystem': TransitSystem,
+        'Agency': Agency,                    # was TransitSystem
         'FunctionalArea': FunctionalArea,
         'Vendor': Vendor,
-        'System': System,
+        'Component': Component,              # was System
         'IntegrationPoint': IntegrationPoint,
         'UserRole': UserRole,
         'UpdateLog': UpdateLog
@@ -171,17 +141,13 @@ if __name__ == '__main__':
     app.run(debug=True)
 # End of run.py
 
-# Start of app/routes/__init__.py
-
-# End of app/routes/__init__.py
-
 # Start of app/routes/main.py
 # app/routes/main.py - Enhanced version
 from flask import Blueprint, render_template, jsonify, request
 from app import db
 from app.models.tran import (
-    TransitSystem, FunctionalArea, System, Vendor, IntegrationPoint, 
-    UpdateLog, Category, Function, Standard, Tag, TagGroup, UserRole
+    Agency, FunctionalArea, Component, Vendor, IntegrationPoint, 
+    UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation
 )
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
@@ -197,10 +163,10 @@ main = Blueprint("main", __name__)
 def index():
     return render_template("index.html")
 
-@main.route("/systems")
-def systems_page():
-    """Systems management page"""
-    return render_template("systems.html")
+@main.route("/components")
+def components_page():
+    """Components management page"""
+    return render_template("components.html")
 
 @main.route("/vendors")
 def vendors_page():
@@ -222,10 +188,10 @@ def health_check():
         return json_error_response(f"Health check failed: {str(e)}", 500)
 
 # Count endpoints for dashboard metrics
-@main.route("/api/count/transit-systems")
-def count_transit_systems():
+@main.route("/api/count/agencies")
+def count_agencies():
     try:
-        count = TransitSystem.query.count()
+        count = Agency.query.count()
         return str(count)
     except Exception as e:
         return "0"
@@ -238,10 +204,10 @@ def count_functional_areas():
     except Exception as e:
         return "0"
 
-@main.route("/api/count/systems")
-def count_systems():
+@main.route("/api/count/components")
+def count_components():
     try:
-        count = System.query.count()
+        count = Component.query.count()
         return str(count)
     except Exception as e:
         return "0"
@@ -262,62 +228,94 @@ def count_vendors():
     except Exception as e:
         return "0"
 
-# Systems endpoints (keeping existing functionality)
-@main.route("/api/systems/list")
-def systems_list():
-    """Get all systems with filtering"""
+# Components endpoints (keeping existing functionality)
+@main.route("/api/components/list")
+def components_list():
+    """Get all components with filtering"""
     try:
         functional_area = request.args.get('functional_area')
         vendor = request.args.get('vendor')
+        agency = request.args.get('agency')
         status = request.args.get('status')
         
-        query = System.query.join(FunctionalArea).join(TransitSystem)
+        # Start with components and their implementations
+        query = db.session.query(Component).distinct()
         
         # Apply filters
         if functional_area:
-            query = query.filter(FunctionalArea.name == functional_area)
+            query = query.join(Component.agency_usages)\
+                         .join(AgencyFunctionImplementation.function)\
+                         .join(Function.functional_area)\
+                         .filter(FunctionalArea.name == functional_area)
+        
         if vendor:
             query = query.join(Vendor).filter(Vendor.name == vendor)
+            
+        if agency:
+            query = query.join(Component.agency_usages)\
+                         .join(AgencyFunctionImplementation.agency)\
+                         .filter(Agency.name == agency)
+        
         if status:
             if status == 'issues':
-                query = query.filter(System.known_issues.isnot(None))
+                query = query.filter(Component.known_issues.isnot(None))
             elif status == 'no_issues':
-                query = query.filter(System.known_issues.is_(None))
+                query = query.filter(Component.known_issues.is_(None))
         
-        systems = query.all()
+        components = query.all()
         
         html = ""
-        for system in systems:
-            status_indicator = "red" if system.known_issues else "green"
-            vendor_name = system.vendor.name if system.vendor else "No Vendor"
+        for component in components:
+            status_indicator = "red" if component.known_issues else "green"
+            vendor_name = component.vendor.name if component.vendor else "No Vendor"
             
-            # KEY CHANGE: Added data-system-id attribute
+            # Get agencies that use this component
+            agencies_using = db.session.query(Agency.name)\
+                .join(AgencyFunctionImplementation)\
+                .filter(AgencyFunctionImplementation.component_id == component.id)\
+                .distinct().limit(3).all()
+            
+            agencies_display = ", ".join([a.name for a in agencies_using])
+            if len(agencies_using) == 3:
+                agencies_display += " +more"
+            
+            # Get functions this component implements
+            functions_implemented = db.session.query(Function.name)\
+                .join(AgencyFunctionImplementation)\
+                .filter(AgencyFunctionImplementation.component_id == component.id)\
+                .distinct().limit(3).all()
+            
+            functions_display = ", ".join([f.name for f in functions_implemented])
+            if len(functions_implemented) == 3:
+                functions_display += " +more"
+
             html += f'''
-            <div class="system-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-4 hover:bg-slate-800/70 transition-all cursor-pointer"
-                 data-system-id="{system.id}">
+            <div class="component-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-4 hover:bg-slate-800/70 transition-all cursor-pointer"
+                 data-component-id="{component.id}"
+                 hx-get="/api/components/{component.id}/details" hx-target="#component-details" hx-swap="innerHTML">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
                         <div class="flex items-center space-x-3 mb-2">
                             <div class="w-3 h-3 bg-{status_indicator}-500 rounded-full"></div>
-                            <h3 class="font-semibold text-white text-lg">{system.name}</h3>
+                            <h3 class="font-semibold text-white text-lg">{component.name}</h3>
                         </div>
-                        <p class="text-slate-300 text-sm mb-2">{system.functional_area.name}</p>
+                        <p class="text-slate-300 text-sm mb-2">{functions_display or 'No functions assigned'}</p>
                         <div class="flex items-center space-x-4 text-xs text-slate-400">
-                            <span>📍 {system.functional_area.name}</span>
                             <span>🏢 {vendor_name}</span>
-                            <span>📅 {system.deployment_date.strftime('%Y-%m-%d') if system.deployment_date else 'No Date'}</span>
+                            <span>🏛️ {agencies_display or 'No agencies'}</span>
+                            <span>📅 {component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else 'No Date'}</span>
                         </div>
                     </div>
                     <div class="text-right">
                         <div class="bg-slate-700 px-2 py-1 rounded text-xs text-slate-300 mb-2">
-                            v{system.version or 'Unknown'}
+                            v{component.version or 'Unknown'}
                         </div>
                         <div class="text-xs text-slate-500">
-                            {system.update_frequency or 'Unknown'}
+                            {component.update_frequency or 'Unknown'}
                         </div>
                     </div>
                 </div>
-                {f'<div class="mt-3 p-2 bg-red-900/20 border border-red-700/30 rounded text-xs text-red-300"><strong>Issues:</strong> {system.known_issues}</div>' if system.known_issues else ''}
+                {f'<div class="mt-3 p-2 bg-red-900/20 border border-red-700/30 rounded text-xs text-red-300"><strong>Issues:</strong> {component.known_issues}</div>' if component.known_issues else ''}
             </div>
             '''
         
@@ -329,61 +327,111 @@ def systems_list():
                         <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                     </svg>
                 </div>
-                <h3 class="text-lg font-medium text-slate-400 mb-2">No Systems Found</h3>
-                <p class="text-slate-500">Try adjusting your filters or add new systems.</p>
+                <h3 class="text-lg font-medium text-slate-400 mb-2">No Components Found</h3>
+                <p class="text-slate-500">Try adjusting your filters or add new components.</p>
             </div>
             '''
         
         return html
     except Exception as e:
-        return html_error_fragment(f"Error loading systems: {str(e)}")
+        return html_error_fragment(f"Error loading components: {str(e)}")
 
-@main.route("/api/systems/<int:system_id>/details")
-def system_details(system_id):
-    """Get detailed information about a specific system - WITHOUT vendor info and integrations"""
+@main.route("/api/components/<int:component_id>/details")
+def component_details(component_id):
+    """Get detailed information about a specific component"""
     try:
-        system = System.query.get_or_404(system_id)
+        component = Component.query.get_or_404(component_id)
         
-        # User roles (keep this here as it's system-specific info)
+        # Get agency implementations for this component
+        implementations = AgencyFunctionImplementation.query\
+            .filter_by(component_id=component_id)\
+            .join(Agency).join(Function).join(FunctionalArea)\
+            .order_by(Agency.name, FunctionalArea.name, Function.name)\
+            .all()
+        
+        # Build agency usage section
+        agency_usage_html = ""
+        if implementations:
+            agency_usage_html = "<h4 class='font-medium text-white mb-3'>Agency Usage:</h4>"
+            
+            # Group by agency
+            agencies = {}
+            for impl in implementations:
+                agency_name = impl.agency.name
+                if agency_name not in agencies:
+                    agencies[agency_name] = []
+                agencies[agency_name].append(impl)
+            
+            for agency_name, agency_impls in agencies.items():
+                agency_usage_html += f'''
+                <div class="mb-4">
+                    <h5 class="text-sm font-medium text-blue-400 mb-2">{agency_name}</h5>
+                    <div class="space-y-2 ml-3">
+                '''
+                for impl in agency_impls:
+                    status_color = "green" if impl.status == "Active" else "yellow"
+                    agency_usage_html += f'''
+                    <div class="flex items-center justify-between p-2 bg-slate-700/30 rounded">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-{status_color}-500 rounded-full"></div>
+                            <span class="text-sm text-slate-300">{impl.function.name}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-500">
+                                {impl.deployment_date.strftime('%Y-%m-%d') if impl.deployment_date else 'No date'}
+                            </span>
+                            {f'<br><span class="text-xs text-slate-400">v{impl.version}</span>' if impl.version else ''}
+                        </div>
+                    </div>
+                    '''
+                agency_usage_html += "</div></div>"
+        else:
+            agency_usage_html = "<p class='text-slate-400 text-sm'>No agency usage tracked for this component.</p>"
+        
+        # User roles (keep this here as it's component-specific info)
         roles = ""
-        if system.user_roles:
+        if component.user_roles:
             roles = "<h4 class='font-medium text-white mb-2 mt-4'>User Roles:</h4><ul class='space-y-1'>"
-            for role in system.user_roles:
+            for role in component.user_roles:
                 roles += f'<li class="text-sm text-slate-300">• {role.role_name}: {role.description or "No description"}</li>'
             roles += "</ul>"
         
-        # Additional metadata (keep this here as it's system-specific info)
+        # Additional metadata
         metadata = ""
-        if system.additional_metadata:
+        if component.additional_metadata:
             metadata = "<h4 class='font-medium text-white mb-2 mt-4'>Additional Information:</h4><ul class='space-y-1'>"
-            for key, value in system.additional_metadata.items():
+            for key, value in component.additional_metadata.items():
                 metadata += f'<li class="text-sm text-slate-300">• {key.replace("_", " ").title()}: {value}</li>'
             metadata += "</ul>"
-        
-        # REMOVED: vendor_info and integrations sections - these will be loaded separately
         
         html = f'''
         <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl font-bold text-white">{system.name}</h2>
+                <div class="flex items-center space-x-3">
+                    <h2 class="text-2xl font-bold text-white">{component.name}</h2>
+                    {f'<span class="px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300">Composite</span>' if component.is_composite else ''}
+                </div>
                 <button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors" 
-                        onclick="clearSystemDetails()">
+                        onclick="clearComponentDetails()">
                     ✕ Close
                 </button>
             </div>
             
             <div class="grid grid-cols-1 gap-6">
                 <div>
-                    <h3 class="font-medium text-white mb-3">System Information</h3>
+                    <h3 class="font-medium text-white mb-3">Component Information</h3>
                     <div class="space-y-2 text-sm">
-                        <p class="text-slate-300"><strong>Version:</strong> {system.version or "Unknown"}</p>
-                        <p class="text-slate-300"><strong>Deployment Date:</strong> {system.deployment_date.strftime('%B %d, %Y') if system.deployment_date else "Unknown"}</p>
-                        <p class="text-slate-300"><strong>Update Frequency:</strong> {system.update_frequency or "Unknown"}</p>
-                        <p class="text-slate-300"><strong>Functional Area:</strong> {system.functional_area.name}</p>
-                        <p class="text-slate-300"><strong>Transit System:</strong> {system.functional_area.transit_system.name}</p>
+                        <p class="text-slate-300"><strong>Version:</strong> {component.version or "Unknown"}</p>
+                        <p class="text-slate-300"><strong>Deployment Date:</strong> {component.deployment_date.strftime('%B %d, %Y') if component.deployment_date else "Unknown"}</p>
+                        <p class="text-slate-300"><strong>Update Frequency:</strong> {component.update_frequency or "Unknown"}</p>
+                        <p class="text-slate-300"><strong>Vendor:</strong> {component.vendor.name if component.vendor else "No Vendor"}</p>
                     </div>
                     
-                    {f'<div class="bg-red-900/20 border border-red-700/30 rounded p-3 mt-4"><h4 class="font-medium text-red-300 mb-2">Known Issues:</h4><p class="text-sm text-red-200">{system.known_issues}</p></div>' if system.known_issues else '<div class="bg-green-900/20 border border-green-700/30 rounded p-3 mt-4"><h4 class="font-medium text-green-300 mb-2">Status:</h4><p class="text-sm text-green-200">No known issues</p></div>'}
+                    {f'<div class="bg-red-900/20 border border-red-700/30 rounded p-3 mt-4"><h4 class="font-medium text-red-300 mb-2">Known Issues:</h4><p class="text-sm text-red-200">{component.known_issues}</p></div>' if component.known_issues else '<div class="bg-green-900/20 border border-green-700/30 rounded p-3 mt-4"><h4 class="font-medium text-green-300 mb-2">Status:</h4><p class="text-sm text-green-200">No known issues</p></div>'}
+                    
+                    <div class="mt-6">
+                        {agency_usage_html}
+                    </div>
                     
                     {roles}
                     {metadata}
@@ -394,34 +442,53 @@ def system_details(system_id):
         
         return html
     except Exception as e:
-        return html_error_fragment(f"Error loading system details: {str(e)}")
+        return html_error_fragment(f"Error loading component details: {str(e)}")
     
-def clear_system_details_js():
+@main.route("/api/agencies/options")
+def agencies_filter_options():
+    """Get agency options for filter dropdowns"""
+    try:
+        # Get agencies that have component implementations
+        agencies = db.session.query(Agency.name)\
+            .join(AgencyFunctionImplementation)\
+            .distinct()\
+            .order_by(Agency.name)\
+            .all()
+        
+        html = '<option value="">All Agencies</option>'
+        for agency in agencies:
+            html += f'<option value="{agency.name}">{agency.name}</option>'
+        
+        return html
+    except Exception as e:
+        return '<option value="">All Agencies</option>'
+
+def clear_component_details_js():
     return '''
     <script>
-    function clearSystemDetails() {
-        // Reset system details panel
-        document.getElementById('system-details').innerHTML = `
+    function clearComponentDetails() {
+        // Reset component details panel
+        document.getElementById('component-details').innerHTML = `
             <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
                 <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
                     </svg>
                 </div>
-                <h3 class="text-lg font-medium text-slate-400 mb-2">System Details</h3>
-                <p class="text-slate-500 text-sm">Select a system to view details</p>
+                <h3 class="text-lg font-medium text-slate-400 mb-2">Component Details</h3>
+                <p class="text-slate-500 text-sm">Select a component to view details</p>
             </div>`;
         
         // Reset vendor details panel
         document.getElementById('vendor-details').innerHTML = `
             <div class="text-center py-4">
-                <span class="text-slate-500 text-sm">No system selected</span>
+                <span class="text-slate-500 text-sm">No component selected</span>
             </div>`;
         
         // Reset integration details panel
         document.getElementById('integration-details').innerHTML = `
             <div class="text-center py-4">
-                <span class="text-slate-500 text-sm">No system selected</span>
+                <span class="text-slate-500 text-sm">No component selected</span>
             </div>`;
     }
     </script>
@@ -430,26 +497,26 @@ def clear_system_details_js():
 # Vendors endpoints (keeping existing functionality)
 @main.route("/api/vendors/list")
 def vendors_list():
-    """Get all vendors with filtering and system counts"""
+    """Get all vendors with filtering and component counts"""
     try:
         search = request.args.get('search', '').lower()
         sort_by = request.args.get('sort', 'name')
         
         query = db.session.query(
             Vendor,
-            func.count(System.id).label('system_count')
-        ).outerjoin(System).group_by(Vendor.id)
+            func.count(Component.id).label('component_count')
+        ).outerjoin(Component).group_by(Vendor.id)
         
         if search:
             query = query.filter(Vendor.name.ilike(f'%{search}%'))
         
-        if sort_by == 'systems':
-            query = query.order_by(func.count(System.id).desc())
+        if sort_by == 'components':
+            query = query.order_by(func.count(Component.id).desc())
         elif sort_by == 'recent':
             subquery = db.session.query(
-                System.vendor_id,
-                func.max(System.deployment_date).label('latest_deployment')
-            ).group_by(System.vendor_id).subquery()
+                Component.vendor_id,
+                func.max(Component.deployment_date).label('latest_deployment')
+            ).group_by(Component.vendor_id).subquery()
             
             query = query.outerjoin(subquery, Vendor.id == subquery.c.vendor_id)\
                          .order_by(subquery.c.latest_deployment.desc().nullslast())
@@ -459,9 +526,9 @@ def vendors_list():
         vendors_with_counts = query.all()
         
         html = ""
-        for vendor, system_count in vendors_with_counts:
+        for vendor, component_count in vendors_with_counts:
             functional_areas = db.session.query(FunctionalArea.name)\
-                .join(System).filter(System.vendor_id == vendor.id)\
+                .join(Component).filter(Component.vendor_id == vendor.id)\
                 .distinct().all()
             
             fa_names = [fa.name for fa in functional_areas]
@@ -469,12 +536,12 @@ def vendors_list():
             if len(fa_names) > 2:
                 fa_display += f" +{len(fa_names) - 2} more"
             
-            latest_system = System.query.filter_by(vendor_id=vendor.id)\
-                .order_by(System.deployment_date.desc().nullslast()).first()
+            latest_component = Component.query.filter_by(vendor_id=vendor.id)\
+                .order_by(Component.deployment_date.desc().nullslast()).first()
             
             latest_deployment = "No deployments"
-            if latest_system and latest_system.deployment_date:
-                latest_deployment = latest_system.deployment_date.strftime('%Y-%m-%d')
+            if latest_component and latest_component.deployment_date:
+                latest_deployment = latest_component.deployment_date.strftime('%Y-%m-%d')
             
             website_display = ""
             if vendor.website:
@@ -489,16 +556,16 @@ def vendors_list():
                         <h3 class="font-semibold text-white text-xl mb-2">{vendor.name}</h3>
                         <p class="text-slate-300 text-sm mb-3">{vendor.description or 'No description available'}</p>
                         <div class="flex items-center space-x-4 text-xs text-slate-400">
-                            <span>🏢 {system_count} systems</span>
-                            <span>📍 {fa_display if fa_names else 'No systems'}</span>
+                            <span>🏢 {component_count} components</span>
+                            <span>📍 {fa_display if fa_names else 'No components'}</span>
                             <span>📅 Latest: {latest_deployment}</span>
                         </div>
                     </div>
                     <div class="text-right">
                         <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-2">
-                            <span class="text-lg font-bold text-white">{system_count}</span>
+                            <span class="text-lg font-bold text-white">{component_count}</span>
                         </div>
-                        <div class="text-xs text-slate-500 text-center">Systems</div>
+                        <div class="text-xs text-slate-500 text-center">Components</div>
                     </div>
                 </div>
                 
@@ -538,47 +605,47 @@ def vendor_details(vendor_id):
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         
-        systems_by_area = {}
-        systems = System.query.filter_by(vendor_id=vendor.id).join(FunctionalArea).all()
+        components_by_area = {}
+        components = Component.query.filter_by(vendor_id=vendor.id).join(FunctionalArea).all()
         
-        for system in systems:
-            area_name = system.functional_area.name
-            if area_name not in systems_by_area:
-                systems_by_area[area_name] = []
-            systems_by_area[area_name].append(system)
+        for component in components:
+            area_name = component.functional_area.name
+            if area_name not in components_by_area:
+                components_by_area[area_name] = []
+            components_by_area[area_name].append(component)
         
-        systems_html = ""
-        if systems_by_area:
-            systems_html = "<h4 class='font-medium text-white mb-3'>Systems Portfolio:</h4>"
-            for area_name, area_systems in systems_by_area.items():
-                systems_html += f'''
+        components_html = ""
+        if components_by_area:
+            components_html = "<h4 class='font-medium text-white mb-3'>Components Portfolio:</h4>"
+            for area_name, area_components in components_by_area.items():
+                components_html += f'''
                 <div class="mb-4">
                     <h5 class="text-sm font-medium text-blue-400 mb-2">{area_name}</h5>
                     <div class="space-y-2 ml-3">
                 '''
-                for system in area_systems:
-                    status_color = "red" if system.known_issues else "green"
-                    systems_html += f'''
+                for component in area_components:
+                    status_color = "red" if component.known_issues else "green"
+                    components_html += f'''
                     <div class="flex items-center justify-between p-2 bg-slate-700/30 rounded">
                         <div class="flex items-center space-x-2">
                             <div class="w-2 h-2 bg-{status_color}-500 rounded-full"></div>
-                            <span class="text-sm text-slate-300">{system.name}</span>
+                            <span class="text-sm text-slate-300">{component.name}</span>
                         </div>
-                        <span class="text-xs text-slate-500">v{system.version or 'Unknown'}</span>
+                        <span class="text-xs text-slate-500">v{component.version or 'Unknown'}</span>
                     </div>
                     '''
-                systems_html += "</div></div>"
+                components_html += "</div></div>"
         else:
-            systems_html = "<p class='text-slate-400 text-sm'>No systems found for this vendor.</p>"
+            components_html = "<p class='text-slate-400 text-sm'>No components found for this vendor.</p>"
         
-        total_systems = len(systems)
-        systems_with_issues = len([s for s in systems if s.known_issues])
-        recent_deployments = len([s for s in systems if s.deployment_date and 
+        total_components = len(components)
+        components_with_issues = len([s for s in components if s.known_issues])
+        recent_deployments = len([s for s in components if s.deployment_date and 
                                  (datetime.now().date() - s.deployment_date).days <= 365])
         
         integration_points = set()
-        for system in systems:
-            for ip in system.integration_points:
+        for component in components:
+            for ip in component.integration_points:
                 integration_points.add(ip.name)
         
         integrations_html = ""
@@ -611,7 +678,7 @@ def vendor_details(vendor_id):
                                 </svg>
                             </div>
                             <h3 class='text-lg font-medium text-slate-400 mb-2'>Vendor Details</h3>
-                            <p class='text-slate-500 text-sm'>Click on a vendor to view detailed information, system portfolio, and contact details.</p>
+                            <p class='text-slate-500 text-sm'>Click on a vendor to view detailed information, component portfolio, and contact details.</p>
                         </div>`">
                     ✕ Close
                 </button>
@@ -619,12 +686,12 @@ def vendor_details(vendor_id):
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div class="bg-blue-600/20 border border-blue-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-blue-300">{total_systems}</div>
-                    <div class="text-sm text-blue-200">Total Systems</div>
+                    <div class="text-2xl font-bold text-blue-300">{total_components}</div>
+                    <div class="text-sm text-blue-200">Total Components</div>
                 </div>
                 <div class="bg-green-600/20 border border-green-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-green-300">{total_systems - systems_with_issues}</div>
-                    <div class="text-sm text-green-200">Healthy Systems</div>
+                    <div class="text-2xl font-bold text-green-300">{total_components - components_with_issues}</div>
+                    <div class="text-sm text-green-200">Healthy Components</div>
                 </div>
                 <div class="bg-purple-600/20 border border-purple-600/30 rounded-lg p-4 text-center">
                     <div class="text-2xl font-bold text-purple-300">{recent_deployments}</div>
@@ -654,7 +721,7 @@ def vendor_details(vendor_id):
                 </div>
                 
                 <div>
-                    {systems_html}
+                    {components_html}
                 </div>
             </div>
         </div>
@@ -671,26 +738,26 @@ def vendors_stats():
     try:
         stats = {
             'total_vendors': Vendor.query.count(),
-            'active_vendors': db.session.query(Vendor).join(System).distinct().count(),
+            'active_vendors': db.session.query(Vendor).join(Component).distinct().count(),
             'top_vendor': None,
-            'avg_systems_per_vendor': 0
+            'avg_components_per_vendor': 0
         }
         
         top_vendor_query = db.session.query(
             Vendor.name,
-            func.count(System.id).label('system_count')
-        ).join(System).group_by(Vendor.id, Vendor.name)\
-         .order_by(func.count(System.id).desc()).first()
+            func.count(Component.id).label('component_count')
+        ).join(Component).group_by(Vendor.id, Vendor.name)\
+         .order_by(func.count(Component.id).desc()).first()
         
         if top_vendor_query:
             stats['top_vendor'] = {
                 'name': top_vendor_query.name,
-                'system_count': top_vendor_query.system_count
+                'component_count': top_vendor_query.component_count
             }
         
         if stats['active_vendors'] > 0:
-            total_systems = System.query.filter(System.vendor_id.isnot(None)).count()
-            stats['avg_systems_per_vendor'] = round(total_systems / stats['active_vendors'], 1)
+            total_components = Component.query.filter(Component.vendor_id.isnot(None)).count()
+            stats['avg_components_per_vendor'] = round(total_components / stats['active_vendors'], 1)
         
         return jsonify(stats)
     except Exception as e:
@@ -731,25 +798,25 @@ def vendor_performance():
     try:
         reliable_vendor = db.session.query(
             Vendor.name,
-            func.count(System.id).label('total_systems'),
-            func.sum(case((System.known_issues.isnot(None), 1), else_=0)).label('issues_count')
-        ).join(System).group_by(Vendor.id, Vendor.name)\
-         .having(func.count(System.id) > 0)\
-         .order_by((func.sum(case((System.known_issues.isnot(None), 1), else_=0)) / func.count(System.id)).asc())\
+            func.count(Component.id).label('total_components'),
+            func.sum(case((Component.known_issues.isnot(None), 1), else_=0)).label('issues_count')
+        ).join(Component).group_by(Vendor.id, Vendor.name)\
+         .having(func.count(Component.id) > 0)\
+         .order_by((func.sum(case((Component.known_issues.isnot(None), 1), else_=0)) / func.count(Component.id)).asc())\
          .first()
         
         newest_vendor = db.session.query(
             Vendor.name,
-            func.min(System.deployment_date).label('first_deployment')
-        ).join(System).group_by(Vendor.id, Vendor.name)\
-         .order_by(func.min(System.deployment_date).desc())\
+            func.min(Component.deployment_date).label('first_deployment')
+        ).join(Component).group_by(Vendor.id, Vendor.name)\
+         .order_by(func.min(Component.deployment_date).desc())\
          .first()
         
         largest_vendor = db.session.query(
             Vendor.name,
-            func.count(System.id).label('system_count')
-        ).join(System).group_by(Vendor.id, Vendor.name)\
-         .order_by(func.count(System.id).desc())\
+            func.count(Component.id).label('component_count')
+        ).join(Component).group_by(Vendor.id, Vendor.name)\
+         .order_by(func.count(Component.id).desc())\
          .first()
         
         return jsonify({
@@ -761,26 +828,26 @@ def vendor_performance():
         return json_error_response(f"Error getting vendor performance: {str(e)}")
 
 # Keep remaining existing endpoints
-@main.route("/api/systems/overview")
-def systems_overview():
+@main.route("/api/components/overview")
+def components_overview():
     try:
-        systems = System.query.join(FunctionalArea).join(Vendor).limit(10).all()
+        components = Component.query.join(FunctionalArea).join(Vendor).limit(10).all()
         
         html = ""
-        for system in systems:
-            status_color = "green" if system.known_issues is None else "yellow"
+        for component in components:
+            status_color = "green" if component.known_issues is None else "yellow"
             html += f"""
             <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30 hover:bg-slate-800/70 transition-colors">
                 <div class="flex items-center space-x-4">
                     <div class="w-3 h-3 bg-{status_color}-500 rounded-full"></div>
                     <div>
-                        <h4 class="font-medium text-white">{system.name}</h4>
-                        <p class="text-sm text-slate-400">{system.functional_area.name} • {system.vendor.name if system.vendor else 'No Vendor'}</p>
+                        <h4 class="font-medium text-white">{component.name}</h4>
+                        <p class="text-sm text-slate-400">{component.functional_area.name} • {component.vendor.name if component.vendor else 'No Vendor'}</p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm text-slate-300">{system.version or 'No Version'}</p>
-                    <p class="text-xs text-slate-500">{system.deployment_date.strftime('%Y-%m-%d') if system.deployment_date else 'No Date'}</p>
+                    <p class="text-sm text-slate-300">{component.version or 'No Version'}</p>
+                    <p class="text-xs text-slate-500">{component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else 'No Date'}</p>
                 </div>
             </div>
             """
@@ -791,23 +858,23 @@ def systems_overview():
                 <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                 </svg>
-                <h3 class="text-lg font-medium text-slate-400 mb-2">No Systems Found</h3>
-                <p class="text-slate-500 mb-4">Add your first transit system to get started.</p>
+                <h3 class="text-lg font-medium text-slate-400 mb-2">No Components Found</h3>
+                <p class="text-slate-500 mb-4">Add your first agency to get started.</p>
                 <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                    Add System
+                    Add Component
                 </button>
             </div>
             """
         
         return html
     except Exception as e:
-        return html_error_fragment(f"Error loading systems overview: {str(e)}")
+        return html_error_fragment(f"Error loading components overview: {str(e)}")
 
 @main.route("/api/vendors/top")
 def top_vendors():
     try:
-        vendors = db.session.query(Vendor, func.count(System.id).label('system_count'))\
-            .join(System).group_by(Vendor.id).order_by(func.count(System.id).desc()).limit(5).all()
+        vendors = db.session.query(Vendor, func.count(Component.id).label('component_count'))\
+            .join(Component).group_by(Vendor.id).order_by(func.count(Component.id).desc()).limit(5).all()
         
         html = ""
         for vendor, count in vendors:
@@ -815,7 +882,7 @@ def top_vendors():
             <div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                 <div>
                     <p class="font-medium text-white text-sm">{vendor.name}</p>
-                    <p class="text-xs text-slate-400">{count} systems</p>
+                    <p class="text-xs text-slate-400">{count} components</p>
                 </div>
                 <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                     <span class="text-xs font-bold text-white">{count}</span>
@@ -837,11 +904,11 @@ def top_vendors():
 @main.route("/api/integration/health")
 def integration_health():
     try:
-        total_systems = System.query.count()
-        integrated_systems = db.session.query(System).join(System.integration_points).distinct().count()
+        total_components = Component.query.count()
+        integrated_components = db.session.query(Component).join(Component.integration_points).distinct().count()
         
-        if total_systems > 0:
-            health_percentage = (integrated_systems / total_systems) * 100
+        if total_components > 0:
+            health_percentage = (integrated_components / total_components) * 100
         else:
             health_percentage = 0
         
@@ -863,7 +930,7 @@ def integration_health():
                 </div>
             </div>
             <h4 class="text-sm font-medium text-white mb-1">Integration Health</h4>
-            <p class="text-xs text-slate-400">{integrated_systems} of {total_systems} systems integrated</p>
+            <p class="text-xs text-slate-400">{integrated_components} of {total_components} components integrated</p>
         </div>
         """
         
@@ -874,7 +941,7 @@ def integration_health():
 @main.route("/api/activity/recent")
 def recent_activity():
     try:
-        recent_updates = UpdateLog.query.join(System).order_by(UpdateLog.update_date.desc()).limit(10).all()
+        recent_updates = UpdateLog.query.join(Component).order_by(UpdateLog.update_date.desc()).limit(10).all()
         
         html = ""
         for update in recent_updates:
@@ -894,7 +961,7 @@ def recent_activity():
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <p class="text-sm font-medium text-white">{update.system.name} updated</p>
+                    <p class="text-sm font-medium text-white">{update.component.name} updated</p>
                     <p class="text-xs text-slate-400">{update.change_summary[:100] + '...' if update.change_summary and len(update.change_summary) > 100 else update.change_summary or 'No summary provided'}</p>
                     <p class="text-xs text-slate-500 mt-1">by {update.updated_by} • {time_str}</p>
                 </div>
@@ -908,7 +975,7 @@ def recent_activity():
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                 </svg>
                 <h3 class="text-lg font-medium text-slate-400 mb-2">No Recent Activity</h3>
-                <p class="text-slate-500">System updates will appear here.</p>
+                <p class="text-slate-500">Component updates will appear here.</p>
             </div>
             """
         
@@ -916,81 +983,81 @@ def recent_activity():
     except Exception as e:
         return f'<div class="text-center py-8 text-slate-500"><p class="text-sm">Error loading activity</p></div>'
 
-@main.route("/api/systems/refresh")
-def systems_refresh():
-    return systems_overview()
+@main.route("/api/components/refresh")
+def components_refresh():
+    return components_overview()
 
-# Transit Systems Management Routes
-@main.route("/transit-systems")
-def transit_systems_page():
-    """Transit systems management page"""
-    return render_template("transit_systems.html")
+# Agencies Management Routes
+@main.route("/agencies")
+def agencies_page():
+    """Agencys management page"""
+    return render_template("agencies.html")
 
-@main.route("/api/transit-systems/list")
-def transit_systems_list():
-    """Get all transit systems with filtering"""
+@main.route("/api/agencies/list")
+def agencies_list():
+    """Get all agencys with filtering"""
     try:
         search = request.args.get('search', '').lower()
         
-        query = TransitSystem.query
+        query = Agency.query
         
         # Apply search filter
         if search:
-            query = query.filter(TransitSystem.name.ilike(f'%{search}%'))
+            query = query.filter(Agency.name.ilike(f'%{search}%'))
         
-        transit_systems = query.order_by(TransitSystem.name).all()
+        agencies = query.order_by(Agency.name).all()
         
-        return render_template('fragments/transit_system_list.html', 
-                             transit_systems=transit_systems)
+        return render_template('fragments/agency_component_list.html', 
+                             agencies=agencies)
     except Exception as e:
-        return html_error_fragment(f"Error loading transit systems: {str(e)}")
+        return html_error_fragment(f"Error loading agencys: {str(e)}")
 
-@main.route("/api/transit-systems/<int:transit_system_id>/details")
-def transit_system_details(transit_system_id):
-    """Get detailed information about a specific transit system"""
+@main.route("/api/agencies/<int:agency_component_id>/details")
+def agency_component_details(agency_component_id):
+    """Get detailed information about a specific agency"""
     try:
-        transit_system = TransitSystem.query.get_or_404(transit_system_id)
+        agency_component = Agency.query.get_or_404(agency_component_id)
         
-        return render_template('fragments/transit_system_details.html', 
-                             transit_system=transit_system)
+        return render_template('fragments/agency_component_details.html', 
+                             agency_component=agency_component)
     except Exception as e:
-        return html_error_fragment(f"Error loading transit system details: {str(e)}")
+        return html_error_fragment(f"Error loading agency details: {str(e)}")
 
-@main.route("/api/transit-systems/form")
-def transit_system_form():
-    """Return new transit system form"""
+@main.route("/api/agencies/form")
+def agency_component_form():
+    """Return new agency form"""
     try:
-        return render_template('fragments/transit_system_form.html', 
-                             transit_system=None)
+        return render_template('fragments/agency_component_form.html', 
+                             agency_component=None)
     except Exception as e:
         return html_error_fragment(f"Error loading form: {str(e)}")
 
-@main.route("/api/transit-systems/<int:transit_system_id>/form")
-def transit_system_edit_form(transit_system_id):
-    """Return edit transit system form"""
+@main.route("/api/agencies/<int:agency_component_id>/form")
+def agency_component_edit_form(agency_component_id):
+    """Return edit agency form"""
     try:
-        transit_system = TransitSystem.query.get_or_404(transit_system_id)
+        agency_component = Agency.query.get_or_404(agency_component_id)
         
-        return render_template('fragments/transit_system_form.html', 
-                             transit_system=transit_system)
+        return render_template('fragments/agency_component_form.html', 
+                             agency_component=agency_component)
     except Exception as e:
         return html_error_fragment(f"Error loading edit form: {str(e)}")
 
-@main.route("/api/transit-systems", methods=['POST'])
+@main.route("/api/agencies", methods=['POST'])
 @login_required
-def create_transit_system():
-    """Create a new transit system"""
+def create_agency_component():
+    """Create a new agency"""
     try:
         data = request.form
         
         # Validate required fields
         if not data.get('name'):
-            return html_error_fragment("Transit system name is required")
+            return html_error_fragment("Agency name is required")
         
         # Check for duplicate names
-        existing = TransitSystem.query.filter_by(name=data['name']).first()
+        existing = Agency.query.filter_by(name=data['name']).first()
         if existing:
-            return html_error_fragment(f"Transit system '{data['name']}' already exists")
+            return html_error_fragment(f"Agency '{data['name']}' already exists")
         
         # Process additional metadata
         additional_metadata = {}
@@ -1001,8 +1068,8 @@ def create_transit_system():
             if key.strip() and value.strip():  # Only add non-empty pairs
                 additional_metadata[key.strip()] = value.strip()
         
-        # Create new transit system with all fields
-        transit_system = TransitSystem(
+        # Create new agency with all fields
+        agency_component = Agency(
             name=data['name'],
             location=data.get('location') or None,
             description=data.get('description') or None,
@@ -1010,41 +1077,41 @@ def create_transit_system():
             ceo=data.get('ceo') or None,
             address_hq=data.get('address_hq') or None,
             phone_number=data.get('phone_number') or None,
-            transit_map_link=data.get('transit_map_link') or None,
+            agency_map_link=data.get('agency_map_link') or None,
             contact_email=data.get('contact_email') or None,
             contact_phone=data.get('contact_phone') or None,
             contact_name=data.get('contact_name') or None,
             additional_metadata=additional_metadata if additional_metadata else None
         )
         
-        db.session.add(transit_system)
+        db.session.add(agency_component)
         db.session.commit()
         
-        return html_success_fragment(f"Transit system '{transit_system.name}' created successfully")
+        return html_success_fragment(f"Agency '{agency_component.name}' created successfully")
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error creating transit system: {str(e)}")
+        return html_error_fragment(f"Error creating agency: {str(e)}")
 
-@main.route("/api/transit-systems/<int:transit_system_id>", methods=['PUT'])
+@main.route("/api/agencies/<int:agency_component_id>", methods=['PUT'])
 @login_required
-def update_transit_system(transit_system_id):
-    """Update an existing transit system"""
+def update_agency_component(agency_component_id):
+    """Update an existing agency"""
     try:
-        transit_system = TransitSystem.query.get_or_404(transit_system_id)
+        agency_component = Agency.query.get_or_404(agency_component_id)
         data = request.form
         
         # Validate required fields
         if not data.get('name'):
-            return html_error_fragment("Transit system name is required")
+            return html_error_fragment("Agency name is required")
         
-        # Check for duplicate names (excluding current system)
-        existing = TransitSystem.query.filter(
-            TransitSystem.name == data['name'],
-            TransitSystem.id != transit_system_id
+        # Check for duplicate names (excluding current component)
+        existing = Agency.query.filter(
+            Agency.name == data['name'],
+            Agency.id != agency_component_id
         ).first()
         if existing:
-            return html_error_fragment(f"Transit system '{data['name']}' already exists")
+            return html_error_fragment(f"Agency '{data['name']}' already exists")
         
         # Process additional metadata
         additional_metadata = {}
@@ -1057,54 +1124,54 @@ def update_transit_system(transit_system_id):
         
         # Track changes for logging
         changes = []
-        if transit_system.name != data['name']:
-            changes.append(f"name: '{transit_system.name}' → '{data['name']}'")
-        if transit_system.location != data.get('location'):
+        if agency_component.name != data['name']:
+            changes.append(f"name: '{agency_component.name}' → '{data['name']}'")
+        if agency_component.location != data.get('location'):
             changes.append(f"location updated")
-        if transit_system.ceo != data.get('ceo'):
+        if agency_component.ceo != data.get('ceo'):
             changes.append(f"CEO updated")
         
         # Update all fields
-        transit_system.name = data['name']
-        transit_system.location = data.get('location') or None
-        transit_system.description = data.get('description') or None
-        transit_system.website = data.get('website') or None
-        transit_system.ceo = data.get('ceo') or None
-        transit_system.address_hq = data.get('address_hq') or None
-        transit_system.phone_number = data.get('phone_number') or None
-        transit_system.transit_map_link = data.get('transit_map_link') or None
-        transit_system.contact_email = data.get('contact_email') or None
-        transit_system.contact_phone = data.get('contact_phone') or None
-        transit_system.contact_name = data.get('contact_name') or None
-        transit_system.additional_metadata = additional_metadata if additional_metadata else None
+        agency_component.name = data['name']
+        agency_component.location = data.get('location') or None
+        agency_component.description = data.get('description') or None
+        agency_component.website = data.get('website') or None
+        agency_component.ceo = data.get('ceo') or None
+        agency_component.address_hq = data.get('address_hq') or None
+        agency_component.phone_number = data.get('phone_number') or None
+        agency_component.agency_map_link = data.get('transit_map_link') or None
+        agency_component.contact_email = data.get('contact_email') or None
+        agency_component.contact_phone = data.get('contact_phone') or None
+        agency_component.contact_name = data.get('contact_name') or None
+        agency_component.additional_metadata = additional_metadata if additional_metadata else None
         
         db.session.commit()
         
-        return html_success_fragment(f"Transit system '{transit_system.name}' updated successfully")
+        return html_success_fragment(f"Agency '{agency_component.name}' updated successfully")
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error updating transit system: {str(e)}")
+        return html_error_fragment(f"Error updating agency: {str(e)}")
 
-@main.route("/api/transit-systems/<int:transit_system_id>", methods=['DELETE'])
+@main.route("/api/agencies/<int:agency_component_id>", methods=['DELETE'])
 @login_required
-def delete_transit_system(transit_system_id):
-    """Delete a transit system"""
+def delete_agency_component(agency_component_id):
+    """Delete a agency"""
     try:
-        transit_system = TransitSystem.query.get_or_404(transit_system_id)
-        name = transit_system.name
+        agency_component = Agency.query.get_or_404(agency_component_id)
+        name = agency_component.name
         
-        # Note: Skip logging for transit systems since UpdateLog is for individual systems
+        # Note: Skip logging for agencys since UpdateLog is for individual components
         
-        # Delete the transit system (cascade will handle related records)
-        db.session.delete(transit_system)
+        # Delete the agency (cascade will handle related records)
+        db.session.delete(agency_component)
         db.session.commit()
         
-        return html_success_fragment(f"Transit system '{name}' deleted successfully")
+        return html_success_fragment(f"Agency '{name}' deleted successfully")
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error deleting transit system: {str(e)}")
+        return html_error_fragment(f"Error deleting agency: {str(e)}")
     
 # Functional Areas Management Routes
 @main.route("/functional-areas")
@@ -1117,21 +1184,16 @@ def functional_areas_list():
     """Get all functional areas with filtering"""
     try:
         search = request.args.get('search', '').lower()
-        transit_system = request.args.get('transit_system')
         
-        query = FunctionalArea.query.join(TransitSystem)
+        # Simple query - no agency relationship anymore
+        query = FunctionalArea.query
         
-        # Apply filters
+        # Apply search filter
         if search:
             query = query.filter(FunctionalArea.name.ilike(f'%{search}%'))
-        if transit_system:
-            try:
-                ts_id = int(transit_system)
-                query = query.filter(FunctionalArea.transit_system_id == ts_id)
-            except ValueError:
-                pass  # Invalid transit system ID, ignore filter
         
-        functional_areas = query.order_by(TransitSystem.name, FunctionalArea.name).all()
+        # Order by functional area name only
+        functional_areas = query.order_by(FunctionalArea.name).all()
         
         return render_template('fragments/functional_area_list.html', 
                              functional_areas=functional_areas)
@@ -1153,12 +1215,12 @@ def functional_area_details(functional_area_id):
 def functional_area_form():
     """Return new functional area form"""
     try:
-        # Get all transit systems for the dropdown
-        transit_systems = TransitSystem.query.order_by(TransitSystem.name).all()
+        # Get all agencys for the dropdown
+        agencies = Agency.query.order_by(Agency.name).all()
         
         return render_template('fragments/functional_area_form.html', 
                              functional_area=None, 
-                             transit_systems=transit_systems)
+                             agencies=agencies)
     except Exception as e:
         return html_error_fragment(f"Error loading form: {str(e)}")
 
@@ -1167,11 +1229,11 @@ def functional_area_edit_form(functional_area_id):
     """Return edit functional area form"""
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
-        transit_systems = TransitSystem.query.order_by(TransitSystem.name).all()
+        agencies = Agency.query.order_by(Agency.name).all()
         
         return render_template('fragments/functional_area_form.html', 
                              functional_area=functional_area,
-                             transit_systems=transit_systems)
+                             agencies=agencies)
     except Exception as e:
         return html_error_fragment(f"Error loading edit form: {str(e)}")
 
@@ -1186,32 +1248,32 @@ def create_functional_area():
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('transit_system_id'):
-            return html_error_fragment("Transit system is required")
+        if not data.get('agency_component_id'):
+            return html_error_fragment("Agency is required")
         
         try:
-            transit_system_id = int(data['transit_system_id'])
+            agency_component_id = int(data['agency_component_id'])
         except ValueError:
-            return html_error_fragment("Invalid transit system selected")
+            return html_error_fragment("Invalid agency selected")
         
-        # Verify transit system exists
-        transit_system = TransitSystem.query.get(transit_system_id)
-        if not transit_system:
-            return html_error_fragment("Selected transit system does not exist")
+        # Verify agency exists
+        agency_component = Agency.query.get(agency_component_id)
+        if not agency_component:
+            return html_error_fragment("Selected agency does not exist")
         
-        # Check for duplicate names within the same transit system
+        # Check for duplicate names within the same agency
         existing = FunctionalArea.query.filter_by(
             name=data['name'], 
-            transit_system_id=transit_system_id
+            agency_component_id=agency_component_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {transit_system.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency_component.name}")
         
         # Create new functional area
         functional_area = FunctionalArea(
             name=data['name'],
             description=data.get('description') or None,
-            transit_system_id=transit_system_id
+            agency_component_id=agency_component_id
         )
         
         db.session.add(functional_area)
@@ -1235,32 +1297,32 @@ def update_functional_area(functional_area_id):
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('transit_system_id'):
-            return html_error_fragment("Transit system is required")
+        if not data.get('agency_component_id'):
+            return html_error_fragment("Agency is required")
         
         try:
-            transit_system_id = int(data['transit_system_id'])
+            agency_component_id = int(data['agency_component_id'])
         except ValueError:
-            return html_error_fragment("Invalid transit system selected")
+            return html_error_fragment("Invalid agency selected")
         
-        # Verify transit system exists
-        transit_system = TransitSystem.query.get(transit_system_id)
-        if not transit_system:
-            return html_error_fragment("Selected transit system does not exist")
+        # Verify agency exists
+        agency_component = Agency.query.get(agency_component_id)
+        if not agency_component:
+            return html_error_fragment("Selected agency does not exist")
         
-        # Check for duplicate names within the same transit system (excluding current area)
+        # Check for duplicate names within the same agency (excluding current area)
         existing = FunctionalArea.query.filter(
             FunctionalArea.name == data['name'],
-            FunctionalArea.transit_system_id == transit_system_id,
+            FunctionalArea.agency_component_id == agency_component_id,
             FunctionalArea.id != functional_area_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {transit_system.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency_component.name}")
         
         # Update functional area
         functional_area.name = data['name']
         functional_area.description = data.get('description') or None
-        functional_area.transit_system_id = transit_system_id
+        functional_area.agency_component_id = agency_component_id
         
         db.session.commit()
         
@@ -1277,80 +1339,17 @@ def delete_functional_area(functional_area_id):
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         name = functional_area.name
-        transit_system_name = functional_area.transit_system.name
+        agency_component_name = functional_area.agency_component.name
         
         # Delete the functional area (cascade will handle related records)
         db.session.delete(functional_area)
         db.session.commit()
         
-        return html_success_fragment(f"Functional area '{name}' from {transit_system_name} deleted successfully")
+        return html_success_fragment(f"Functional area '{name}' from {agency_component_name} deleted successfully")
         
     except Exception as e:
         db.session.rollback()
         return html_error_fragment(f"Error deleting functional area: {str(e)}")
-
-# Helper routes for transit system selection
-@main.route("/api/transit-systems/options")
-def transit_systems_options():
-    """Get transit system options for dropdowns"""
-    try:
-        transit_systems = TransitSystem.query.order_by(TransitSystem.name).all()
-        
-        html = '<option value="">All Transit Systems</option>'
-        for ts in transit_systems:
-            location_part = f" ({ts.location})" if ts.location else ""
-            html += f'<option value="{ts.id}">{ts.name}{location_part}</option>'
-        
-        return html
-    except Exception as e:
-        return '<option value="">Error loading transit systems</option>'
-
-@main.route("/api/transit-systems/selector")
-def transit_systems_selector():
-    """Get transit system selector widget"""
-    try:
-        transit_systems = TransitSystem.query.order_by(TransitSystem.name).all()
-        
-        html = '''
-        <h3 class="text-lg font-semibold text-white mb-4">Transit Systems</h3>
-        <div class="space-y-2">
-        '''
-        
-        for ts in transit_systems:
-            area_count = FunctionalArea.query.filter_by(transit_system_id=ts.id).count()
-            html += f'''
-            <div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer"
-                 onclick="filterByTransitSystem({ts.id})">
-                <div>
-                    <p class="text-sm font-medium text-white">{ts.name}</p>
-                    {f'<p class="text-xs text-slate-400">{ts.location}</p>' if ts.location else ''}
-                </div>
-                <span class="text-xs text-slate-500">{area_count} areas</span>
-            </div>
-            '''
-        
-        html += '''
-        </div>
-        <script>
-        function filterByTransitSystem(tsId) {
-            document.getElementById('transit-system-filter').value = tsId;
-            htmx.trigger('#transit-system-filter', 'change');
-        }
-        </script>
-        '''
-        
-        return html
-    except Exception as e:
-        return f'<p class="text-red-400 text-sm">Error loading transit systems: {str(e)}</p>'
-
-# Count endpoints for new entities
-@main.route("/api/count/categories")
-def count_categories():
-    try:
-        count = Category.query.count()
-        return str(count)
-    except Exception as e:
-        return "0"
 
 @main.route("/api/count/functions")
 def count_functions():
@@ -1367,10 +1366,10 @@ def contribute():
 
 @main.route("/api/filter-options/functional-areas")
 def functional_areas_filter_options():
-    """Get functional area options that have associated systems"""
+    """Get functional area options that have associated components"""
     try:
         functional_areas = db.session.query(FunctionalArea.name)\
-            .join(System)\
+            .join(Component)\
             .distinct()\
             .order_by(FunctionalArea.name)\
             .all()
@@ -1385,10 +1384,10 @@ def functional_areas_filter_options():
 
 @main.route("/api/filter-options/vendors")
 def vendors_filter_options():
-    """Get vendor options that have associated systems"""
+    """Get vendor options that have associated components"""
     try:
         vendors = db.session.query(Vendor.name)\
-            .join(System)\
+            .join(Component)\
             .distinct()\
             .order_by(Vendor.name)\
             .all()
@@ -1401,20 +1400,20 @@ def vendors_filter_options():
     except Exception as e:
         return '<option value="">All Vendors</option>'
 
-@main.route("/api/systems/<int:system_id>/vendor")
-def system_vendor_details(system_id):
-    """Get vendor information for a specific system (without descriptions)"""
+@main.route("/api/components/<int:component_id>/vendor")
+def component_vendor_details(component_id):
+    """Get vendor information for a specific component (without descriptions)"""
     try:
-        system = System.query.get_or_404(system_id)
+        component = Component.query.get_or_404(component_id)
         
-        if not system.vendor:
+        if not component.vendor:
             return '''
             <div class="text-center py-4">
                 <span class="text-slate-500 text-sm">No vendor assigned</span>
             </div>
             '''
         
-        vendor = system.vendor
+        vendor = component.vendor
         website_link = f'<a href="{vendor.website}" target="_blank" class="text-blue-400 hover:text-blue-300">{vendor.website}</a>' if vendor.website else "No website"
         
         html = f'''
@@ -1442,13 +1441,13 @@ def system_vendor_details(system_id):
     except Exception as e:
         return f'<div class="text-center py-4"><span class="text-red-400 text-sm">Error loading vendor info</span></div>'
 
-@main.route("/api/systems/<int:system_id>/integrations")
-def system_integration_details(system_id):
-    """Get integration points for a specific system (without descriptions)"""
+@main.route("/api/components/<int:component_id>/integrations")
+def component_integration_details(component_id):
+    """Get integration points for a specific component (without descriptions)"""
     try:
-        system = System.query.get_or_404(system_id)
+        component = Component.query.get_or_404(component_id)
         
-        if not system.integration_points:
+        if not component.integration_points:
             return '''
             <div class="text-center py-4">
                 <span class="text-slate-500 text-sm">No integrations configured</span>
@@ -1456,7 +1455,7 @@ def system_integration_details(system_id):
             '''
         
         html = '<div class="space-y-2">'
-        for ip in system.integration_points:
+        for ip in component.integration_points:
             html += f'''
             <div class="flex items-center justify-between p-2 bg-slate-700/30 rounded">
                 <span class="text-sm text-slate-300">{ip.name}</span>
@@ -1470,24 +1469,6 @@ def system_integration_details(system_id):
         return f'<div class="text-center py-4"><span class="text-red-400 text-sm">Error loading integrations</span></div>'
 # End of app/routes/main.py
 
-# Start of app/models/__init__.py
-# Example model - create more files in app/models/ as needed
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String
-from app import db
-
-class Example(db.Model):
-    __tablename__ = "examples"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(64), nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<Example id={self.id} name={self.name!r}>"
-
-
-# End of app/models/__init__.py
-
 # Start of app/models/tran.py
 # models/tran.py
 
@@ -1496,21 +1477,21 @@ from app import db
 import enum
 
 # Association Tables
-system_integration = db.Table(
-    'system_integration',
-    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
+component_integration = db.Table(
+    'component_integration',
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True),
     db.Column('integration_point_id', db.Integer, db.ForeignKey('integration_points.id'), primary_key=True)
 )
 
-system_function = db.Table(
-    'system_function',
-    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
-    db.Column('function_id', db.Integer, db.ForeignKey('functions.id'), primary_key=True)
+function_component = db.Table(
+    'function_component',
+    db.Column('function_id', db.Integer, db.ForeignKey('functions.id'), primary_key=True),
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True)
 )
 
-system_tag = db.Table(
-    'system_tag',
-    db.Column('system_id', db.Integer, db.ForeignKey('systems.id'), primary_key=True),
+component_tag = db.Table(
+    'component_tag',
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True),
     db.Column('tag_id', db.Integer, db.ForeignKey('tags.id'), primary_key=True)
 )
 
@@ -1533,8 +1514,8 @@ class Criticality(enum.Enum):
     low = "low"
 
 # Core Models
-class TransitSystem(db.Model):
-    __tablename__ = 'transit_systems'
+class Agency(db.Model):
+    __tablename__ = 'agencies'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -1552,25 +1533,11 @@ class TransitSystem(db.Model):
     __table_args__ = (
         db.UniqueConstraint('name', name='uq_transit_system_name'),
     )
-    systems_used = db.relationship('TransitSystemSystem', back_populates='transit_system', cascade='all, delete-orphan')
+
+    function_implementations = db.relationship('AgencyFunctionImplementation', back_populates='agency', cascade='all, delete-orphan')
     
-
-    functional_areas = db.relationship('FunctionalArea', back_populates='transit_system', cascade='all, delete-orphan')
-
     def __repr__(self):
-        return f"<TransitSystem(name={self.name}, location={self.location})>"
-
-class TransitSystemSystem(db.Model):
-    __tablename__ = 'transit_system_system'
-    id = db.Column(db.Integer, primary_key=True)
-    transit_system_id = db.Column(db.Integer, db.ForeignKey('transit_systems.id'), nullable=False)
-    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'), nullable=False)
-    deployment_notes = db.Column(db.String(1000))
-    deployment_date = db.Column(db.Date)
-    
-    # Use back_populates consistently (remove backref)
-    system = db.relationship('System', back_populates='deployments')
-    transit_system = db.relationship('TransitSystem', back_populates='systems_used')
+        return f"<Agency(name={self.name}, location={self.location})>"
 
 class FunctionalArea(db.Model):
     __tablename__ = 'functional_areas'
@@ -1579,28 +1546,10 @@ class FunctionalArea(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
 
-    transit_system_id = db.Column(db.Integer, db.ForeignKey('transit_systems.id'), nullable=False)
-    transit_system = db.relationship('TransitSystem', back_populates='functional_areas')
-
-    categories = db.relationship('Category', back_populates='functional_area', cascade='all, delete-orphan')
+    functions = db.relationship('Function', back_populates='functional_area', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<FunctionalArea(name={self.name})>"
-
-class Category(db.Model):
-    __tablename__ = 'categories'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.String(500))
-
-    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'), nullable=False)
-    functional_area = db.relationship('FunctionalArea', back_populates='categories')
-
-    functions = db.relationship('Function', back_populates='category', cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f"<Category(name={self.name})>"
 
 class Function(db.Model):
     __tablename__ = 'functions'
@@ -1610,10 +1559,11 @@ class Function(db.Model):
     description = db.Column(db.String(500))
     criticality = db.Column(db.Enum(Criticality), default=Criticality.medium, nullable=False)
 
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    category = db.relationship('Category', back_populates='functions')
+    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'), nullable=False)
+    functional_area = db.relationship('FunctionalArea', back_populates='functions')
 
-    systems = db.relationship('System', secondary=system_function, back_populates='functions')
+    components = db.relationship('Component', secondary='function_component', back_populates='functions')
+    agency_implementations = db.relationship('AgencyFunctionImplementation', back_populates='function', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Function(name={self.name}, criticality={self.criticality.value})>"
@@ -1634,7 +1584,7 @@ class Vendor(db.Model):
     contact_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 
-    systems = db.relationship('System', back_populates='vendor', cascade='all, delete-orphan')
+    components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Vendor(name={self.name})>"
@@ -1657,38 +1607,63 @@ class Vendor(db.Model):
         else:
             return None
 
-class System(db.Model):
-    __tablename__ = 'systems'
+class Component(db.Model):
+    __tablename__ = 'components'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(1000))
     version = db.Column(db.String(50))
     deployment_date = db.Column(db.Date)
     update_frequency = db.Column(db.String(50))
     known_issues = db.Column(db.String(500))
     additional_metadata = db.Column(db.JSON)
-
-    functional_area_id = db.Column(db.Integer, db.ForeignKey('functional_areas.id'))
-    functional_area = db.relationship('FunctionalArea')
-
+    # Component nesting functionality
+    parent_component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
+    parent_component = db.relationship('Component', remote_side=[id], backref='child_components')
+    is_composite = db.Column(db.Boolean, default=False, nullable=False)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
-    vendor = db.relationship('Vendor', back_populates='systems')
 
-    deployments = db.relationship('TransitSystemSystem', back_populates='system', cascade='all, delete-orphan')
-    functions = db.relationship('Function', secondary=system_function, back_populates='systems')
-    integration_points = db.relationship('IntegrationPoint', secondary=system_integration, back_populates='systems')
-    tags = db.relationship('Tag', secondary=system_tag, back_populates='systems')
-
-    user_roles = db.relationship('UserRole', back_populates='system', cascade='all, delete-orphan')
-    update_logs = db.relationship('UpdateLog', back_populates='system', cascade='all, delete-orphan')
-
-    def add_metadata(self, key: str, value: str):
-        if not self.additional_metadata:
-            self.additional_metadata = {}
-        self.additional_metadata[key] = value
+    vendor = db.relationship('Vendor', back_populates='components')
+    functions = db.relationship('Function', secondary='function_component', back_populates='components')
+    integration_points = db.relationship('IntegrationPoint', secondary='component_integration', back_populates='components')
+    tags = db.relationship('Tag', secondary='component_tag', back_populates='components')
+    user_roles = db.relationship('UserRole', back_populates='component', cascade='all, delete-orphan')
+    update_logs = db.relationship('UpdateLog', back_populates='component', cascade='all, delete-orphan')
+    agency_usages = db.relationship('AgencyFunctionImplementation', back_populates='component', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<System(name={self.name}, version={self.version})>"
+        return f"<Component(name={self.name}, version={self.version})>"
+    
+class AgencyFunctionImplementation(db.Model):
+    __tablename__ = 'agency_function_implementations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False)
+    function_id = db.Column(db.Integer, db.ForeignKey('functions.id'), nullable=False)
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False)
+    
+    # Agency-specific deployment details
+    deployment_date = db.Column(db.Date)
+    version = db.Column(db.String(50))
+    deployment_notes = db.Column(db.String(1000))
+    status = db.Column(db.String(50), default='Active')  # Active, Planned, Retired
+    implementation_notes = db.Column(db.String(1000))
+    additional_metadata = db.Column(db.JSON)
+    
+    # Relationships
+    agency = db.relationship('Agency', back_populates='function_implementations')
+    function = db.relationship('Function', back_populates='agency_implementations')  
+    component = db.relationship('Component', back_populates='agency_usages')
+    
+    # Unique constraint
+    __table_args__ = (
+        db.UniqueConstraint('agency_id', 'function_id', 'component_id', 
+                          name='uq_agency_function_component'),
+    )
+    
+    def __repr__(self):
+        return f"<AgencyFunctionImplementation(agency={self.agency.name if self.agency else None}, function={self.function.name if self.function else None}, component={self.component.name if self.component else None})>"
 
 class IntegrationPoint(db.Model):
     __tablename__ = 'integration_points'
@@ -1699,7 +1674,7 @@ class IntegrationPoint(db.Model):
     website = db.Column(db.String(255))
 
     standards = db.relationship('Standard', secondary=integration_standard, back_populates='integration_points')
-    systems = db.relationship('System', secondary=system_integration, back_populates='integration_points')
+    components = db.relationship('Component', secondary='component_integration', back_populates='integration_points')
     tags = db.relationship('Tag', secondary=integration_tag, back_populates='integration_points')
 
     def __repr__(self):
@@ -1742,7 +1717,7 @@ class Tag(db.Model):
     tag_group_id = db.Column(db.Integer, db.ForeignKey('tag_groups.id'), nullable=False)
     tag_group = db.relationship('TagGroup', back_populates='tags')
 
-    systems = db.relationship('System', secondary=system_tag, back_populates='tags')
+    components = db.relationship('Component', secondary='component_tag', back_populates='tags')
     integration_points = db.relationship('IntegrationPoint', secondary=integration_tag, back_populates='tags')
 
     def __repr__(self):
@@ -1755,8 +1730,8 @@ class UserRole(db.Model):
     role_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(500))
 
-    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'))
-    system = db.relationship('System', back_populates='user_roles')
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'))
+    component = db.relationship('Component', back_populates='user_roles')
 
     def __repr__(self):
         return f"<UserRole(role_name={self.role_name})>"
@@ -1765,22 +1740,17 @@ class UpdateLog(db.Model):
     __tablename__ = 'update_logs'
 
     id = db.Column(db.Integer, primary_key=True)
-    system_id = db.Column(db.Integer, db.ForeignKey('systems.id'), nullable=False)
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False)
     updated_by = db.Column(db.String(100), nullable=False)
     update_date = db.Column(db.DateTime, default=datetime.utcnow)
     change_summary = db.Column(db.String(1000))
 
-    system = db.relationship('System', back_populates='update_logs')
+    component = db.relationship('Component', back_populates='update_logs')
 
     def __repr__(self):
-        return f"<UpdateLog(system_id={self.system_id}, updated_by={self.updated_by})>"
+        return f"<UpdateLog(component_id={self.component_id}, updated_by={self.updated_by})>"
 
 # End of app/models/tran.py
-
-# Start of .flaskenv
-FLASK_APP=app:create_app
-
-# End of .flaskenv
 
 # Start of config.py
 # config.py
@@ -1894,4 +1864,1750 @@ module.exports = {
   plugins: [],
 }
 # End of tailwind.config.js
+
+# Start of app/templates/base.html
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title|default("SeeTran - Transit System Intelligence") }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for("static", filename="css/tailwind.css") }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass-effect { 
+      backdrop-filter: blur(10px); 
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .glow-effect {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+    .nav-link {
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #3b82f6, #06b6d4);
+      transition: width 0.3s ease;
+    }
+    .nav-link:hover::after {
+      width: 100%;
+    }
+    .metric-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.9) 100%);
+      transition: all 0.3s ease;
+    }
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+  
+  <!-- Navigation -->
+  <nav class="glass-effect border-b border-slate-700/50 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        
+        <!-- Logo and Brand -->
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" 
+                 alt="SeeTran Logo" 
+                 class="w-5 h-5 object-contain">
+          </div>
+          <div>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              see-tran
+            </h1>
+            <p class="text-xs text-slate-400">Transit System Intelligence</p>
+          </div>
+        </div>
+
+        <div class="hidden md:flex items-center space-x-8">
+          <a href="/" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Dashboard</a>
+          <a href="/agencies" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Transit Agencies</a>
+          <a href="/functional-areas" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Functional Areas</a>
+          <a href="/components" class="nav-link text-slate-300 hover:text-white text-sm font-medium">System Components</a>
+          <a href="/vendors" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Vendors</a>
+          <a href="/integration" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Integration</a>
+          <a href="/reports" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Reports</a>
+        </div>
+
+        <!-- User Menu -->
+        <div class="flex items-center space-x-4">
+          <button class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </button>
+          <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="min-h-screen">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="glass-effect border-t border-slate-700/50 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="text-slate-400 text-sm">
+          SeeTran Platform. Transit system visibility and intelligence.
+        </div>
+        <div class="flex space-x-6 mt-4 md:mt-0 items-center">
+          <a href="#" class="text-slate-400 hover:text-slate-300 text-sm">Documentation</a>
+          <a href="#" class="text-slate-400 hover:text-slate-300 text-sm">API</a>
+          <a href="#" class="text-slate-400 hover:text-slate-300 text-sm">Support</a>
+          <a href="/contribute" class="inline-flex items-center text-emerald-400 hover:text-emerald-300 text-sm font-medium">
+            🌐 Open Source <span class="hidden sm:inline">&nbsp;| See how it works</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="{{ url_for("static", filename="js/htmx.min.js") }}"></script>
+  <script>
+    // Add smooth scroll behavior
+    document.documentElement.style.scrollBehavior = 'smooth';
+    
+    // Add loading states for HTMX requests
+    document.body.addEventListener('htmx:beforeRequest', function(e) {
+      const target = e.target;
+      if (target.classList.contains('btn-loading')) {
+        target.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>';
+      }
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+# End of app/templates/base.html
+
+# Start of app/templates/index.html
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Hero Section -->
+<div class="relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20"></div>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="text-center">
+      <h1 class="text-4xl md:text-6xl font-bold mb-6">
+        <span class="bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 bg-clip-text text-transparent">
+          Transit System
+        </span>
+        <br>
+        <span class="text-white">Intelligence Platform</span>
+      </h1>
+      <p class="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
+        Comprehensive visibility into your transit infrastructure, vendor relationships, 
+        and system integrations in real-time.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <button hx-get="/api/health" hx-swap="innerHTML" hx-target="#health-demo" 
+                class="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-semibold 
+                       hover:from-blue-700 hover:to-cyan-700 transition-all glow-effect">
+          Test System Health
+        </button>
+        <button class="px-8 py-3 border border-slate-600 rounded-lg font-semibold hover:bg-slate-800 transition-all">
+          View Documentation
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard Content -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  
+  <!-- Metrics Overview -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+    
+    <!-- Transit Systems Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/transit-systems" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Systems</h3>
+      <p class="text-xs text-slate-500">Active transportation networks</p>
+    </div>
+
+    <!-- Functional Areas Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/functional-areas" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Functional Areas</h3>
+      <p class="text-xs text-slate-500">Operational domains</p>
+    </div>
+
+    <!-- Active Systems Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/systems" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Active Systems</h3>
+      <p class="text-xs text-slate-500">Deployed technology systems</p>
+    </div>
+
+    <!-- Integration Points Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/integration-points" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Integration Points</h3>
+      <p class="text-xs text-slate-500">System interconnections</p>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- System Status Panel -->
+    <div class="lg:col-span-2">
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white">System Status</h2>
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span class="text-sm text-slate-300">All Systems Operational</span>
+          </div>
+        </div>
+        
+        <!-- Demo System Status -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+            <div class="flex items-center space-x-4">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <h4 class="font-medium text-white">Database Connection</h4>
+                <p class="text-sm text-slate-400">SQLite • Local Development</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400">Online</p>
+              <p class="text-xs text-slate-500">Response: 2ms</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+            <div class="flex items-center space-x-4">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <h4 class="font-medium text-white">Web Server</h4>
+                <p class="text-sm text-slate-400">Flask Development Server</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400">Online</p>
+              <p class="text-xs text-slate-500">Port: 5000</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+            <div class="flex items-center space-x-4">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <h4 class="font-medium text-white">HTMX Integration</h4>
+                <p class="text-sm text-slate-400">Dynamic UI Updates</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400">Active</p>
+              <p class="text-xs text-slate-500">v2.0.4</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      
+      <!-- System Health Demo -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">System Health</h3>
+        <div id="health-demo" class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <h4 class="text-lg font-semibold text-white mb-2">Excellent</h4>
+          <p class="text-sm text-slate-400">All systems functioning normally</p>
+        </div>
+      </div>
+
+      <!-- Getting Started -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Getting Started</h3>
+        <div class="space-y-3">
+          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+            <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-white">1</span>
+            </div>
+            <p class="text-sm text-slate-300">Add your first transit system</p>
+          </div>
+          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+            <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-white">2</span>
+            </div>
+            <p class="text-sm text-slate-300">Define functional areas</p>
+          </div>
+          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+            <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-white">3</span>
+            </div>
+            <p class="text-sm text-slate-300">Configure system integration</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+        <div class="space-y-3">
+          <button class="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            Add Transit System
+          </button>
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+              <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
+            </svg>
+            Generate Report
+          </button>
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            Export Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Information Cards -->
+  <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">System Tracking</h3>
+      <p class="text-slate-400 text-sm">Monitor all your transit technology systems, versions, and deployment status in one centralized dashboard.</p>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">Vendor Management</h3>
+      <p class="text-slate-400 text-sm">Track vendor relationships, contact information, and system dependencies across your entire transit network.</p>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">Integration Mapping</h3>
+      <p class="text-slate-400 text-sm">Visualize system integrations, data flows, and interconnections to understand your technology ecosystem.</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh metrics every 30 seconds
+setInterval(function() {
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+  elements.forEach(el => htmx.trigger(el, 'refresh'));
+}, 30000);
+
+// Add smooth animations for loaded content
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  const newContent = e.detail.target;
+  newContent.style.opacity = '0';
+  newContent.style.transform = 'translateY(10px)';
+  
+  setTimeout(() => {
+    newContent.style.transition = 'all 0.3s ease';
+    newContent.style.opacity = '1';
+    newContent.style.transform = 'translateY(0)';
+  }, 50);
+});
+</script>
+{% endblock %}
+# End of app/templates/index.html
+
+# Start of app/templates/functional_areas.html
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  
+  <!-- Page Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Functional Areas Management</h1>
+    <p class="text-slate-400">Manage global functional areas that organize transit technology functions across all agencies.</p>
+  </div>
+
+  <!-- Actions Bar -->
+  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
+    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+      
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row gap-4 flex-1">
+        <!-- Search -->
+        <div class="relative flex-1 max-w-md">
+          <input type="text" id="area-search" placeholder="Search functional areas..." 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                 hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" hx-trigger="keyup changed delay:300ms" 
+                 hx-vals="js:{search: event.target.value}">
+          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2">
+        <button hx-get="/api/functional-areas/form" hx-target="#functional-area-details" hx-swap="innerHTML"
+                class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          Add Functional Area
+        </button>
+        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+          Export
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Functional Areas List -->
+    <div class="lg:col-span-2">
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white">Functional Areas</h2>
+          <button hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" 
+                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        
+        <div id="functional-areas-list" hx-get="/api/functional-areas/list" hx-trigger="load">
+          <!-- Functional areas will be loaded here -->
+          <div class="animate-pulse space-y-4">
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details/Form Sidebar -->
+    <div class="space-y-6">
+      
+      <!-- Functional Area Details Panel -->
+      <div id="functional-area-details">
+        <!-- Default state -->
+        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
+          <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Total Areas</span>
+            <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Functions</span>
+            <span class="text-white font-medium" hx-get="/api/count/functions" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Components</span>
+            <span class="text-white font-medium" hx-get="/api/count/components" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Agencies</span>
+            <span class="text-white font-medium" hx-get="/api/count/agencies" hx-trigger="load">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Global Info Panel -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+          </svg>
+          Global Structure
+        </h3>
+        <div class="space-y-3 text-sm text-slate-300">
+          <p>Functional areas are shared across all transit agencies, providing a consistent framework for organizing technology functions.</p>
+          <div class="bg-slate-700/30 rounded-lg p-3">
+            <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">Hierarchy</p>
+            <div class="space-y-1 text-xs">
+              <div class="flex items-center">
+                <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                <span>Functional Areas (Global)</span>
+              </div>
+              <div class="flex items-center ml-4">
+                <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                <span>Functions</span>
+              </div>
+              <div class="flex items-center ml-8">
+                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                <span>Components (Agency-specific)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+  elements.forEach(el => htmx.trigger(el, 'refresh'));
+}, 30000);
+
+// Success/error handling for forms
+document.body.addEventListener('htmx:afterRequest', function(e) {
+  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
+    // Success: refresh list and show success message
+    htmx.trigger('#functional-areas-list', 'refresh');
+  }
+});
+</script>
+{% endblock %}
+# End of app/templates/functional_areas.html
+
+# Start of app/templates/agencies.html
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  
+  <!-- Page Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Transit Systems Management</h1>
+    <p class="text-slate-400">Manage transit systems and their organizational structure.</p>
+  </div>
+
+  <!-- Actions Bar -->
+  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
+    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+      
+      <!-- Search -->
+      <div class="relative flex-1 max-w-md">
+        <input type="text" id="transit-search" placeholder="Search transit systems..." 
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+               hx-get="/api/transit-systems/list" hx-target="#transit-systems-list" hx-trigger="keyup changed delay:300ms" 
+               hx-vals="js:{search: event.target.value}">
+        <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2">
+        <button hx-get="/api/transit-systems/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+                class="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          Add Transit System
+        </button>
+        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+          Export
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- Transit Systems List -->
+    <div class="lg:col-span-2">
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white">Transit Systems</h2>
+          <button hx-get="/api/transit-systems/list" hx-target="#transit-systems-list" 
+                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        
+        <div id="transit-systems-list" hx-get="/api/transit-systems/list" hx-trigger="load">
+          <!-- Transit systems will be loaded here -->
+          <div class="animate-pulse space-y-4">
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details/Form Sidebar -->
+    <div class="space-y-6">
+      
+      <!-- Transit System Details Panel -->
+      <div id="transit-system-details">
+        <!-- Default state -->
+        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Transit System Details</h3>
+          <p class="text-slate-500 text-sm">Click on a transit system to view details or use the Add button to create a new one.</p>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Total Systems</span>
+            <span class="text-white font-medium" hx-get="/api/count/transit-systems" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Functional Areas</span>
+            <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 text-sm">Active Systems</span>
+            <span class="text-white font-medium" hx-get="/api/count/systems" hx-trigger="load">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+  elements.forEach(el => htmx.trigger(el, 'refresh'));
+}, 30000);
+
+// Success/error handling for forms
+document.body.addEventListener('htmx:afterRequest', function(e) {
+  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
+    // Success: refresh list and show success message
+    htmx.trigger('#transit-systems-list', 'refresh');
+  }
+});
+</script>
+{% endblock %}
+# End of app/templates/agencies.html
+
+# Start of app/templates/fragments/functional_area_details.html
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex-1">
+      <h2 class="text-2xl font-bold text-white mb-2">{{ functional_area.name }}</h2>
+      <div class="flex items-center space-x-4 text-sm text-slate-400">
+        <span class="flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          Global Functional Area
+        </span>
+        
+        <span class="flex items-center">
+          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M9 3a1 1 0 012 0v5.5a.5.5 0 001 0V4a1 1 0 112 0v4.5a.5.5 0 001 0V6a1 1 0 112 0v5a7 7 0 11-14 0V9a1 1 0 012 0v2.5a.5.5 0 001 0V4a1 1 0 012 0v4.5a.5.5 0 001 0V3z" clip-rule="evenodd"/>
+          </svg>
+          {{ functional_area.functions|length }} Functions
+        </span>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button hx-get="/api/functional-areas/{{ functional_area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
+              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
+        Edit
+      </button>
+      <button onclick="closeFunctionalAreaDetails()"
+              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+        ✕ Close
+      </button>
+    </div>
+  </div>
+  
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- Left Column: Description & Functions -->
+    <div class="space-y-6">
+      
+      <!-- Description -->
+      {% if functional_area.description %}
+      <div>
+        <h3 class="font-medium text-white mb-3">Description</h3>
+        <div class="p-4 bg-slate-700/30 rounded-lg">
+          <p class="text-slate-300 text-sm leading-relaxed">{{ functional_area.description }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Functions -->
+      {% if functional_area.functions %}
+      <div>
+        <h3 class="font-medium text-white mb-3">Functions ({{ functional_area.functions|length }})</h3>
+        <div class="space-y-2">
+          {% for function in functional_area.functions %}
+          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
+            <div class="flex-1">
+              <p class="text-sm font-medium text-white">{{ function.name }}</p>
+              {% if function.description %}
+              <p class="text-xs text-slate-400 mt-1">{{ function.description[:80] }}{% if function.description|length > 80 %}...{% endif %}</p>
+              {% endif %}
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-1 text-xs rounded-full 
+                {% if function.criticality.value == 'high' %}bg-red-600/20 text-red-300 border border-red-600/30
+                {% elif function.criticality.value == 'medium' %}bg-yellow-600/20 text-yellow-300 border border-yellow-600/30
+                {% else %}bg-green-600/20 text-green-300 border border-green-600/30{% endif %}">
+                {{ function.criticality.value.title() }}
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div>
+        <h3 class="font-medium text-white mb-3">Functions</h3>
+        <div class="text-center py-8 bg-slate-700/20 rounded-lg">
+          <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          <h4 class="text-lg font-medium text-slate-400 mb-2">No Functions</h4>
+          <p class="text-slate-500 text-sm">No functions have been defined for this functional area yet.</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Column: Usage Statistics & Actions -->
+    <div class="space-y-6">
+      
+      <!-- Usage Statistics -->
+      <div>
+        <h3 class="font-medium text-white mb-3">Usage Statistics</h3>
+        <div class="space-y-3">
+          
+          <!-- Components implementing these functions -->
+          {% set component_count = functional_area.functions | map('attribute', 'components') | map('length') | sum %}
+          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-slate-400 text-xs uppercase tracking-wide">Components</p>
+                <p class="text-white font-medium">{{ component_count }} implementing</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Agency implementations -->
+          {% set agency_implementations = [] %}
+          {% for function in functional_area.functions %}
+            {% for impl in function.agency_implementations %}
+              {% if impl.agency not in agency_implementations %}
+                {% set _ = agency_implementations.append(impl.agency) %}
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+          
+          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-slate-400 text-xs uppercase tracking-wide">Agencies</p>
+                <p class="text-white font-medium">{{ agency_implementations|length }} using</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Criticality Breakdown -->
+      {% if functional_area.functions %}
+      <div>
+        <h3 class="font-medium text-white mb-3">Function Criticality</h3>
+        {% set high_functions = functional_area.functions | selectattr('criticality.value', 'equalto', 'high') | list %}
+        {% set medium_functions = functional_area.functions | selectattr('criticality.value', 'equalto', 'medium') | list %}
+        {% set low_functions = functional_area.functions | selectattr('criticality.value', 'equalto', 'low') | list %}
+        
+        <div class="space-y-2">
+          <div class="flex items-center justify-between p-2 bg-red-600/20 border border-red-600/30 rounded">
+            <span class="text-sm text-red-300 flex items-center">
+              <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+              High Priority
+            </span>
+            <span class="text-sm text-red-200">{{ high_functions|length }}</span>
+          </div>
+          <div class="flex items-center justify-between p-2 bg-yellow-600/20 border border-yellow-600/30 rounded">
+            <span class="text-sm text-yellow-300 flex items-center">
+              <div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+              Medium Priority
+            </span>
+            <span class="text-sm text-yellow-200">{{ medium_functions|length }}</span>
+          </div>
+          <div class="flex items-center justify-between p-2 bg-green-600/20 border border-green-600/30 rounded">
+            <span class="text-sm text-green-300 flex items-center">
+              <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              Low Priority
+            </span>
+            <span class="text-sm text-green-200">{{ low_functions|length }}</span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
+      <!-- Quick Actions -->
+      <div>
+        <h3 class="font-medium text-white mb-3">Quick Actions</h3>
+        <div class="space-y-2">
+          <button hx-get="/api/functional-areas/{{ functional_area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
+                  class="w-full flex items-center justify-center p-3 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/30 transition-colors text-blue-300 text-sm">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+            </svg>
+            Edit Functional Area
+          </button>
+          
+          <button onclick="window.location.href='/components?functional_area={{ functional_area.name }}'"
+                  class="w-full flex items-center justify-center p-3 bg-green-600/20 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-colors text-green-300 text-sm">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+            </svg>
+            View Components
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function closeFunctionalAreaDetails() {
+  document.getElementById('functional-area-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
+      <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+</script>
+# End of app/templates/fragments/functional_area_details.html
+
+# Start of app/templates/fragments/functional_area_form.html
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-bold text-white">
+      {% if functional_area %}Edit Functional Area{% else %}Add Functional Area{% endif %}
+    </h2>
+    <button onclick="closeFunctionalAreaForm()"
+            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+      ✕ Cancel
+    </button>
+  </div>
+
+  <form {% if functional_area %}hx-put="/api/functional-areas/{{ functional_area.id }}"{% else %}hx-post="/api/functional-areas"{% endif %}
+        hx-target="#result-message" hx-swap="innerHTML">
+    
+    <div class="space-y-4">
+      <!-- Info Note -->
+      <div class="p-4 bg-blue-600/10 border border-blue-600/20 rounded-lg">
+        <div class="flex items-start space-x-3">
+          <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+          </svg>
+          <div>
+            <p class="text-blue-300 text-sm font-medium">Global Functional Area</p>
+            <p class="text-blue-200 text-xs mt-1">This functional area will be available for all transit agencies to use. Functions within this area can be implemented by different agencies using different components.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label for="name" class="block text-sm font-medium text-slate-300 mb-2">Name *</label>
+        <input type="text" id="name" name="name" required
+               value="{{ functional_area.name if functional_area else '' }}"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+               placeholder="e.g., Operations Management (Real-Time)">
+      </div>
+
+      <div>
+        <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Description</label>
+        <textarea id="description" name="description" rows="4"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                  placeholder="Detailed description of this functional area and its scope...">{{ functional_area.description if functional_area else '' }}</textarea>
+        <p class="text-xs text-slate-500 mt-1">Provide a comprehensive description that helps agencies understand when to use this functional area.</p>
+      </div>
+    </div>
+
+    <div id="result-message" class="mt-4"></div>
+
+    <div class="flex gap-3 mt-6">
+      <button type="submit" 
+              class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all">
+        {% if functional_area %}Update Functional Area{% else %}Create Functional Area{% endif %}
+      </button>
+      {% if functional_area %}
+      <button type="button" 
+              hx-delete="/api/functional-areas/{{ functional_area.id }}"
+              hx-confirm="Are you sure you want to delete this functional area? This will also delete all associated functions and agency implementations."
+              hx-target="#result-message"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors">
+        Delete
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<script>
+function closeFunctionalAreaForm() {
+  document.getElementById('functional-area-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
+      <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+</script>
+# End of app/templates/fragments/functional_area_form.html
+
+# Start of app/templates/fragments/functional_area_list.html
+{% if functional_areas %}
+  {% for area in functional_areas %}
+  <div class="functional-area-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
+       hx-get="/api/functional-areas/{{ area.id }}/details" hx-target="#functional-area-details" hx-swap="innerHTML">
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex-1">
+        <h3 class="font-semibold text-white text-lg mb-2">{{ area.name }}</h3>
+        {% if area.description %}
+        <p class="text-slate-300 text-sm mb-3">{{ area.description }}</p>
+        {% endif %}
+        <div class="flex items-center space-x-4 text-xs text-slate-400">
+          <span>🔧 {{ area.functions|length }} functions</span>
+          <span>🌍 Global (All Agencies)</span>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-2">
+          <span class="text-lg font-bold text-white">{{ area.functions|length }}</span>
+        </div>
+        <div class="text-xs text-slate-500 text-center">Functions</div>
+      </div>
+    </div>
+    
+    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
+      <div class="flex items-center space-x-2">
+        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+        <span class="text-xs text-slate-400">Active</span>
+      </div>
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              hx-get="/api/functional-areas/{{ area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
+              onclick="event.stopPropagation()">
+        Edit
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="text-center py-12">
+  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+    </svg>
+  </div>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No Functional Areas Found</h3>
+  <p class="text-slate-500">Try adjusting your search or add a new functional area.</p>
+</div>
+{% endif %}
+# End of app/templates/fragments/functional_area_list.html
+
+# Start of app/templates/fragments/agency_details.html
+<!-- app/templates/fragments/transit_system_details.html -->
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold text-white">{{ transit_system.name }}</h2>
+    <div class="flex gap-2">
+      <button hx-get="/api/transit-systems/{{ transit_system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
+        Edit
+      </button>
+      <button onclick="document.getElementById('transit-system-details').innerHTML = `
+              <div class='glass-effect rounded-xl p-6 border border-slate-700/50 text-center'>
+                  <div class='w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4'>
+                      <svg class='w-8 h-8 text-slate-500' fill='currentColor' viewBox='0 0 20 20'>
+                          <path d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z'/>
+                      </svg>
+                  </div>
+                  <h3 class='text-lg font-medium text-slate-400 mb-2'>Transit System Details</h3>
+                  <p class='text-slate-500 text-sm'>Click on a transit system to view details or use the Add button to create a new one.</p>
+              </div>`"
+              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+        ✕ Close
+      </button>
+    </div>
+  </div>
+  
+  <div class="space-y-6">
+    <!-- Basic Information Section -->
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+        </svg>
+        Location & Identity
+      </h3>
+      <div class="space-y-3 text-sm">
+        <div class="flex flex-col sm:flex-row sm:justify-between">
+          <span class="text-slate-400 mb-1 sm:mb-0">Location:</span>
+          <span class="text-white">{{ transit_system.location or 'Not specified' }}</span>
+        </div>
+        {% if transit_system.description %}
+        <div class="pt-1">
+          <span class="text-slate-400 block mb-2">Description:</span>
+          <p class="text-slate-300 leading-relaxed">{{ transit_system.description }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Leadership & Organization -->
+    {% if transit_system.ceo %}
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+        </svg>
+        Leadership
+      </h3>
+      <div class="text-sm">
+        <div class="flex flex-col sm:flex-row sm:justify-between">
+          <span class="text-slate-400 mb-1 sm:mb-0">CEO:</span>
+          <span class="text-white">{{ transit_system.ceo }}</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Contact Information -->
+    {% if transit_system.contact_name or transit_system.contact_email or transit_system.contact_phone or transit_system.phone_number %}
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+        </svg>
+        Contact Information
+      </h3>
+      <div class="space-y-3 text-sm">
+        {% if transit_system.contact_name %}
+        <div class="flex flex-col sm:flex-row sm:justify-between">
+          <span class="text-slate-400 mb-1 sm:mb-0">Contact Person:</span>
+          <span class="text-white">{{ transit_system.contact_name }}</span>
+        </div>
+        {% endif %}
+        {% if transit_system.contact_email %}
+        <div class="flex flex-col sm:flex-row sm:justify-between">
+          <span class="text-slate-400 mb-1 sm:mb-0">Email:</span>
+          <a href="mailto:{{ transit_system.contact_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ transit_system.contact_email }}</a>
+        </div>
+        {% endif %}
+        {% if transit_system.contact_phone %}
+        <div class="flex flex-col sm:flex-row sm:justify-between">
+          <span class="text-slate-400 mb-1 sm:mb-0">Phone:</span>
+          <a href="tel:{{ transit_system.contact_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ transit_system.contact_phone }}</a>
+        </div>
+        {% endif %}
+        {% if transit_system.phone_number and transit_system.phone_number != transit_system.contact_phone %}
+        <div class="flex flex-col sm:flex-row sm:justify-between">
+          <span class="text-slate-400 mb-1 sm:mb-0">Main Phone:</span>
+          <a href="tel:{{ transit_system.phone_number }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ transit_system.phone_number }}</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Address & Location -->
+    {% if transit_system.address_hq %}
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2v.01H16V6H4zm0 2v8h12V8H4z" clip-rule="evenodd"/>
+        </svg>
+        Headquarters
+      </h3>
+      <div class="text-sm">
+        <p class="text-slate-300 leading-relaxed">{{ transit_system.address_hq }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Online Resources -->
+    {% if transit_system.website or transit_system.transit_map_link %}
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
+        </svg>
+        Online Resources
+      </h3>
+      <div class="space-y-3 text-sm">
+        {% if transit_system.website %}
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+          <span class="text-slate-400 mb-2 sm:mb-0">Website:</span>
+          <a href="{{ transit_system.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+            Visit Site
+            <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
+            </svg>
+          </a>
+        </div>
+        {% endif %}
+        {% if transit_system.transit_map_link %}
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+          <span class="text-slate-400 mb-2 sm:mb-0">Transit Map:</span>
+          <a href="{{ transit_system.transit_map_link }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+            View Map
+            <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
+            </svg>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Additional Metadata -->
+    {% if transit_system.additional_metadata %}
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"/>
+        </svg>
+        Additional Information
+      </h3>
+      <div class="text-sm space-y-2">
+        {% for key, value in transit_system.additional_metadata.items() %}
+        <div class="flex flex-col sm:flex-row sm:justify-between py-1">
+          <span class="text-slate-400 mb-1 sm:mb-0">{{ key|title }}:</span>
+          <span class="text-white">{{ value }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Functional Areas -->
+    {% if transit_system.functional_areas %}
+    <div class="bg-slate-700/30 rounded-lg p-4">
+      <h3 class="font-semibold text-white mb-3 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
+        </svg>
+        Functional Areas ({{ transit_system.functional_areas|length }})
+      </h3>
+      <div class="space-y-3">
+        {% for area in transit_system.functional_areas %}
+        <div class="bg-slate-600/30 rounded-lg p-3">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
+            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ area.name }}</span>
+            <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded w-fit">
+              {{ area.categories|length }} categories
+            </span>
+          </div>
+          {% if area.description %}
+          <p class="text-xs text-slate-400 mt-2">{{ area.description }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+# End of app/templates/fragments/agency_details.html
+
+# Start of app/templates/fragments/agency_list.html
+<!-- app/templates/fragments/transit_system_list.html -->
+{% if transit_systems %}
+  {% for system in transit_systems %}
+  <div class="transit-system-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer group"
+       hx-get="/api/transit-systems/{{ system.id }}/details" hx-target="#transit-system-details" hx-swap="innerHTML">
+    
+    <!-- Card Header -->
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex-1">
+        <div class="flex items-center space-x-3 mb-2">
+          <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+          <h3 class="font-semibold text-white text-xl group-hover:text-blue-300 transition-colors">{{ system.name }}</h3>
+          
+          <!-- Quick Status Indicators -->
+          <div class="flex items-center space-x-2">
+            {% if system.website %}
+            <div class="w-2 h-2 bg-blue-400 rounded-full" title="Has Website"></div>
+            {% endif %}
+            {% if system.transit_map_link %}
+            <div class="w-2 h-2 bg-green-400 rounded-full" title="Has Transit Map"></div>
+            {% endif %}
+            {% if system.contact_email %}
+            <div class="w-2 h-2 bg-purple-400 rounded-full" title="Has Contact Email"></div>
+            {% endif %}
+          </div>
+        </div>
+        
+        <!-- Location and Description -->
+        <div class="space-y-1 mb-3">
+          {% if system.location %}
+          <p class="text-slate-300 text-sm flex items-center">
+            <svg class="w-4 h-4 mr-1 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+            </svg>
+            {{ system.location }}
+          </p>
+          {% endif %}
+          
+          {% if system.description %}
+          <p class="text-slate-400 text-sm">{{ system.description[:100] }}{% if system.description|length > 100 %}...{% endif %}</p>
+          {% endif %}
+        </div>
+        
+        <!-- Key Information -->
+        <div class="flex items-center space-x-4 text-xs text-slate-400">
+          <span>🏢 {{ system.functional_areas|length }} functional areas</span>
+          {% if system.ceo %}
+          <span>👨‍💼 CEO: {{ system.ceo }}</span>
+          {% endif %}
+          {% if system.contact_name %}
+          <span>📞 Contact: {{ system.contact_name }}</span>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Right Side Stats -->
+      <div class="text-right">
+        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mb-2">
+          <span class="text-lg font-bold text-white">{{ system.functional_areas|length }}</span>
+        </div>
+        <div class="text-xs text-slate-500 text-center">Areas</div>
+      </div>
+    </div>
+    
+    <!-- Card Footer with Quick Actions -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
+      <div class="flex items-center space-x-2">
+        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+        <span class="text-xs text-slate-400">Active</span>
+        
+        <!-- Contact Quick Actions -->
+        {% if system.contact_phone or system.phone_number %}
+        <a href="tel:{{ system.contact_phone or system.phone_number }}" 
+           class="text-xs text-green-400 hover:text-green-300 ml-2 transition-colors"
+           onclick="event.stopPropagation()" title="Call">
+          📞
+        </a>
+        {% endif %}
+        
+        {% if system.contact_email %}
+        <a href="mailto:{{ system.contact_email }}" 
+           class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+           onclick="event.stopPropagation()" title="Email">
+          ✉️
+        </a>
+        {% endif %}
+        
+        {% if system.website %}
+        <a href="{{ system.website }}" target="_blank" 
+           class="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+           onclick="event.stopPropagation()" title="Website">
+          🌐
+        </a>
+        {% endif %}
+      </div>
+      
+      <!-- Edit Action -->
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 rounded hover:bg-slate-700/50"
+              hx-get="/api/transit-systems/{{ system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+              onclick="event.stopPropagation()" title="Edit">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="text-center py-12">
+  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+    </svg>
+  </div>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No Transit Systems Found</h3>
+  <p class="text-slate-500">Try adjusting your search or add a new transit system.</p>
+</div>
+{% endif %}
+# End of app/templates/fragments/agency_list.html
+
+# Start of app/templates/fragments/agency_form.html
+<!-- app/templates/fragments/transit_system_form.html -->
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50 max-h-[90vh] overflow-y-auto">
+  <div class="flex items-center justify-between mb-6 sticky top-0 bg-slate-800/90 backdrop-blur-sm z-10 py-2 -mt-2">
+    <h2 class="text-xl font-bold text-white">
+      {% if transit_system %}Edit Transit System{% else %}Add Transit System{% endif %}
+    </h2>
+    <button onclick="closeForm()"
+            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+      ✕ Cancel
+    </button>
+  </div>
+
+  <form {% if transit_system %}hx-put="/api/transit-systems/{{ transit_system.id }}"{% else %}hx-post="/api/transit-systems"{% endif %}
+        hx-target="#result-message" hx-swap="innerHTML" class="space-y-8">
+    
+    <!-- Basic Information Section -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+        </svg>
+        Basic Information
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-1">
+          <label for="name" class="block text-sm font-medium text-slate-300 mb-2">
+            Name <span class="text-red-400">*</span>
+          </label>
+          <input type="text" id="name" name="name" required
+                 value="{{ transit_system.name if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
+                 placeholder="e.g., Metro Transit">
+        </div>
+
+        <div class="md:col-span-1">
+          <label for="location" class="block text-sm font-medium text-slate-300 mb-2">Location</label>
+          <input type="text" id="location" name="location"
+                 value="{{ transit_system.location if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
+                 placeholder="e.g., Minneapolis, MN">
+        </div>
+
+        <div class="md:col-span-2">
+          <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Description</label>
+          <textarea id="description" name="description" rows="3"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors resize-vertical"
+                    placeholder="Brief description of the transit system and its services">{{ transit_system.description if transit_system else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Address & Location Section -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+        </svg>
+        Address & Location
+      </h3>
+      <div>
+        <label for="address_hq" class="block text-sm font-medium text-slate-300 mb-2">Headquarters Address</label>
+        <textarea id="address_hq" name="address_hq" rows="2"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none transition-colors resize-vertical"
+                  placeholder="e.g., 560 6th Ave N, Seattle, WA 98109">{{ transit_system.address_hq if transit_system else '' }}</textarea>
+        <p class="text-xs text-slate-500 mt-1">Full street address of the main headquarters</p>
+      </div>
+    </div>
+
+    <!-- Leadership Section -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+        </svg>
+        Leadership
+      </h3>
+      <div>
+        <label for="ceo" class="block text-sm font-medium text-slate-300 mb-2">Chief Executive Officer</label>
+        <input type="text" id="ceo" name="ceo"
+               value="{{ transit_system.ceo if transit_system else '' }}"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
+               placeholder="e.g., John Smith">
+        <p class="text-xs text-slate-500 mt-1">Current CEO or top executive</p>
+      </div>
+    </div>
+
+    <!-- Contact Information Section -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+        </svg>
+        Contact Information
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="contact_name" class="block text-sm font-medium text-slate-300 mb-2">Primary Contact Name</label>
+          <input type="text" id="contact_name" name="contact_name"
+                 value="{{ transit_system.contact_name if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
+                 placeholder="e.g., Jane Doe">
+        </div>
+
+        <div>
+          <label for="contact_email" class="block text-sm font-medium text-slate-300 mb-2">Primary Contact Email</label>
+          <input type="email" id="contact_email" name="contact_email"
+                 value="{{ transit_system.contact_email if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
+                 placeholder="e.g., contact@transit.gov">
+        </div>
+
+        <div>
+          <label for="contact_phone" class="block text-sm font-medium text-slate-300 mb-2">Primary Contact Phone</label>
+          <input type="tel" id="contact_phone" name="contact_phone"
+                 value="{{ transit_system.contact_phone if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
+                 placeholder="e.g., (206) 555-0123">
+        </div>
+
+        <div>
+          <label for="phone_number" class="block text-sm font-medium text-slate-300 mb-2">Main Phone Number</label>
+          <input type="tel" id="phone_number" name="phone_number"
+                 value="{{ transit_system.phone_number if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
+                 placeholder="e.g., (206) 555-0100">
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">Primary contact is for direct inquiries, main phone is the public number</p>
+    </div>
+
+    <!-- Web & Resources Section -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
+        </svg>
+        Web & Resources
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="website" class="block text-sm font-medium text-slate-300 mb-2">Official Website</label>
+          <input type="url" id="website" name="website"
+                 value="{{ transit_system.website if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
+                 placeholder="e.g., https://www.transit.gov">
+          <p class="text-xs text-slate-500 mt-1">Main public website</p>
+        </div>
+
+        <div>
+          <label for="transit_map_link" class="block text-sm font-medium text-slate-300 mb-2">Transit Map URL</label>
+          <input type="url" id="transit_map_link" name="transit_map_link"
+                 value="{{ transit_system.transit_map_link if transit_system else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
+                 placeholder="e.g., https://www.transit.gov/map">
+          <p class="text-xs text-slate-500 mt-1">Link to interactive transit map</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Additional Information Section -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"/>
+        </svg>
+        Additional Information
+        <span class="ml-auto text-xs text-slate-500">Custom fields</span>
+      </h3>
+      
+      <div id="metadata-fields" class="space-y-3">
+        {% if transit_system and transit_system.additional_metadata %}
+          {% for key, value in transit_system.additional_metadata.items() %}
+          <div class="metadata-field bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Field Name</label>
+                <input type="text" name="metadata_key[]" value="{{ key }}"
+                       class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
+                       placeholder="e.g., Fleet Size">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Field Value</label>
+                <input type="text" name="metadata_value[]" value="{{ value }}"
+                       class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
+                       placeholder="e.g., 250 buses">
+              </div>
+            </div>
+            <button type="button" onclick="removeMetadataField(this)"
+                    class="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors flex items-center">
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+              Remove Field
+            </button>
+          </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+      
+      <button type="button" onclick="addMetadataField()" 
+              class="mt-3 px-4 py-2 bg-orange-600/20 border border-orange-600/30 rounded-lg text-orange-300 text-sm hover:bg-orange-600/30 transition-colors flex items-center">
+        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+        </svg>
+        Add Custom Field
+      </button>
+      <p class="text-xs text-slate-500 mt-2">Add any additional information like fleet size, ridership, service hours, etc.</p>
+    </div>
+
+    <!-- Form Messages -->
+    <div id="result-message" class="form-section"></div>
+
+    <!-- Form Actions -->
+    <div class="form-section sticky bottom-0 bg-slate-800/95 backdrop-blur-sm border-t border-slate-600 pt-6 mt-8">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button type="submit" 
+                class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all text-white shadow-lg">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+          </svg>
+          {% if transit_system %}Update Transit System{% else %}Create Transit System{% endif %}
+        </button>
+        
+        <button type="button" onclick="closeForm()" 
+                class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">
+          Cancel
+        </button>
+        
+        {% if transit_system %}
+        <button type="button" 
+                hx-delete="/api/transit-systems/{{ transit_system.id }}"
+                hx-confirm="Are you sure you want to delete this transit system? This will permanently delete all associated functional areas, categories, and functions."
+                hx-target="#result-message"
+                class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
+          </svg>
+          Delete System
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+function closeForm() {
+  document.getElementById('transit-system-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Transit System Details</h3>
+      <p class="text-slate-500 text-sm">Click on a transit system to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+
+function addMetadataField() {
+  const container = document.getElementById('metadata-fields');
+  const fieldDiv = document.createElement('div');
+  fieldDiv.className = 'metadata-field bg-slate-800/50 rounded-lg p-4 border border-slate-700/50';
+  fieldDiv.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Field Name</label>
+        <input type="text" name="metadata_key[]" 
+               class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
+               placeholder="e.g., Fleet Size">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Field Value</label>
+        <input type="text" name="metadata_value[]" 
+               class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
+               placeholder="e.g., 250 buses">
+      </div>
+    </div>
+    <button type="button" onclick="removeMetadataField(this)"
+            class="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors flex items-center">
+      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+      </svg>
+      Remove Field
+    </button>
+  `;
+  container.appendChild(fieldDiv);
+}
+
+function removeMetadataField(button) {
+  button.closest('.metadata-field').remove();
+}
+
+// Auto-save draft functionality (optional enhancement)
+function saveDraft() {
+  const formData = new FormData(document.querySelector('form'));
+  const draft = {};
+  for (let [key, value] of formData.entries()) {
+    draft[key] = value;
+  }
+  localStorage.setItem('transit_system_draft', JSON.stringify(draft));
+}
+
+// Optional: Save draft every 30 seconds
+setInterval(saveDraft, 30000);
+</script>
+
+<style>
+.form-section {
+  scroll-margin-top: 100px;
+}
+
+.metadata-field {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar for better UX */
+.glass-effect::-webkit-scrollbar {
+  width: 6px;
+}
+
+.glass-effect::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 3px;
+}
+
+.glass-effect::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 3px;
+}
+
+.glass-effect::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+</style>
+# End of app/templates/fragments/agency_form.html
 

@@ -7,15 +7,15 @@ files_to_concatenate = [
     'run.py',                    # Application entry point
     
     # Routes and Views
-    'app/routes/__init__.py',    # Routes initialization
+    #'app/routes/__init__.py',    # Routes initialization
     'app/routes/main.py',        # Main route handlers
     
     # Models and Data
-    'app/models/__init__.py',    # Models initialization
+    #'app/models/__init__.py',    # Models initialization
     'app/models/tran.py',        # Core data model
     
     # Configuration
-    '.flaskenv',                  # Flask-specific configuration
+    #'.flaskenv',                  # Flask-specific configuration
     'config.py',                 # Main configuration
     
     # Frontend Assets
@@ -26,10 +26,23 @@ files_to_concatenate = [
     'tailwind.config.js',        # Tailwind configuration
     
     # Templates
-    #'app/templates/base.html',   # Base template
-    #'app/templates/index.html',  # Main page template
-    #'app/templates/systems.html',# Systems page
-    #'app/templates/vendors.html',# Vendors page
+    #'app/templates/contribute.html',
+    'app/templates/base.html',   # Base template
+    'app/templates/index.html',  # Main page template
+    #'app/templates/components.html',
+    #'app/templates/vendors.html',
+    #'app/templates/standards.html',
+    'app/templates/functional_areas.html',
+    #'app/templates/integrations.html',
+    'app/templates/agencies.html',
+
+    # Template Partials
+    'app/templates/fragments/functional_area_details.html',
+    'app/templates/fragments/functional_area_form.html',
+    'app/templates/fragments/functional_area_list.html',
+    'app/templates/fragments/agency_details.html',
+    'app/templates/fragments/agency_list.html',
+    'app/templates/fragments/agency_form.html',
     
     # Data Loading Scripts
     #'scripts/load_tran.py',      # TRAN data loader

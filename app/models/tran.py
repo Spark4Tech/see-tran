@@ -57,6 +57,7 @@ class Agency(db.Model):
     contact_email = db.Column(db.String(255))
     contact_phone = db.Column(db.String(50))
     contact_name = db.Column(db.String(100))
+    short_name = db.Column(db.String(50)) # TODO: use short name for constructing agency specific URLs for images, etc.
     additional_metadata = db.Column(db.JSON)
     __table_args__ = (
         db.UniqueConstraint('name', name='uq_transit_system_name'),

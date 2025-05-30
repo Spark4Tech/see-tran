@@ -2,6 +2,9 @@
 # new_flask.sh
 # Run inside an **empty** project folder you've already created, e.g.:
 #   mkdir awesome_app && cd awesome_app && chmod +x setup.sh && ./setup.sh
+# TODO: Set up forms director and install Flask-WTF
+# TODO: Create command line option to allow user to choose between python venv or pyenv
+#   as the virtual environment manager
 set -uo pipefail
 
 # ---- derive project name ---------------------------------------------------
