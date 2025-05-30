@@ -3,8 +3,8 @@ from gitignore_parser import parse_gitignore
 
 files_to_concatenate = [
     # Core application files
-    'app/__init__.py',           # Flask app initialization
-    'run.py',                    # Application entry point
+    #'app/__init__.py',           # Flask app initialization
+    #'run.py',                    # Application entry point
     
     # Routes and Views
     #'app/routes/__init__.py',    # Routes initialization
@@ -16,30 +16,30 @@ files_to_concatenate = [
     
     # Configuration
     #'.flaskenv',                  # Flask-specific configuration
-    'config.py',                 # Main configuration
+    #'config.py',                 # Main configuration
     
     # Frontend Assets
     #'app/static/js/main.js',     # JavaScript functionality
     #'app/static/css/styles.css', # Custom styles
     #'app/static/css/output.css', # Compiled Tailwind CSS
     #'tailwind/input.css',        # Tailwind source CSS
-    'tailwind.config.js',        # Tailwind configuration
+    #'tailwind.config.js',        # Tailwind configuration
     
     # Templates
     #'app/templates/contribute.html',
     'app/templates/base.html',   # Base template
-    'app/templates/index.html',  # Main page template
+    #'app/templates/index.html',  # Main page template
     #'app/templates/components.html',
-    #'app/templates/vendors.html',
+    'app/templates/vendors.html',
     #'app/templates/standards.html',
-    'app/templates/functional_areas.html',
+    #'app/templates/functional_areas.html',
     #'app/templates/integrations.html',
-    'app/templates/agencies.html',
+    #'app/templates/agencies.html',
 
     # Template Partials
-    'app/templates/fragments/functional_area_details.html',
-    'app/templates/fragments/functional_area_form.html',
-    'app/templates/fragments/functional_area_list.html',
+    #'app/templates/fragments/functional_area_details.html',
+    #'app/templates/fragments/functional_area_form.html',
+    #'app/templates/fragments/functional_area_list.html',
     'app/templates/fragments/agency_details.html',
     'app/templates/fragments/agency_list.html',
     'app/templates/fragments/agency_form.html',

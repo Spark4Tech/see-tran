@@ -105,12 +105,10 @@ class Vendor(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    short_name = db.Column(db.String(50))
     website = db.Column(db.String(255))
     vendor_email = db.Column(db.String(255))
     vendor_phone = db.Column(db.String(50))
-    contact_name = db.Column(db.String(100))
-    contact_email = db.Column(db.String(255))
-    contact_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 
     components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan')
@@ -119,22 +117,20 @@ class Vendor(db.Model):
         return f"<Vendor(name={self.name})>"
     
     @property
-    def contact_info(self):
-        """
-        Consolidated contact information for backward compatibility
-        """
-        if self.contact_email:
-            return self.contact_email
-        elif self.contact_name:
-            return self.contact_name
-        elif self.contact_phone:
-            return self.contact_phone
-        elif self.vendor_email:
-            return self.vendor_email
-        elif self.vendor_phone:
-            return self.vendor_phone
-        else:
-            return None
+    def logo_url(self):
+        """Generate vendor logo URL"""
+        from flask import url_for
+        if self.short_name:
+            return url_for('static', filename=f'images/vendor_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
+        return None
+    
+    @property
+    def header_url(self):
+        """Generate vendor header URL"""
+        from flask import url_for
+        if self.short_name:
+            return url_for('static', filename=f'images/vendor_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
+        return None
 
 class Component(db.Model):
     __tablename__ = 'components'

@@ -50,7 +50,7 @@ class AgencyForm(FlaskForm):
     website = URLField('Official Website', 
                       validators=[Optional(), URL(message="Please enter a valid URL")])
     
-    agency_map_link = URLField('Transit Map URL', 
+    transit_map_link = URLField('Transit Map URL', 
                               validators=[Optional(), URL(message="Please enter a valid URL")])
     
     # Dynamic metadata fields will be handled separately in the template and route
@@ -67,7 +67,7 @@ class AgencyForm(FlaskForm):
         self.contact_phone.data = agency.contact_phone
         self.phone_number.data = agency.phone_number
         self.website.data = agency.website
-        self.agency_map_link.data = agency.agency_map_link
+        self.transit_map_link.data = agency.transit_map_link
     
     def populate_agency(self, agency):
         """Populate agency model with form data"""
@@ -81,4 +81,30 @@ class AgencyForm(FlaskForm):
         agency.contact_phone = self.contact_phone.data or None
         agency.phone_number = self.phone_number.data or None
         agency.website = self.website.data or None
-        agency.agency_map_link = self.agency_map_link.data or None
+        agency.transit_map_link = self.transit_map_link.data or None
+
+class VendorForm(FlaskForm):
+    name = StringField('Vendor Name', validators=[DataRequired(), Length(min=2, max=100)])
+    short_name = StringField('Short Name', validators=[Length(max=50)])
+    description = TextAreaField('Description', validators=[Length(max=500)])
+    website = URLField('Website', validators=[Optional(), URL()])
+    vendor_email = StringField('General Email', validators=[Optional(), Email(), Length(max=255)])
+    vendor_phone = StringField('General Phone', validators=[Optional(), Length(max=50)])
+    
+    def populate_from_vendor(self, vendor):
+        """Populate form fields from vendor object"""
+        self.name.data = vendor.name
+        self.short_name.data = vendor.short_name
+        self.description.data = vendor.description
+        self.website.data = vendor.website
+        self.vendor_email.data = vendor.vendor_email
+        self.vendor_phone.data = vendor.vendor_phone
+    
+    def populate_vendor(self, vendor):
+        """Populate vendor object from form data"""
+        vendor.name = self.name.data
+        vendor.short_name = self.short_name.data
+        vendor.description = self.description.data
+        vendor.website = self.website.data
+        vendor.vendor_email = self.vendor_email.data
+        vendor.vendor_phone = self.vendor_phone.data

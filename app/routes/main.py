@@ -3,9 +3,10 @@ from flask import Blueprint, render_template, jsonify, request, url_for
 from app import db
 from app.models.tran import (
     Agency, FunctionalArea, Component, Vendor, IntegrationPoint, 
-    UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation
+    UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation,
+    integration_standard, component_integration
 )
-from app.forms.forms import AgencyForm
+from app.forms.forms import AgencyForm, VendorForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
@@ -24,11 +25,6 @@ def index():
 def components_page():
     """Components management page"""
     return render_template("components.html")
-
-@main.route("/vendors")
-def vendors_page():
-    """Vendors management page"""
-    return render_template("vendors.html")
 
 # Health and utility endpoints
 @main.route("/api/health")
@@ -351,7 +347,12 @@ def clear_component_details_js():
     </script>
     '''
 
-# Vendors endpoints (keeping existing functionality)
+# Vendors Management Routes
+@main.route("/vendors")
+def vendors_page():
+    """Vendors management page"""
+    return render_template("vendors.html")
+
 @main.route("/api/vendors/list")
 def vendors_list():
     """Get all vendors with filtering and component counts"""
@@ -382,77 +383,12 @@ def vendors_list():
         
         vendors_with_counts = query.all()
         
-        html = ""
+        # Add component count to vendors
         for vendor, component_count in vendors_with_counts:
-            functional_areas = db.session.query(FunctionalArea.name)\
-                .join(Component).filter(Component.vendor_id == vendor.id)\
-                .distinct().all()
-            
-            fa_names = [fa.name for fa in functional_areas]
-            fa_display = ", ".join(fa_names[:2])
-            if len(fa_names) > 2:
-                fa_display += f" +{len(fa_names) - 2} more"
-            
-            latest_component = Component.query.filter_by(vendor_id=vendor.id)\
-                .order_by(Component.deployment_date.desc().nullslast()).first()
-            
-            latest_deployment = "No deployments"
-            if latest_component and latest_component.deployment_date:
-                latest_deployment = latest_component.deployment_date.strftime('%Y-%m-%d')
-            
-            website_display = ""
-            if vendor.website:
-                domain = vendor.website.replace('https://', '').replace('http://', '').split('/')[0]
-                website_display = f'<a href="{vendor.website}" target="_blank" class="text-blue-400 hover:text-blue-300 text-xs">{domain}</a>'
-            
-            html += f'''
-            <div class="vendor-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
-                 hx-get="/api/vendors/{vendor.id}/details" hx-target="#vendor-details" hx-swap="innerHTML">
-                <div class="flex items-start justify-between mb-4">
-                    <div class="flex-1">
-                        <h3 class="font-semibold text-white text-xl mb-2">{vendor.name}</h3>
-                        <p class="text-slate-300 text-sm mb-3">{vendor.description or 'No description available'}</p>
-                        <div class="flex items-center space-x-4 text-xs text-slate-400">
-                            <span>🏢 {component_count} components</span>
-                            <span>📍 {fa_display if fa_names else 'No components'}</span>
-                            <span>📅 Latest: {latest_deployment}</span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-2">
-                            <span class="text-lg font-bold text-white">{component_count}</span>
-                        </div>
-                        <div class="text-xs text-slate-500 text-center">Components</div>
-                    </div>
-                </div>
-                
-                <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-                    <div class="flex items-center space-x-3">
-                        {website_display}
-                        {f'<span class="text-xs text-slate-500">• {vendor.contact_email or vendor.contact_name}</span>' if vendor.contact_email or vendor.contact_name else ''}
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span class="text-xs text-slate-400">Active</span>
-                    </div>
-                </div>
-            </div>
-            '''
+            vendor.component_count = component_count
         
-        if not html:
-            html = '''
-            <div class="text-center py-12">
-                <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-medium text-slate-400 mb-2">No Vendors Found</h3>
-                <p class="text-slate-500">Try adjusting your search or add new vendors.</p>
-            </div>
-            '''
-        
-        return html
+        return render_template('fragments/vendor_list.html', 
+                             vendors_with_counts=vendors_with_counts)
     except Exception as e:
         return html_error_fragment(f"Error loading vendors: {str(e)}")
 
@@ -462,133 +398,160 @@ def vendor_details(vendor_id):
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         
+        # Get components grouped by functional area
         components_by_area = {}
-        components = Component.query.filter_by(vendor_id=vendor.id).join(FunctionalArea).all()
         
-        for component in components:
-            area_name = component.functional_area.name
+        # Fixed query - proper joins through the relationship chain
+        components_query = db.session.query(Component, FunctionalArea.name.label('area_name'))\
+            .filter(Component.vendor_id == vendor_id)\
+            .join(AgencyFunctionImplementation, Component.agency_usages)\
+            .join(Function, AgencyFunctionImplementation.function)\
+            .join(FunctionalArea, Function.functional_area)\
+            .distinct(Component.id, FunctionalArea.name)\
+            .all()
+        
+        for component, area_name in components_query:
             if area_name not in components_by_area:
                 components_by_area[area_name] = []
-            components_by_area[area_name].append(component)
+            if component not in components_by_area[area_name]:
+                components_by_area[area_name].append(component)
         
-        components_html = ""
-        if components_by_area:
-            components_html = "<h4 class='font-medium text-white mb-3'>Components Portfolio:</h4>"
-            for area_name, area_components in components_by_area.items():
-                components_html += f'''
-                <div class="mb-4">
-                    <h5 class="text-sm font-medium text-blue-400 mb-2">{area_name}</h5>
-                    <div class="space-y-2 ml-3">
-                '''
-                for component in area_components:
-                    status_color = "red" if component.known_issues else "green"
-                    components_html += f'''
-                    <div class="flex items-center justify-between p-2 bg-slate-700/30 rounded">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-2 h-2 bg-{status_color}-500 rounded-full"></div>
-                            <span class="text-sm text-slate-300">{component.name}</span>
-                        </div>
-                        <span class="text-xs text-slate-500">v{component.version or 'Unknown'}</span>
-                    </div>
-                    '''
-                components_html += "</div></div>"
-        else:
-            components_html = "<p class='text-slate-400 text-sm'>No components found for this vendor.</p>"
+        # Get vendor statistics
+        total_components = Component.query.filter_by(vendor_id=vendor_id).count()
+        components_with_issues = Component.query.filter_by(vendor_id=vendor_id).filter(Component.known_issues.isnot(None)).count()
+        recent_deployments = Component.query.filter_by(vendor_id=vendor_id)\
+            .filter(Component.deployment_date >= datetime.now().date() - timedelta(days=365)).count()
         
-        total_components = len(components)
-        components_with_issues = len([s for s in components if s.known_issues])
-        recent_deployments = len([s for s in components if s.deployment_date and 
-                                 (datetime.now().date() - s.deployment_date).days <= 365])
+        # Get integration standards - simplified approach
+        vendor_components = Component.query.filter_by(vendor_id=vendor_id).all()
+        integration_standards = set()
+        for component in vendor_components:
+            for integration_point in component.integration_points:
+                for standard in integration_point.standards:
+                    integration_standards.add(standard.name)
         
-        integration_points = set()
-        for component in components:
-            for ip in component.integration_points:
-                integration_points.add(ip.name)
+        vendor.total_components = total_components
+        vendor.components_with_issues = components_with_issues
+        vendor.recent_deployments = recent_deployments
+        vendor.integration_standards = list(integration_standards)
+        vendor.components_by_area = components_by_area
         
-        integrations_html = ""
-        if integration_points:
-            integrations_html = f'''
-            <h4 class='font-medium text-white mb-2 mt-4'>Integration Standards:</h4>
-            <div class="flex flex-wrap gap-2">
-                {' '.join([f'<span class="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 rounded text-xs text-cyan-300">{ip}</span>' for ip in integration_points])}
-            </div>
-            '''
-        
-        html = f'''
-        <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center space-x-4">
-                    <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span class="text-2xl font-bold text-white">{vendor.name[0].upper()}</span>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold text-white">{vendor.name}</h2>
-                        <p class="text-slate-400">{vendor.description or 'No description available'}</p>
-                    </div>
-                </div>
-                <button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors" 
-                        onclick="document.getElementById('vendor-details').innerHTML = `
-                        <div class='glass-effect rounded-xl p-6 border border-slate-700/50 text-center'>
-                            <div class='w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4'>
-                                <svg class='w-8 h-8 text-slate-500' fill='currentColor' viewBox='0 0 20 20'>
-                                    <path d='M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z'/>
-                                </svg>
-                            </div>
-                            <h3 class='text-lg font-medium text-slate-400 mb-2'>Vendor Details</h3>
-                            <p class='text-slate-500 text-sm'>Click on a vendor to view detailed information, component portfolio, and contact details.</p>
-                        </div>`">
-                    ✕ Close
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="bg-blue-600/20 border border-blue-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-blue-300">{total_components}</div>
-                    <div class="text-sm text-blue-200">Total Components</div>
-                </div>
-                <div class="bg-green-600/20 border border-green-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-green-300">{total_components - components_with_issues}</div>
-                    <div class="text-sm text-green-200">Healthy Components</div>
-                </div>
-                <div class="bg-purple-600/20 border border-purple-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-purple-300">{recent_deployments}</div>
-                    <div class="text-sm text-purple-200">Recent Deployments</div>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="font-medium text-white mb-3">Contact Information</h3>
-                    <div class="space-y-2 text-sm">
-                        <p class="text-slate-300">
-                            <strong>Website:</strong> 
-                            {f'<a href="{vendor.website}" target="_blank" class="text-blue-400 hover:text-blue-300 ml-2">{vendor.website}</a>' if vendor.website else '<span class="text-slate-500 ml-2">Not provided</span>'}
-                        </p>
-                        <p class="text-slate-300">
-                            <strong>Contact:</strong> 
-                            <span class="ml-2">{vendor.contact_email or vendor.contact_name or 'Not provided'}</span>
-                        </p>
-                        <p class="text-slate-300">
-                            <strong>Phone:</strong> 
-                            <span class="ml-2">{vendor.contact_phone or vendor.vendor_phone or 'Not provided'}</span>
-                        </p>
-                    </div>
-                    
-                    {integrations_html}
-                </div>
-                
-                <div>
-                    {components_html}
-                </div>
-            </div>
-        </div>
-        '''
-        
-        return html
+        return render_template('fragments/vendor_details.html', vendor=vendor)
     except Exception as e:
         return html_error_fragment(f"Error loading vendor details: {str(e)}")
 
-# Additional existing endpoints with error handling
+@main.route("/api/vendors/form")
+def vendor_form():
+    """Return new vendor form"""
+    try:
+        form = VendorForm()
+        return render_template('fragments/vendor_form.html', 
+                             form=form, 
+                             vendor=None)
+    except Exception as e:
+        return html_error_fragment(f"Error loading form: {str(e)}")
+
+@main.route("/api/vendors/<int:vendor_id>/form")
+def vendor_edit_form(vendor_id):
+    """Return edit vendor form"""
+    try:
+        vendor = Vendor.query.get_or_404(vendor_id)
+        form = VendorForm()
+        form.populate_from_vendor(vendor)
+        
+        return render_template('fragments/vendor_form.html', 
+                             form=form, 
+                             vendor=vendor)
+    except Exception as e:
+        return html_error_fragment(f"Error loading edit form: {str(e)}")
+
+@main.route("/api/vendors", methods=['POST'])
+@login_required
+def create_vendor():
+    """Create a new vendor"""
+    try:
+        form = VendorForm()
+        
+        if form.validate_on_submit():
+            # Check for duplicate names
+            existing = Vendor.query.filter_by(name=form.name.data).first()
+            if existing:
+                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+            
+            # Create new vendor
+            vendor = Vendor()
+            form.populate_vendor(vendor)
+            
+            db.session.add(vendor)
+            db.session.commit()
+            
+            return html_success_fragment(f"Vendor '{vendor.name}' created successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/vendor_form.html', 
+                                 form=form, 
+                                 vendor=None)
+        
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error creating vendor: {str(e)}")
+
+@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])  # Using POST with _method=PUT for HTMX
+@login_required
+def update_vendor(vendor_id):
+    """Update an existing vendor"""
+    try:
+        vendor = Vendor.query.get_or_404(vendor_id)
+        form = VendorForm()
+        
+        if form.validate_on_submit():
+            # Check for duplicate names (excluding current vendor)
+            existing = Vendor.query.filter(
+                Vendor.name == form.name.data,
+                Vendor.id != vendor_id
+            ).first()
+            if existing:
+                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+            
+            # Update vendor
+            form.populate_vendor(vendor)
+            
+            db.session.commit()
+            
+            return html_success_fragment(f"Vendor '{vendor.name}' updated successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/vendor_form.html', 
+                                 form=form, 
+                                 vendor=vendor)
+        
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error updating vendor: {str(e)}")
+
+@main.route("/api/vendors/<int:vendor_id>", methods=['DELETE'])
+@login_required
+def delete_vendor(vendor_id):
+    """Delete a vendor"""
+    try:
+        vendor = Vendor.query.get_or_404(vendor_id)
+        name = vendor.name
+        
+        # Check if vendor has components
+        component_count = Component.query.filter_by(vendor_id=vendor_id).count()
+        if component_count > 0:
+            return html_error_fragment(f"Cannot delete vendor '{name}' because it has {component_count} associated components. Please reassign or delete the components first.")
+        
+        # Delete the vendor
+        db.session.delete(vendor)
+        db.session.commit()
+        
+        return html_success_fragment(f"Vendor '{name}' deleted successfully")
+        
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error deleting vendor: {str(e)}")
+
 @main.route("/api/vendors/stats")
 def vendors_stats():
     """Get vendor statistics for dashboard"""
@@ -1011,6 +974,112 @@ def delete_agency(agency_id):
     except Exception as e:
         db.session.rollback()
         return html_error_fragment(f"Error deleting agency: {str(e)}")
+    
+@main.route("/api/agencies/stats")
+def agencies_stats():
+    """Get agency statistics for dashboard"""
+    try:
+        # Total agencies
+        total_agencies = Agency.query.count()
+        
+        # Active implementations
+        active_implementations = AgencyFunctionImplementation.query.filter_by(status='Active').count()
+        
+        # Average implementations per agency
+        avg_implementations = 0
+        if total_agencies > 0:
+            total_implementations = AgencyFunctionImplementation.query.count()
+            avg_implementations = round(total_implementations / total_agencies, 1)
+        
+        # Average vendors per agency (agencies that use components from different vendors)
+        avg_vendors = 0
+        if total_agencies > 0:
+            # Count unique vendors per agency
+            vendor_counts = db.session.query(
+                AgencyFunctionImplementation.agency_id,
+                func.count(func.distinct(Component.vendor_id)).label('vendor_count')
+            ).join(Component)\
+             .filter(Component.vendor_id.isnot(None))\
+             .group_by(AgencyFunctionImplementation.agency_id)\
+             .all()
+            
+            if vendor_counts:
+                total_vendor_relationships = sum([count.vendor_count for count in vendor_counts])
+                agencies_with_vendors = len(vendor_counts)
+                avg_vendors = round(total_vendor_relationships / agencies_with_vendors, 1)
+        
+        # Most active agency (agency with most implementations)
+        most_active = db.session.query(
+            Agency.name,
+            func.count(AgencyFunctionImplementation.id).label('impl_count')
+        ).join(AgencyFunctionImplementation)\
+         .group_by(Agency.id, Agency.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        stats = {
+            'total_agencies': total_agencies,
+            'active_implementations': active_implementations,
+            'avg_implementations_per_agency': avg_implementations,
+            'avg_vendors_per_agency': avg_vendors,
+            'most_active_agency': most_active.name if most_active else 'N/A',
+            'most_active_count': most_active.impl_count if most_active else 0
+        }
+        
+        return jsonify(stats)
+    except Exception as e:
+        return json_error_response(f"Error getting agency stats: {str(e)}")
+
+@main.route("/api/count/active-implementations")
+def count_active_implementations():
+    """Get count of active implementations"""
+    try:
+        count = AgencyFunctionImplementation.query.filter_by(status='Active').count()
+        return str(count)
+    except Exception as e:
+        return "0"
+
+@main.route("/api/agencies/insights")
+def agency_insights():
+    """Get agency insights for the sidebar"""
+    try:
+        # Most tech-advanced agency
+        tech_leader = db.session.query(
+            Agency.name,
+            func.count(AgencyFunctionImplementation.id).label('tech_count')
+        ).join(AgencyFunctionImplementation)\
+         .group_by(Agency.id, Agency.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        # Most common functional area
+        common_area = db.session.query(
+            FunctionalArea.name,
+            func.count(AgencyFunctionImplementation.id).label('usage_count')
+        ).join(Function)\
+         .join(AgencyFunctionImplementation)\
+         .group_by(FunctionalArea.id, FunctionalArea.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        # Most used vendor
+        top_vendor = db.session.query(
+            Vendor.name,
+            func.count(AgencyFunctionImplementation.id).label('deployment_count')
+        ).join(Component)\
+         .join(AgencyFunctionImplementation)\
+         .group_by(Vendor.id, Vendor.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        return jsonify({
+            'tech_leader': tech_leader.name if tech_leader else 'N/A',
+            'tech_leader_count': tech_leader.tech_count if tech_leader else 0,
+            'common_area': common_area.name if common_area else 'N/A',
+            'top_vendor': top_vendor.name if top_vendor else 'N/A'
+        })
+    except Exception as e:
+        return json_error_response(f"Error getting agency insights: {str(e)}")
     
 # Functional Areas Management Routes
 @main.route("/functional-areas")

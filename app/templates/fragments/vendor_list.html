@@ -1,0 +1,103 @@
+<!-- app/templates/fragments/vendor_list.html -->
+{% if vendors_with_counts %}
+  {% for vendor, component_count in vendors_with_counts %}
+  <div class="vendor-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
+       hx-get="/api/vendors/{{ vendor.id }}/details" hx-target="#vendor-details" hx-swap="innerHTML">
+    
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-start space-x-4 flex-1">
+        <!-- Vendor Logo -->
+        {% if vendor.logo_url %}
+        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
+               class="w-full h-full object-contain"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
+            <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
+        </div>
+        {% endif %}
+        
+        <!-- Vendor Info -->
+        <div class="flex-1">
+          <div class="flex items-center space-x-3 mb-2">
+            <h3 class="font-semibold text-white text-lg">{{ vendor.name }}</h3>
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+          </div>
+          
+          {% if vendor.description %}
+          <p class="text-slate-400 text-sm mb-3">{{ vendor.description[:120] }}{% if vendor.description|length > 120 %}...{% endif %}</p>
+          {% endif %}
+          
+          <div class="flex items-center space-x-4 text-xs text-slate-400">
+            <span>🏢 {{ component_count }} components</span>
+            {% if vendor.website %}
+            <span>🌐 Website</span>
+            {% endif %}
+            {% if vendor.vendor_email %}
+            <span>📧 {{ vendor.vendor_email }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stats Badge -->
+      <div class="text-center">
+        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-1">
+          <span class="text-lg font-bold text-white">{{ component_count }}</span>
+        </div>
+        <div class="text-xs text-slate-500">Components</div>
+      </div>
+    </div>
+    
+    <!-- Footer with Quick Actions -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
+      <div class="flex items-center space-x-3">
+        {% if vendor.website %}
+        <a href="{{ vendor.website }}" target="_blank" 
+           class="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center"
+           onclick="event.stopPropagation()" title="Visit Website">
+          🌐 {{ vendor.website.replace('https://', '').replace('http://', '').split('/')[0] }}
+        </a>
+        {% endif %}
+        
+        {% if vendor.vendor_email %}
+        <a href="mailto:{{ vendor.vendor_email }}" 
+           class="text-xs text-green-400 hover:text-green-300 transition-colors"
+           onclick="event.stopPropagation()" title="Email">
+          📧 Contact
+        </a>
+        {% endif %}
+        
+        {% if vendor.vendor_phone %}
+        <a href="tel:{{ vendor.vendor_phone }}" 
+           class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+           onclick="event.stopPropagation()" title="Phone">
+          📞 Call
+        </a>
+        {% endif %}
+      </div>
+      
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML"
+              onclick="event.stopPropagation()">
+        Edit →
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="text-center py-12">
+  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+    </svg>
+  </div>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No Vendors Found</h3>
+  <p class="text-slate-500">Try adjusting your search or add a new vendor.</p>
+</div>
+{% endif %}

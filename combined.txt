@@ -15,6 +15,9 @@
     app/
         auth.py
         __init__.py
+        forms/
+            __init__.py
+            forms.py
         agents/
             agency_agent.py
             __init__.py
@@ -32,6 +35,17 @@
                 favicon.ico
                 ST.png
                 logo.png
+                transit_logos/
+                    spokane_logo.png
+                    kingco_logo.png
+                    island_logo.png
+                    godurham_logo.png
+                    chapelhill_logo.png
+                    cota_logo.png
+                    c-tran_logo.png
+                    trimet_logo.png
+                transit_headers/
+                    c-tran_header.png
             js/
                 .keep
         templates/
@@ -52,8 +66,14 @@
                 functional_area_list.html
                 agency_form.html
         routes/
+            vendor.py
+            agency.py
+            standard.py
             __init__.py
+            integration.py
             main.py
+            component.py
+            function.py
     tests/
         test_phase2_functional_areas.py
         test_phase2.py
@@ -66,89 +86,15 @@
 
 # End of Directory Structure
 
-# Start of app/__init__.py
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-import os
-
-db = SQLAlchemy()
-migrate = Migrate()
-
-def create_app(test_config=None):
-    app = Flask(__name__)
-    
-    if test_config:
-        app.config.update(test_config)
-    else:
-        # Import config classes
-        from config import DevelopmentConfig, ProductionConfig, TestConfig
-        
-        # Use DevelopmentConfig by default, or based on environment
-        flask_env = os.environ.get('FLASK_ENV', 'development')
-        if flask_env == 'production':
-            app.config.from_object(ProductionConfig)
-        elif flask_env == 'testing':
-            app.config.from_object(TestConfig)
-        else:
-            app.config.from_object(DevelopmentConfig)
-    
-    # Ensure the instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
-    
-    db.init_app(app)
-    migrate.init_app(app, db)
-    
-    # register blueprints
-    from app.routes.main import main as main_bp
-    app.register_blueprint(main_bp)
-    
-    return app
-# End of app/__init__.py
-
-# Start of run.py
-# run.py
-from app import create_app, db
-from app.models.tran import (
-    Agency, FunctionalArea, Vendor, Component,
-    IntegrationPoint, UserRole, UpdateLog
-)
-import os
-
-# Create the Flask app using the factory pattern
-# The create_app() function now handles config selection internally
-app = create_app()
-
-# Ensure models are imported so Flask-Migrate can detect them
-@app.shell_context_processor
-def make_shell_context():
-    return {
-        'app': app,
-        'db': db,
-        'Agency': Agency,                    # was TransitSystem
-        'FunctionalArea': FunctionalArea,
-        'Vendor': Vendor,
-        'Component': Component,              # was System
-        'IntegrationPoint': IntegrationPoint,
-        'UserRole': UserRole,
-        'UpdateLog': UpdateLog
-    }
-
-if __name__ == '__main__':
-    app.run(debug=True)
-# End of run.py
-
 # Start of app/routes/main.py
 # app/routes/main.py - Enhanced version
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, url_for
 from app import db
 from app.models.tran import (
     Agency, FunctionalArea, Component, Vendor, IntegrationPoint, 
     UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation
 )
+from app.forms.forms import AgencyForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
@@ -1006,165 +952,147 @@ def agencies_list():
             query = query.filter(Agency.name.ilike(f'%{search}%'))
         
         agencies = query.order_by(Agency.name).all()
-        
-        return render_template('fragments/agency_component_list.html', 
+        for agency in agencies:
+            agency.logo_url = url_for('static', filename=f'images/transit_logos/{agency.short_name.lower().replace(" ", "_")}_logo.png')
+            
+        return render_template('fragments/agency_list.html', 
                              agencies=agencies)
     except Exception as e:
         return html_error_fragment(f"Error loading agencys: {str(e)}")
 
-@main.route("/api/agencies/<int:agency_component_id>/details")
-def agency_component_details(agency_component_id):
+@main.route("/api/agencies/<int:agency_id>/details")
+def agency_details(agency_id):
     """Get detailed information about a specific agency"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
+        agency = Agency.query.get_or_404(agency_id)
+        agency.header_url = url_for('static', filename=f'images/transit_headers/{agency.short_name.lower().replace(" ", "_")}_header.png')
+
         
-        return render_template('fragments/agency_component_details.html', 
-                             agency_component=agency_component)
+        return render_template('fragments/agency_details.html', 
+                             agency=agency)
     except Exception as e:
         return html_error_fragment(f"Error loading agency details: {str(e)}")
 
 @main.route("/api/agencies/form")
-def agency_component_form():
+def agency_form():
     """Return new agency form"""
     try:
-        return render_template('fragments/agency_component_form.html', 
-                             agency_component=None)
+        form = AgencyForm()
+        return render_template('fragments/agency_form.html', 
+                             form=form, 
+                             agency=None)
     except Exception as e:
         return html_error_fragment(f"Error loading form: {str(e)}")
 
-@main.route("/api/agencies/<int:agency_component_id>/form")
-def agency_component_edit_form(agency_component_id):
+
+@main.route("/api/agencies/<int:agency_id>/form")
+def agency_edit_form(agency_id):
     """Return edit agency form"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
+        agency = Agency.query.get_or_404(agency_id)
+        form = AgencyForm()
+        form.populate_from_agency(agency)
         
-        return render_template('fragments/agency_component_form.html', 
-                             agency_component=agency_component)
+        return render_template('fragments/agency_form.html', 
+                             form=form, 
+                             agency=agency)
     except Exception as e:
         return html_error_fragment(f"Error loading edit form: {str(e)}")
 
 @main.route("/api/agencies", methods=['POST'])
 @login_required
-def create_agency_component():
+def create_agency():
     """Create a new agency"""
     try:
-        data = request.form
+        form = AgencyForm()
         
-        # Validate required fields
-        if not data.get('name'):
-            return html_error_fragment("Agency name is required")
-        
-        # Check for duplicate names
-        existing = Agency.query.filter_by(name=data['name']).first()
-        if existing:
-            return html_error_fragment(f"Agency '{data['name']}' already exists")
-        
-        # Process additional metadata
-        additional_metadata = {}
-        metadata_keys = data.getlist('metadata_key[]')
-        metadata_values = data.getlist('metadata_value[]')
-        
-        for key, value in zip(metadata_keys, metadata_values):
-            if key.strip() and value.strip():  # Only add non-empty pairs
-                additional_metadata[key.strip()] = value.strip()
-        
-        # Create new agency with all fields
-        agency_component = Agency(
-            name=data['name'],
-            location=data.get('location') or None,
-            description=data.get('description') or None,
-            website=data.get('website') or None,
-            ceo=data.get('ceo') or None,
-            address_hq=data.get('address_hq') or None,
-            phone_number=data.get('phone_number') or None,
-            agency_map_link=data.get('agency_map_link') or None,
-            contact_email=data.get('contact_email') or None,
-            contact_phone=data.get('contact_phone') or None,
-            contact_name=data.get('contact_name') or None,
-            additional_metadata=additional_metadata if additional_metadata else None
-        )
-        
-        db.session.add(agency_component)
-        db.session.commit()
-        
-        return html_success_fragment(f"Agency '{agency_component.name}' created successfully")
+        if form.validate_on_submit():
+            # Check for duplicate names
+            existing = Agency.query.filter_by(name=form.name.data).first()
+            if existing:
+                return html_error_fragment(f"Agency '{form.name.data}' already exists")
+            
+            # Process additional metadata
+            additional_metadata = {}
+            metadata_keys = request.form.getlist('metadata_key[]')
+            metadata_values = request.form.getlist('metadata_value[]')
+            
+            for key, value in zip(metadata_keys, metadata_values):
+                if key.strip() and value.strip():
+                    additional_metadata[key.strip()] = value.strip()
+            
+            # Create new agency
+            agency = Agency()
+            form.populate_agency(agency)
+            agency.additional_metadata = additional_metadata if additional_metadata else None
+            
+            db.session.add(agency)
+            db.session.commit()
+            
+            return html_success_fragment(f"Agency '{agency.name}' created successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/agency_form.html', 
+                                 form=form, 
+                                 agency=None)
         
     except Exception as e:
         db.session.rollback()
         return html_error_fragment(f"Error creating agency: {str(e)}")
-
-@main.route("/api/agencies/<int:agency_component_id>", methods=['PUT'])
+    
+@main.route("/api/agencies/<int:agency_id>", methods=['POST'])  # Note: Using POST with _method=PUT for HTMX
 @login_required
-def update_agency_component(agency_component_id):
+def update_agency(agency_id):
     """Update an existing agency"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
-        data = request.form
+        agency = Agency.query.get_or_404(agency_id)
+        form = AgencyForm()
         
-        # Validate required fields
-        if not data.get('name'):
-            return html_error_fragment("Agency name is required")
-        
-        # Check for duplicate names (excluding current component)
-        existing = Agency.query.filter(
-            Agency.name == data['name'],
-            Agency.id != agency_component_id
-        ).first()
-        if existing:
-            return html_error_fragment(f"Agency '{data['name']}' already exists")
-        
-        # Process additional metadata
-        additional_metadata = {}
-        metadata_keys = data.getlist('metadata_key[]')
-        metadata_values = data.getlist('metadata_value[]')
-        
-        for key, value in zip(metadata_keys, metadata_values):
-            if key.strip() and value.strip():  # Only add non-empty pairs
-                additional_metadata[key.strip()] = value.strip()
-        
-        # Track changes for logging
-        changes = []
-        if agency_component.name != data['name']:
-            changes.append(f"name: '{agency_component.name}' → '{data['name']}'")
-        if agency_component.location != data.get('location'):
-            changes.append(f"location updated")
-        if agency_component.ceo != data.get('ceo'):
-            changes.append(f"CEO updated")
-        
-        # Update all fields
-        agency_component.name = data['name']
-        agency_component.location = data.get('location') or None
-        agency_component.description = data.get('description') or None
-        agency_component.website = data.get('website') or None
-        agency_component.ceo = data.get('ceo') or None
-        agency_component.address_hq = data.get('address_hq') or None
-        agency_component.phone_number = data.get('phone_number') or None
-        agency_component.agency_map_link = data.get('transit_map_link') or None
-        agency_component.contact_email = data.get('contact_email') or None
-        agency_component.contact_phone = data.get('contact_phone') or None
-        agency_component.contact_name = data.get('contact_name') or None
-        agency_component.additional_metadata = additional_metadata if additional_metadata else None
-        
-        db.session.commit()
-        
-        return html_success_fragment(f"Agency '{agency_component.name}' updated successfully")
+        if form.validate_on_submit():
+            # Check for duplicate names (excluding current agency)
+            existing = Agency.query.filter(
+                Agency.name == form.name.data,
+                Agency.id != agency_id
+            ).first()
+            if existing:
+                return html_error_fragment(f"Agency '{form.name.data}' already exists")
+            
+            # Process additional metadata
+            additional_metadata = {}
+            metadata_keys = request.form.getlist('metadata_key[]')
+            metadata_values = request.form.getlist('metadata_value[]')
+            
+            for key, value in zip(metadata_keys, metadata_values):
+                if key.strip() and value.strip():
+                    additional_metadata[key.strip()] = value.strip()
+            
+            # Update agency
+            form.populate_agency(agency)
+            agency.additional_metadata = additional_metadata if additional_metadata else None
+            
+            db.session.commit()
+            
+            return html_success_fragment(f"Agency '{agency.name}' updated successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/agency_form.html', 
+                                 form=form, 
+                                 agency=agency)
         
     except Exception as e:
         db.session.rollback()
         return html_error_fragment(f"Error updating agency: {str(e)}")
 
-@main.route("/api/agencies/<int:agency_component_id>", methods=['DELETE'])
+@main.route("/api/agencies/<int:agency_id>", methods=['DELETE'])
 @login_required
-def delete_agency_component(agency_component_id):
-    """Delete a agency"""
+def delete_agency(agency_id):
+    """Delete an agency"""
     try:
-        agency_component = Agency.query.get_or_404(agency_component_id)
-        name = agency_component.name
-        
-        # Note: Skip logging for agencys since UpdateLog is for individual components
+        agency = Agency.query.get_or_404(agency_id)
+        name = agency.name
         
         # Delete the agency (cascade will handle related records)
-        db.session.delete(agency_component)
+        db.session.delete(agency)
         db.session.commit()
         
         return html_success_fragment(f"Agency '{name}' deleted successfully")
@@ -1248,32 +1176,32 @@ def create_functional_area():
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('agency_component_id'):
+        if not data.get('agency_id'):
             return html_error_fragment("Agency is required")
         
         try:
-            agency_component_id = int(data['agency_component_id'])
+            agency_id = int(data['agency_id'])
         except ValueError:
             return html_error_fragment("Invalid agency selected")
         
         # Verify agency exists
-        agency_component = Agency.query.get(agency_component_id)
-        if not agency_component:
+        agency = Agency.query.get(agency_id)
+        if not agency:
             return html_error_fragment("Selected agency does not exist")
         
         # Check for duplicate names within the same agency
         existing = FunctionalArea.query.filter_by(
             name=data['name'], 
-            agency_component_id=agency_component_id
+            agency_id=agency_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency_component.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency.name}")
         
         # Create new functional area
         functional_area = FunctionalArea(
             name=data['name'],
             description=data.get('description') or None,
-            agency_component_id=agency_component_id
+            agency_id=agency_id
         )
         
         db.session.add(functional_area)
@@ -1297,32 +1225,32 @@ def update_functional_area(functional_area_id):
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('agency_component_id'):
+        if not data.get('agency_id'):
             return html_error_fragment("Agency is required")
         
         try:
-            agency_component_id = int(data['agency_component_id'])
+            agency_id = int(data['agency_id'])
         except ValueError:
             return html_error_fragment("Invalid agency selected")
         
         # Verify agency exists
-        agency_component = Agency.query.get(agency_component_id)
-        if not agency_component:
+        agency = Agency.query.get(agency_id)
+        if not agency:
             return html_error_fragment("Selected agency does not exist")
         
         # Check for duplicate names within the same agency (excluding current area)
         existing = FunctionalArea.query.filter(
             FunctionalArea.name == data['name'],
-            FunctionalArea.agency_component_id == agency_component_id,
+            FunctionalArea.agency_id == agency_id,
             FunctionalArea.id != functional_area_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency_component.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency.name}")
         
         # Update functional area
         functional_area.name = data['name']
         functional_area.description = data.get('description') or None
-        functional_area.agency_component_id = agency_component_id
+        functional_area.agency_id = agency_id
         
         db.session.commit()
         
@@ -1339,13 +1267,13 @@ def delete_functional_area(functional_area_id):
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         name = functional_area.name
-        agency_component_name = functional_area.agency_component.name
+        agency_name = functional_area.agency.name
         
         # Delete the functional area (cascade will handle related records)
         db.session.delete(functional_area)
         db.session.commit()
         
-        return html_success_fragment(f"Functional area '{name}' from {agency_component_name} deleted successfully")
+        return html_success_fragment(f"Functional area '{name}' from {agency_name} deleted successfully")
         
     except Exception as e:
         db.session.rollback()
@@ -1529,6 +1457,7 @@ class Agency(db.Model):
     contact_email = db.Column(db.String(255))
     contact_phone = db.Column(db.String(50))
     contact_name = db.Column(db.String(100))
+    short_name = db.Column(db.String(50)) # TODO: use short name for constructing agency specific URLs for images, etc.
     additional_metadata = db.Column(db.JSON)
     __table_args__ = (
         db.UniqueConstraint('name', name='uq_transit_system_name'),
@@ -1752,119 +1681,6 @@ class UpdateLog(db.Model):
 
 # End of app/models/tran.py
 
-# Start of config.py
-# config.py
-
-import os
-from dotenv import load_dotenv
-from datetime import timedelta
-
-basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '.env'))
-
-class Config:
-    # Core Flask settings
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    DEBUG = os.environ.get('FLASK_ENV') == 'development'
-    
-    # Database settings - SQLite support
-    DB_TYPE = os.environ.get('DB_TYPE', 'sqlite')
-    
-    if DB_TYPE == 'postgres':
-        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    else:
-        # SQLite database
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(basedir, 'instance', 'app.db')}"
-    
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_COMMIT_ON_TEARDOWN = True
-    
-    # Security settings
-    CSRF_ENABLED = True
-    
-    # Application paths and cookies
-    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
-    SESSION_REFRESH_EACH_REQUEST = True
-
-    WTF_CSRF_TIME_LIMIT = 24 * 3600  # 24 hours in seconds
-    WTF_CSRF_SSL_STRICT = False
-    
-    # File upload settings
-    MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500 MB limit
-    
-    # Email settings
-    POSTMARK_API_KEY = os.getenv('POSTMARK_API_KEY')
-    POSTMARK_SENDER_EMAIL = os.getenv('POSTMARK_SENDER_EMAIL')
-    POSTMARK_NOTIFY_EMAIL = os.getenv('POSTMARK_NOTIFY_EMAIL')
-
-    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
-    CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
-    CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-3-5-haiku-20241022')
-    
-    # AWS settings
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_REGION = os.environ.get('AWS_REGION', 'us-west-2')
-    S3_BUCKET = os.environ.get('S3_BUCKET', 'well-app')
-    
-    # Application URLs
-    SMS_BASE_URL = os.environ.get('SMS_BASE_URL', 'https://well.voice4equity.com/app')
-    
-    @staticmethod
-    def get_s3_prefix(tenant_id):
-        """Generate S3 key prefix for tenant isolation"""
-        return f'tenant_{tenant_id}'
-    
-    # SMS settings
-    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-    TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
-
-    SMS_TEST_PHONE_NUMBER = os.environ.get('SMS_TEST_PHONE_NUMBER', '+18084649192')
-
-class DevelopmentConfig(Config):
-    """Development configuration."""
-    FLASK_ENV = 'development'
-    DEBUG = True
-    DEVELOPMENT = True
-    
-    # More permissive session cookie settings for development
-    SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_DOMAIN = None  # Allow all domains in development
-
-class ProductionConfig(Config):
-    """Production configuration."""
-    DEBUG = False
-    DEVELOPMENT = False
-    SESSION_COOKIE_SECURE = True
-    PREFERRED_URL_SCHEME = 'https'
-    
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    SESSION_FILE_DIR = '/home/ubuntu/see-tran/flask_session'
-
-class TestConfig(Config):
-    """Test configuration."""
-    TESTING = True
-    DEBUG = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-    WTF_CSRF_ENABLED = False
-# End of config.py
-
-# Start of tailwind.config.js
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    "./app/templates/**/*.html",
-    "./app/static/js/**/*.js",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}
-# End of tailwind.config.js
-
 # Start of app/templates/base.html
 <!doctype html>
 <html lang="en" class="dark">
@@ -2002,202 +1818,185 @@ module.exports = {
 </html>
 # End of app/templates/base.html
 
-# Start of app/templates/index.html
+# Start of app/templates/vendors.html
 {% extends "base.html" %}
 {% block content %}
 
-<!-- Hero Section -->
-<div class="relative overflow-hidden">
-  <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20"></div>
-  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-    <div class="text-center">
-      <h1 class="text-4xl md:text-6xl font-bold mb-6">
-        <span class="bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 bg-clip-text text-transparent">
-          Transit System
-        </span>
-        <br>
-        <span class="text-white">Intelligence Platform</span>
-      </h1>
-      <p class="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-        Comprehensive visibility into your transit infrastructure, vendor relationships, 
-        and system integrations in real-time.
-      </p>
-      <div class="flex flex-col sm:flex-row justify-center gap-4">
-        <button hx-get="/api/health" hx-swap="innerHTML" hx-target="#health-demo" 
-                class="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-semibold 
-                       hover:from-blue-700 hover:to-cyan-700 transition-all glow-effect">
-          Test System Health
-        </button>
-        <button class="px-8 py-3 border border-slate-600 rounded-lg font-semibold hover:bg-slate-800 transition-all">
-          View Documentation
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Dashboard Content -->
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   
-  <!-- Metrics Overview -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-    
-    <!-- Transit Systems Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+  <!-- Page Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">Vendor Management</h1>
+    <p class="text-slate-400">Manage vendor relationships and track system portfolios across your transit network.</p>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/vendors" hx-trigger="load">--</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium">Total Vendors</h3>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" id="active-vendors-count">--</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium">Active Vendors</h3>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/transit-systems" hx-trigger="load">0</span>
+        <span class="text-2xl font-bold text-white" id="avg-systems-count">--</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Systems</h3>
-      <p class="text-xs text-slate-500">Active transportation networks</p>
+      <h3 class="text-slate-400 text-sm font-medium">Avg Systems/Vendor</h3>
     </div>
 
-    <!-- Functional Areas Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-10 h-10 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/functional-areas" hx-trigger="load">0</span>
+        <span class="text-2xl font-bold text-white" id="top-vendor-count">--</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Functional Areas</h3>
-      <p class="text-xs text-slate-500">Operational domains</p>
+      <h3 class="text-slate-400 text-sm font-medium">Top Vendor Systems</h3>
     </div>
+  </div>
 
-    <!-- Active Systems Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+  <!-- Search and Filters -->
+  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
+    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+      
+      <!-- Search and Sort -->
+      <div class="flex flex-col sm:flex-row gap-4 flex-1">
+        
+        <!-- Search -->
+        <div class="relative flex-1 max-w-md">
+          <input type="text" id="vendor-search" placeholder="Search vendors..." 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                 hx-get="/api/vendors/list" hx-target="#vendors-list" hx-trigger="keyup changed delay:300ms" 
+                 hx-include="[id='sort-select']" hx-vals='js:{"search": event.target.value}'>
+          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/systems" hx-trigger="load">0</span>
-      </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Active Systems</h3>
-      <p class="text-xs text-slate-500">Deployed technology systems</p>
-    </div>
 
-    <!-- Integration Points Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-          </svg>
-        </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/integration-points" hx-trigger="load">0</span>
+        <!-- Sort Options -->
+        <select id="sort-select" 
+                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+                hx-get="/api/vendors/list" hx-target="#vendors-list" hx-include="[id='vendor-search']" hx-vals='js:{"sort": event.target.value}'>
+          <option value="name">Sort by Name</option>
+          <option value="systems">Sort by System Count</option>
+          <option value="recent">Sort by Recent Activity</option>
+        </select>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Integration Points</h3>
-      <p class="text-xs text-slate-500">System interconnections</p>
+
+      <!-- Actions -->
+      <div class="flex gap-2">
+        <button class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
+          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+          </svg>
+          Add Vendor
+        </button>
+        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+          Export List
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Main Content Area -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
-    <!-- System Status Panel -->
+    <!-- Vendors List -->
     <div class="lg:col-span-2">
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold text-white">System Status</h2>
-          <div class="flex items-center space-x-2">
-            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span class="text-sm text-slate-300">All Systems Operational</span>
-          </div>
+          <h2 class="text-xl font-semibold text-white">Vendor Portfolio</h2>
+          <button hx-get="/api/vendors/list" hx-target="#vendors-list" 
+                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            Refresh
+          </button>
         </div>
         
-        <!-- Demo System Status -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
-            <div class="flex items-center space-x-4">
-              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div>
-                <h4 class="font-medium text-white">Database Connection</h4>
-                <p class="text-sm text-slate-400">SQLite • Local Development</p>
-              </div>
-            </div>
-            <div class="text-right">
-              <p class="text-sm text-green-400">Online</p>
-              <p class="text-xs text-slate-500">Response: 2ms</p>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
-            <div class="flex items-center space-x-4">
-              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div>
-                <h4 class="font-medium text-white">Web Server</h4>
-                <p class="text-sm text-slate-400">Flask Development Server</p>
-              </div>
-            </div>
-            <div class="text-right">
-              <p class="text-sm text-green-400">Online</p>
-              <p class="text-xs text-slate-500">Port: 5000</p>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
-            <div class="flex items-center space-x-4">
-              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div>
-                <h4 class="font-medium text-white">HTMX Integration</h4>
-                <p class="text-sm text-slate-400">Dynamic UI Updates</p>
-              </div>
-            </div>
-            <div class="text-right">
-              <p class="text-sm text-green-400">Active</p>
-              <p class="text-xs text-slate-500">v2.0.4</p>
-            </div>
+        <div id="vendors-list" class="space-y-6" hx-get="/api/vendors/list" hx-trigger="load">
+          <!-- Vendors will be loaded here -->
+          <div class="animate-pulse space-y-6">
+            <div class="h-32 bg-slate-800 rounded-lg"></div>
+            <div class="h-32 bg-slate-800 rounded-lg"></div>
+            <div class="h-32 bg-slate-800 rounded-lg"></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Sidebar -->
+    <!-- Vendor Details Sidebar -->
     <div class="space-y-6">
       
-      <!-- System Health Demo -->
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">System Health</h3>
-        <div id="health-demo" class="text-center">
-          <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+      <!-- Vendor Details Panel -->
+      <div id="vendor-details">
+        <!-- Default state -->
+        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
             </svg>
           </div>
-          <h4 class="text-lg font-semibold text-white mb-2">Excellent</h4>
-          <p class="text-sm text-slate-400">All systems functioning normally</p>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
+          <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, system portfolio, and contact details.</p>
         </div>
       </div>
 
-      <!-- Getting Started -->
+      <!-- Top Integration Standards -->
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">Getting Started</h3>
+        <h3 class="text-lg font-semibold text-white mb-4">Integration Standards</h3>
+        <div id="integration-standards" hx-get="/api/integration/standards" hx-trigger="load" class="space-y-2">
+          <!-- Integration standards will be loaded here -->
+          <div class="animate-pulse space-y-2">
+            <div class="h-6 bg-slate-800 rounded"></div>
+            <div class="h-6 bg-slate-800 rounded"></div>
+            <div class="h-6 bg-slate-800 rounded"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vendor Performance Insights -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Performance Insights</h3>
         <div class="space-y-3">
-          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
-            <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span class="text-xs font-bold text-white">1</span>
-            </div>
-            <p class="text-sm text-slate-300">Add your first transit system</p>
+          <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
+            <span class="text-slate-300 text-sm">Most Reliable</span>
+            <span class="text-green-400 font-medium text-sm" id="most-reliable-vendor">--</span>
           </div>
-          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
-            <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span class="text-xs font-bold text-white">2</span>
-            </div>
-            <p class="text-sm text-slate-300">Define functional areas</p>
+          <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
+            <span class="text-slate-300 text-sm">Newest Partnership</span>
+            <span class="text-blue-400 font-medium text-sm" id="newest-vendor">--</span>
           </div>
-          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
-            <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span class="text-xs font-bold text-white">3</span>
-            </div>
-            <p class="text-sm text-slate-300">Configure system integration</p>
+          <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
+            <span class="text-slate-300 text-sm">Most Systems</span>
+            <span class="text-purple-400 font-medium text-sm" id="largest-vendor">--</span>
           </div>
         </div>
       </div>
@@ -2206,60 +2005,27 @@ module.exports = {
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
         <div class="space-y-3">
-          <button class="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
+          <button class="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
             </svg>
-            Add Transit System
+            Add New Vendor
           </button>
           <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
               <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
             </svg>
-            Generate Report
+            Vendor Report
           </button>
           <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
-            Export Data
+            Export Contacts
           </button>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Information Cards -->
-  <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-      <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4">
-        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-semibold text-white mb-2">System Tracking</h3>
-      <p class="text-slate-400 text-sm">Monitor all your transit technology systems, versions, and deployment status in one centralized dashboard.</p>
-    </div>
-
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-      <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4">
-        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-semibold text-white mb-2">Vendor Management</h3>
-      <p class="text-slate-400 text-sm">Track vendor relationships, contact information, and system dependencies across your entire transit network.</p>
-    </div>
-
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-      <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-4">
-        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-semibold text-white mb-2">Integration Mapping</h3>
-      <p class="text-slate-400 text-sm">Visualize system integrations, data flows, and interconnections to understand your technology ecosystem.</p>
     </div>
   </div>
 </div>
@@ -2268,689 +2034,71 @@ module.exports = {
 
 {% block scripts %}
 <script>
-// Auto-refresh metrics every 30 seconds
-setInterval(function() {
-  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
-  elements.forEach(el => htmx.trigger(el, 'refresh'));
-}, 30000);
+// Load vendor stats
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/vendors/stats')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('active-vendors-count').textContent = data.active_vendors;
+      document.getElementById('avg-systems-count').textContent = data.avg_systems_per_vendor;
+      
+      if (data.top_vendor) {
+        document.getElementById('top-vendor-count').textContent = data.top_vendor.system_count;
+        document.getElementById('largest-vendor').textContent = data.top_vendor.name;
+      }
+    });
+});
 
-// Add smooth animations for loaded content
+// Add vendor card hover effects
 document.body.addEventListener('htmx:afterSwap', function(e) {
-  const newContent = e.detail.target;
-  newContent.style.opacity = '0';
-  newContent.style.transform = 'translateY(10px)';
-  
-  setTimeout(() => {
-    newContent.style.transition = 'all 0.3s ease';
-    newContent.style.opacity = '1';
-    newContent.style.transform = 'translateY(0)';
-  }, 50);
+  const vendorCards = document.querySelectorAll('.vendor-card');
+  vendorCards.forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-4px)';
+      this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+    });
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0)';
+      this.style.boxShadow = 'none';
+    });
+  });
 });
-</script>
-{% endblock %}
-# End of app/templates/index.html
 
-# Start of app/templates/functional_areas.html
-{% extends "base.html" %}
-
-{% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  
-  <!-- Page Header -->
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Functional Areas Management</h1>
-    <p class="text-slate-400">Manage global functional areas that organize transit technology functions across all agencies.</p>
-  </div>
-
-  <!-- Actions Bar -->
-  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
-    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-      
-      <!-- Filters -->
-      <div class="flex flex-col sm:flex-row gap-4 flex-1">
-        <!-- Search -->
-        <div class="relative flex-1 max-w-md">
-          <input type="text" id="area-search" placeholder="Search functional areas..." 
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-                 hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" hx-trigger="keyup changed delay:300ms" 
-                 hx-vals="js:{search: event.target.value}">
-          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex gap-2">
-        <button hx-get="/api/functional-areas/form" hx-target="#functional-area-details" hx-swap="innerHTML"
-                class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-          </svg>
-          Add Functional Area
-        </button>
-        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-          Export
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Content Area -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    
-    <!-- Functional Areas List -->
-    <div class="lg:col-span-2">
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold text-white">Functional Areas</h2>
-          <button hx-get="/api/functional-areas/list" hx-target="#functional-areas-list" 
-                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
-            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-            </svg>
-            Refresh
-          </button>
-        </div>
-        
-        <div id="functional-areas-list" hx-get="/api/functional-areas/list" hx-trigger="load">
-          <!-- Functional areas will be loaded here -->
-          <div class="animate-pulse space-y-4">
-            <div class="h-24 bg-slate-800 rounded-lg"></div>
-            <div class="h-24 bg-slate-800 rounded-lg"></div>
-            <div class="h-24 bg-slate-800 rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Details/Form Sidebar -->
-    <div class="space-y-6">
-      
-      <!-- Functional Area Details Panel -->
-      <div id="functional-area-details">
-        <!-- Default state -->
-        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
-          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
-          <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
-        </div>
-      </div>
-
-      <!-- Quick Stats -->
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
-        <div class="space-y-3">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Total Areas</span>
-            <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Functions</span>
-            <span class="text-white font-medium" hx-get="/api/count/functions" hx-trigger="load">--</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Components</span>
-            <span class="text-white font-medium" hx-get="/api/count/components" hx-trigger="load">--</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Agencies</span>
-            <span class="text-white font-medium" hx-get="/api/count/agencies" hx-trigger="load">--</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Global Info Panel -->
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-          </svg>
-          Global Structure
-        </h3>
-        <div class="space-y-3 text-sm text-slate-300">
-          <p>Functional areas are shared across all transit agencies, providing a consistent framework for organizing technology functions.</p>
-          <div class="bg-slate-700/30 rounded-lg p-3">
-            <p class="text-xs text-slate-400 uppercase tracking-wide mb-2">Hierarchy</p>
-            <div class="space-y-1 text-xs">
-              <div class="flex items-center">
-                <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
-                <span>Functional Areas (Global)</span>
-              </div>
-              <div class="flex items-center ml-4">
-                <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                <span>Functions</span>
-              </div>
-              <div class="flex items-center ml-8">
-                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                <span>Components (Agency-specific)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
 // Auto-refresh stats every 30 seconds
 setInterval(function() {
   const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
   elements.forEach(el => htmx.trigger(el, 'refresh'));
 }, 30000);
-
-// Success/error handling for forms
-document.body.addEventListener('htmx:afterRequest', function(e) {
-  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
-    // Success: refresh list and show success message
-    htmx.trigger('#functional-areas-list', 'refresh');
-  }
-});
 </script>
 {% endblock %}
-# End of app/templates/functional_areas.html
-
-# Start of app/templates/agencies.html
-{% extends "base.html" %}
-
-{% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  
-  <!-- Page Header -->
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Transit Systems Management</h1>
-    <p class="text-slate-400">Manage transit systems and their organizational structure.</p>
-  </div>
-
-  <!-- Actions Bar -->
-  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
-    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-      
-      <!-- Search -->
-      <div class="relative flex-1 max-w-md">
-        <input type="text" id="transit-search" placeholder="Search transit systems..." 
-               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-               hx-get="/api/transit-systems/list" hx-target="#transit-systems-list" hx-trigger="keyup changed delay:300ms" 
-               hx-vals="js:{search: event.target.value}">
-        <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-        </svg>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex gap-2">
-        <button hx-get="/api/transit-systems/form" hx-target="#transit-system-details" hx-swap="innerHTML"
-                class="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-          </svg>
-          Add Transit System
-        </button>
-        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-          Export
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Content Area -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    
-    <!-- Transit Systems List -->
-    <div class="lg:col-span-2">
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold text-white">Transit Systems</h2>
-          <button hx-get="/api/transit-systems/list" hx-target="#transit-systems-list" 
-                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
-            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-            </svg>
-            Refresh
-          </button>
-        </div>
-        
-        <div id="transit-systems-list" hx-get="/api/transit-systems/list" hx-trigger="load">
-          <!-- Transit systems will be loaded here -->
-          <div class="animate-pulse space-y-4">
-            <div class="h-24 bg-slate-800 rounded-lg"></div>
-            <div class="h-24 bg-slate-800 rounded-lg"></div>
-            <div class="h-24 bg-slate-800 rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Details/Form Sidebar -->
-    <div class="space-y-6">
-      
-      <!-- Transit System Details Panel -->
-      <div id="transit-system-details">
-        <!-- Default state -->
-        <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
-          <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-            </svg>
-          </div>
-          <h3 class="text-lg font-medium text-slate-400 mb-2">Transit System Details</h3>
-          <p class="text-slate-500 text-sm">Click on a transit system to view details or use the Add button to create a new one.</p>
-        </div>
-      </div>
-
-      <!-- Quick Stats -->
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
-        <div class="space-y-3">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Total Systems</span>
-            <span class="text-white font-medium" hx-get="/api/count/transit-systems" hx-trigger="load">--</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Functional Areas</span>
-            <span class="text-white font-medium" hx-get="/api/count/functional-areas" hx-trigger="load">--</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-sm">Active Systems</span>
-            <span class="text-white font-medium" hx-get="/api/count/systems" hx-trigger="load">--</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// Auto-refresh stats every 30 seconds
-setInterval(function() {
-  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
-  elements.forEach(el => htmx.trigger(el, 'refresh'));
-}, 30000);
-
-// Success/error handling for forms
-document.body.addEventListener('htmx:afterRequest', function(e) {
-  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
-    // Success: refresh list and show success message
-    htmx.trigger('#transit-systems-list', 'refresh');
-  }
-});
-</script>
-{% endblock %}
-# End of app/templates/agencies.html
-
-# Start of app/templates/fragments/functional_area_details.html
-<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-  <div class="flex items-center justify-between mb-6">
-    <div class="flex-1">
-      <h2 class="text-2xl font-bold text-white mb-2">{{ functional_area.name }}</h2>
-      <div class="flex items-center space-x-4 text-sm text-slate-400">
-        <span class="flex items-center">
-          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
-          Global Functional Area
-        </span>
-        
-        <span class="flex items-center">
-          <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M9 3a1 1 0 012 0v5.5a.5.5 0 001 0V4a1 1 0 112 0v4.5a.5.5 0 001 0V6a1 1 0 112 0v5a7 7 0 11-14 0V9a1 1 0 012 0v2.5a.5.5 0 001 0V4a1 1 0 012 0v4.5a.5.5 0 001 0V3z" clip-rule="evenodd"/>
-          </svg>
-          {{ functional_area.functions|length }} Functions
-        </span>
-      </div>
-    </div>
-    <div class="flex gap-2">
-      <button hx-get="/api/functional-areas/{{ functional_area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
-              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
-        Edit
-      </button>
-      <button onclick="closeFunctionalAreaDetails()"
-              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
-        ✕ Close
-      </button>
-    </div>
-  </div>
-  
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    
-    <!-- Left Column: Description & Functions -->
-    <div class="space-y-6">
-      
-      <!-- Description -->
-      {% if functional_area.description %}
-      <div>
-        <h3 class="font-medium text-white mb-3">Description</h3>
-        <div class="p-4 bg-slate-700/30 rounded-lg">
-          <p class="text-slate-300 text-sm leading-relaxed">{{ functional_area.description }}</p>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Functions -->
-      {% if functional_area.functions %}
-      <div>
-        <h3 class="font-medium text-white mb-3">Functions ({{ functional_area.functions|length }})</h3>
-        <div class="space-y-2">
-          {% for function in functional_area.functions %}
-          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
-            <div class="flex-1">
-              <p class="text-sm font-medium text-white">{{ function.name }}</p>
-              {% if function.description %}
-              <p class="text-xs text-slate-400 mt-1">{{ function.description[:80] }}{% if function.description|length > 80 %}...{% endif %}</p>
-              {% endif %}
-            </div>
-            <div class="flex items-center space-x-2">
-              <span class="px-2 py-1 text-xs rounded-full 
-                {% if function.criticality.value == 'high' %}bg-red-600/20 text-red-300 border border-red-600/30
-                {% elif function.criticality.value == 'medium' %}bg-yellow-600/20 text-yellow-300 border border-yellow-600/30
-                {% else %}bg-green-600/20 text-green-300 border border-green-600/30{% endif %}">
-                {{ function.criticality.value.title() }}
-              </span>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-      {% else %}
-      <div>
-        <h3 class="font-medium text-white mb-3">Functions</h3>
-        <div class="text-center py-8 bg-slate-700/20 rounded-lg">
-          <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
-          <h4 class="text-lg font-medium text-slate-400 mb-2">No Functions</h4>
-          <p class="text-slate-500 text-sm">No functions have been defined for this functional area yet.</p>
-        </div>
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- Right Column: Usage Statistics & Actions -->
-    <div class="space-y-6">
-      
-      <!-- Usage Statistics -->
-      <div>
-        <h3 class="font-medium text-white mb-3">Usage Statistics</h3>
-        <div class="space-y-3">
-          
-          <!-- Components implementing these functions -->
-          {% set component_count = functional_area.functions | map('attribute', 'components') | map('length') | sum %}
-          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
-                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="text-slate-400 text-xs uppercase tracking-wide">Components</p>
-                <p class="text-white font-medium">{{ component_count }} implementing</p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Agency implementations -->
-          {% set agency_implementations = [] %}
-          {% for function in functional_area.functions %}
-            {% for impl in function.agency_implementations %}
-              {% if impl.agency not in agency_implementations %}
-                {% set _ = agency_implementations.append(impl.agency) %}
-              {% endif %}
-            {% endfor %}
-          {% endfor %}
-          
-          <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-                </svg>
-              </div>
-              <div>
-                <p class="text-slate-400 text-xs uppercase tracking-wide">Agencies</p>
-                <p class="text-white font-medium">{{ agency_implementations|length }} using</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Criticality Breakdown -->
-      {% if functional_area.functions %}
-      <div>
-        <h3 class="font-medium text-white mb-3">Function Criticality</h3>
-        {% set high_functions = functional_area.functions | selectattr('criticality.value', 'equalto', 'high') | list %}
-        {% set medium_functions = functional_area.functions | selectattr('criticality.value', 'equalto', 'medium') | list %}
-        {% set low_functions = functional_area.functions | selectattr('criticality.value', 'equalto', 'low') | list %}
-        
-        <div class="space-y-2">
-          <div class="flex items-center justify-between p-2 bg-red-600/20 border border-red-600/30 rounded">
-            <span class="text-sm text-red-300 flex items-center">
-              <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-              High Priority
-            </span>
-            <span class="text-sm text-red-200">{{ high_functions|length }}</span>
-          </div>
-          <div class="flex items-center justify-between p-2 bg-yellow-600/20 border border-yellow-600/30 rounded">
-            <span class="text-sm text-yellow-300 flex items-center">
-              <div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-              Medium Priority
-            </span>
-            <span class="text-sm text-yellow-200">{{ medium_functions|length }}</span>
-          </div>
-          <div class="flex items-center justify-between p-2 bg-green-600/20 border border-green-600/30 rounded">
-            <span class="text-sm text-green-300 flex items-center">
-              <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              Low Priority
-            </span>
-            <span class="text-sm text-green-200">{{ low_functions|length }}</span>
-          </div>
-        </div>
-      </div>
-      {% endif %}
-      
-      <!-- Quick Actions -->
-      <div>
-        <h3 class="font-medium text-white mb-3">Quick Actions</h3>
-        <div class="space-y-2">
-          <button hx-get="/api/functional-areas/{{ functional_area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
-                  class="w-full flex items-center justify-center p-3 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/30 transition-colors text-blue-300 text-sm">
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-            </svg>
-            Edit Functional Area
-          </button>
-          
-          <button onclick="window.location.href='/components?functional_area={{ functional_area.name }}'"
-                  class="w-full flex items-center justify-center p-3 bg-green-600/20 border border-green-600/30 rounded-lg hover:bg-green-600/30 transition-colors text-green-300 text-sm">
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-            </svg>
-            View Components
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-function closeFunctionalAreaDetails() {
-  document.getElementById('functional-area-details').innerHTML = `
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
-      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
-      <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
-    </div>`;
-}
-</script>
-# End of app/templates/fragments/functional_area_details.html
-
-# Start of app/templates/fragments/functional_area_form.html
-<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-xl font-bold text-white">
-      {% if functional_area %}Edit Functional Area{% else %}Add Functional Area{% endif %}
-    </h2>
-    <button onclick="closeFunctionalAreaForm()"
-            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
-      ✕ Cancel
-    </button>
-  </div>
-
-  <form {% if functional_area %}hx-put="/api/functional-areas/{{ functional_area.id }}"{% else %}hx-post="/api/functional-areas"{% endif %}
-        hx-target="#result-message" hx-swap="innerHTML">
-    
-    <div class="space-y-4">
-      <!-- Info Note -->
-      <div class="p-4 bg-blue-600/10 border border-blue-600/20 rounded-lg">
-        <div class="flex items-start space-x-3">
-          <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-          </svg>
-          <div>
-            <p class="text-blue-300 text-sm font-medium">Global Functional Area</p>
-            <p class="text-blue-200 text-xs mt-1">This functional area will be available for all transit agencies to use. Functions within this area can be implemented by different agencies using different components.</p>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <label for="name" class="block text-sm font-medium text-slate-300 mb-2">Name *</label>
-        <input type="text" id="name" name="name" required
-               value="{{ functional_area.name if functional_area else '' }}"
-               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
-               placeholder="e.g., Operations Management (Real-Time)">
-      </div>
-
-      <div>
-        <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Description</label>
-        <textarea id="description" name="description" rows="4"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
-                  placeholder="Detailed description of this functional area and its scope...">{{ functional_area.description if functional_area else '' }}</textarea>
-        <p class="text-xs text-slate-500 mt-1">Provide a comprehensive description that helps agencies understand when to use this functional area.</p>
-      </div>
-    </div>
-
-    <div id="result-message" class="mt-4"></div>
-
-    <div class="flex gap-3 mt-6">
-      <button type="submit" 
-              class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all">
-        {% if functional_area %}Update Functional Area{% else %}Create Functional Area{% endif %}
-      </button>
-      {% if functional_area %}
-      <button type="button" 
-              hx-delete="/api/functional-areas/{{ functional_area.id }}"
-              hx-confirm="Are you sure you want to delete this functional area? This will also delete all associated functions and agency implementations."
-              hx-target="#result-message"
-              class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors">
-        Delete
-      </button>
-      {% endif %}
-    </div>
-  </form>
-</div>
-
-<script>
-function closeFunctionalAreaForm() {
-  document.getElementById('functional-area-details').innerHTML = `
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
-      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-medium text-slate-400 mb-2">Functional Area Details</h3>
-      <p class="text-slate-500 text-sm">Click on a functional area to view details or use the Add button to create a new one.</p>
-    </div>`;
-}
-</script>
-# End of app/templates/fragments/functional_area_form.html
-
-# Start of app/templates/fragments/functional_area_list.html
-{% if functional_areas %}
-  {% for area in functional_areas %}
-  <div class="functional-area-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
-       hx-get="/api/functional-areas/{{ area.id }}/details" hx-target="#functional-area-details" hx-swap="innerHTML">
-    <div class="flex items-start justify-between mb-4">
-      <div class="flex-1">
-        <h3 class="font-semibold text-white text-lg mb-2">{{ area.name }}</h3>
-        {% if area.description %}
-        <p class="text-slate-300 text-sm mb-3">{{ area.description }}</p>
-        {% endif %}
-        <div class="flex items-center space-x-4 text-xs text-slate-400">
-          <span>🔧 {{ area.functions|length }} functions</span>
-          <span>🌍 Global (All Agencies)</span>
-        </div>
-      </div>
-      <div class="text-right">
-        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-2">
-          <span class="text-lg font-bold text-white">{{ area.functions|length }}</span>
-        </div>
-        <div class="text-xs text-slate-500 text-center">Functions</div>
-      </div>
-    </div>
-    
-    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-      <div class="flex items-center space-x-2">
-        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-        <span class="text-xs text-slate-400">Active</span>
-      </div>
-      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              hx-get="/api/functional-areas/{{ area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
-              onclick="event.stopPropagation()">
-        Edit
-      </button>
-    </div>
-  </div>
-  {% endfor %}
-{% else %}
-<div class="text-center py-12">
-  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-    </svg>
-  </div>
-  <h3 class="text-lg font-medium text-slate-400 mb-2">No Functional Areas Found</h3>
-  <p class="text-slate-500">Try adjusting your search or add a new functional area.</p>
-</div>
-{% endif %}
-# End of app/templates/fragments/functional_area_list.html
+# End of app/templates/vendors.html
 
 # Start of app/templates/fragments/agency_details.html
-<!-- app/templates/fragments/transit_system_details.html -->
-<div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-bold text-white">{{ transit_system.name }}</h2>
-    <div class="flex gap-2">
-      <button hx-get="/api/transit-systems/{{ transit_system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
+<div class="glass-effect rounded-xl overflow-hidden border border-slate-700/50">
+  <!-- Header Image -->
+  <div class="relative aspect-[2/1] bg-gradient-to-r from-slate-800 to-slate-700">
+    <img src="{{ agency.header_url }}" 
+         alt="{{ agency.name }} header" 
+         class="w-full h-full object-cover"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <!-- Fallback gradient when image doesn't exist -->
+    <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 hidden items-center justify-center">
+      <svg class="w-12 h-12 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+      </svg>
+    </div>
+  </div>
+  
+  <!-- Content with name and buttons -->
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-white">{{ agency.name }}</h2>
+      <div class="flex gap-2">
+      <button hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
         Edit
       </button>
-      <button onclick="document.getElementById('transit-system-details').innerHTML = `
-              <div class='glass-effect rounded-xl p-6 border border-slate-700/50 text-center'>
-                  <div class='w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4'>
-                      <svg class='w-8 h-8 text-slate-500' fill='currentColor' viewBox='0 0 20 20'>
-                          <path d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z'/>
-                      </svg>
-                  </div>
-                  <h3 class='text-lg font-medium text-slate-400 mb-2'>Transit System Details</h3>
-                  <p class='text-slate-500 text-sm'>Click on a transit system to view details or use the Add button to create a new one.</p>
-              </div>`"
+      <button onclick="closeAgencyDetails()"
               class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
         ✕ Close
       </button>
@@ -2969,19 +2117,19 @@ function closeFunctionalAreaForm() {
       <div class="space-y-3 text-sm">
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Location:</span>
-          <span class="text-white">{{ transit_system.location or 'Not specified' }}</span>
+          <span class="text-white">{{ agency.location or 'Not specified' }}</span>
         </div>
-        {% if transit_system.description %}
+        {% if agency.description %}
         <div class="pt-1">
           <span class="text-slate-400 block mb-2">Description:</span>
-          <p class="text-slate-300 leading-relaxed">{{ transit_system.description }}</p>
+          <p class="text-slate-300 leading-relaxed">{{ agency.description }}</p>
         </div>
         {% endif %}
       </div>
     </div>
 
     <!-- Leadership & Organization -->
-    {% if transit_system.ceo %}
+    {% if agency.ceo %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -2992,14 +2140,14 @@ function closeFunctionalAreaForm() {
       <div class="text-sm">
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">CEO:</span>
-          <span class="text-white">{{ transit_system.ceo }}</span>
+          <span class="text-white">{{ agency.ceo }}</span>
         </div>
       </div>
     </div>
     {% endif %}
 
     <!-- Contact Information -->
-    {% if transit_system.contact_name or transit_system.contact_email or transit_system.contact_phone or transit_system.phone_number %}
+    {% if agency.contact_name or agency.contact_email or agency.contact_phone or agency.phone_number %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
@@ -3008,28 +2156,28 @@ function closeFunctionalAreaForm() {
         Contact Information
       </h3>
       <div class="space-y-3 text-sm">
-        {% if transit_system.contact_name %}
+        {% if agency.contact_name %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Contact Person:</span>
-          <span class="text-white">{{ transit_system.contact_name }}</span>
+          <span class="text-white">{{ agency.contact_name }}</span>
         </div>
         {% endif %}
-        {% if transit_system.contact_email %}
+        {% if agency.contact_email %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Email:</span>
-          <a href="mailto:{{ transit_system.contact_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ transit_system.contact_email }}</a>
+          <a href="mailto:{{ agency.contact_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ agency.contact_email }}</a>
         </div>
         {% endif %}
-        {% if transit_system.contact_phone %}
+        {% if agency.contact_phone %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Phone:</span>
-          <a href="tel:{{ transit_system.contact_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ transit_system.contact_phone }}</a>
+          <a href="tel:{{ agency.contact_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ agency.contact_phone }}</a>
         </div>
         {% endif %}
-        {% if transit_system.phone_number and transit_system.phone_number != transit_system.contact_phone %}
+        {% if agency.phone_number and agency.phone_number != agency.contact_phone %}
         <div class="flex flex-col sm:flex-row sm:justify-between">
           <span class="text-slate-400 mb-1 sm:mb-0">Main Phone:</span>
-          <a href="tel:{{ transit_system.phone_number }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ transit_system.phone_number }}</a>
+          <a href="tel:{{ agency.phone_number }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ agency.phone_number }}</a>
         </div>
         {% endif %}
       </div>
@@ -3037,7 +2185,7 @@ function closeFunctionalAreaForm() {
     {% endif %}
 
     <!-- Address & Location -->
-    {% if transit_system.address_hq %}
+    {% if agency.address_hq %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
@@ -3046,13 +2194,13 @@ function closeFunctionalAreaForm() {
         Headquarters
       </h3>
       <div class="text-sm">
-        <p class="text-slate-300 leading-relaxed">{{ transit_system.address_hq }}</p>
+        <p class="text-slate-300 leading-relaxed">{{ agency.address_hq }}</p>
       </div>
     </div>
     {% endif %}
 
     <!-- Online Resources -->
-    {% if transit_system.website or transit_system.transit_map_link %}
+    {% if agency.website or agency.agency_map_link %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
@@ -3061,10 +2209,10 @@ function closeFunctionalAreaForm() {
         Online Resources
       </h3>
       <div class="space-y-3 text-sm">
-        {% if transit_system.website %}
+        {% if agency.website %}
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
           <span class="text-slate-400 mb-2 sm:mb-0">Website:</span>
-          <a href="{{ transit_system.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+          <a href="{{ agency.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
             Visit Site
             <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
@@ -3073,10 +2221,10 @@ function closeFunctionalAreaForm() {
           </a>
         </div>
         {% endif %}
-        {% if transit_system.transit_map_link %}
+        {% if agency.agency_map_link %}
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
           <span class="text-slate-400 mb-2 sm:mb-0">Transit Map:</span>
-          <a href="{{ transit_system.transit_map_link }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+          <a href="{{ agency.agency_map_link }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
             View Map
             <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
               <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
@@ -3090,7 +2238,7 @@ function closeFunctionalAreaForm() {
     {% endif %}
 
     <!-- Additional Metadata -->
-    {% if transit_system.additional_metadata %}
+    {% if agency.additional_metadata %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -3099,7 +2247,7 @@ function closeFunctionalAreaForm() {
         Additional Information
       </h3>
       <div class="text-sm space-y-2">
-        {% for key, value in transit_system.additional_metadata.items() %}
+        {% for key, value in agency.additional_metadata.items() %}
         <div class="flex flex-col sm:flex-row sm:justify-between py-1">
           <span class="text-slate-400 mb-1 sm:mb-0">{{ key|title }}:</span>
           <span class="text-white">{{ value }}</span>
@@ -3109,27 +2257,38 @@ function closeFunctionalAreaForm() {
     </div>
     {% endif %}
 
-    <!-- Functional Areas -->
-    {% if transit_system.functional_areas %}
+    <!-- Function Implementations -->
+    {% if agency.function_implementations %}
     <div class="bg-slate-700/30 rounded-lg p-4">
       <h3 class="font-semibold text-white mb-3 flex items-center">
         <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
           <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
         </svg>
-        Functional Areas ({{ transit_system.functional_areas|length }})
+        Technology Implementations ({{ agency.function_implementations|length }})
       </h3>
-      <div class="space-y-3">
-        {% for area in transit_system.functional_areas %}
+      <div class="space-y-3 max-h-64 overflow-y-auto">
+        {% for impl in agency.function_implementations %}
         <div class="bg-slate-600/30 rounded-lg p-3">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ area.name }}</span>
-            <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded w-fit">
-              {{ area.categories|length }} categories
-            </span>
+            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ impl.function.name }}</span>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded">
+                {{ impl.function.functional_area.name }}
+              </span>
+              <span class="text-xs px-2 py-1 rounded 
+                {% if impl.status == 'Active' %}bg-green-600/20 text-green-300
+                {% elif impl.status == 'Planned' %}bg-yellow-600/20 text-yellow-300
+                {% else %}bg-slate-600/20 text-slate-300{% endif %}">
+                {{ impl.status }}
+              </span>
+            </div>
           </div>
-          {% if area.description %}
-          <p class="text-xs text-slate-400 mt-2">{{ area.description }}</p>
-          {% endif %}
+          <div class="text-xs text-slate-400 flex items-center justify-between">
+            <span>Component: {{ impl.component.name }}</span>
+            {% if impl.deployment_date %}
+            <span>Deployed: {{ impl.deployment_date.strftime('%Y-%m-%d') }}</span>
+            {% endif %}
+          </div>
         </div>
         {% endfor %}
       </div>
@@ -3137,112 +2296,100 @@ function closeFunctionalAreaForm() {
     {% endif %}
   </div>
 </div>
+
+<script>
+function closeAgencyDetails() {
+  document.getElementById('agency-details').innerHTML = `
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Agency Details</h3>
+      <p class="text-slate-500 text-sm">Click on a transit agency to view details or use the Add button to create a new one.</p>
+    </div>`;
+}
+</script>
 # End of app/templates/fragments/agency_details.html
 
 # Start of app/templates/fragments/agency_list.html
-<!-- app/templates/fragments/transit_system_list.html -->
-{% if transit_systems %}
-  {% for system in transit_systems %}
-  <div class="transit-system-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer group"
-       hx-get="/api/transit-systems/{{ system.id }}/details" hx-target="#transit-system-details" hx-swap="innerHTML">
+{% if agencies %}
+  {% for agency in agencies %}
+  <div class="agency-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
+       hx-get="/api/agencies/{{ agency.id }}/details" hx-target="#agency-details" hx-swap="innerHTML">
     
-    <!-- Card Header -->
     <div class="flex items-start justify-between mb-4">
-      <div class="flex-1">
-        <div class="flex items-center space-x-3 mb-2">
-          <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-          <h3 class="font-semibold text-white text-xl group-hover:text-blue-300 transition-colors">{{ system.name }}</h3>
+      <div class="flex items-start space-x-4 flex-1">
+        <!-- Agency Logo -->
+        {% if agency.logo_url %}
+        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+          <img src="{{ agency.logo_url }}" alt="{{ agency.name }} logo" 
+               class="w-full h-full object-contain">
+        </div>
+        {% else %}
+        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <span class="text-lg font-bold text-white">{{ agency.name[0].upper() }}</span>
+        </div>
+        {% endif %}
+        
+        <!-- Agency Info -->
+        <div class="flex-1">
+          <div class="flex items-center space-x-3 mb-2">
+            <h3 class="font-semibold text-white text-lg">{{ agency.name }}</h3>
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+          </div>
           
-          <!-- Quick Status Indicators -->
-          <div class="flex items-center space-x-2">
-            {% if system.website %}
-            <div class="w-2 h-2 bg-blue-400 rounded-full" title="Has Website"></div>
-            {% endif %}
-            {% if system.transit_map_link %}
-            <div class="w-2 h-2 bg-green-400 rounded-full" title="Has Transit Map"></div>
-            {% endif %}
-            {% if system.contact_email %}
-            <div class="w-2 h-2 bg-purple-400 rounded-full" title="Has Contact Email"></div>
+          {% if agency.location %}
+          <p class="text-slate-300 text-sm mb-2">📍 {{ agency.location }}</p>
+          {% endif %}
+          
+          {% if agency.description %}
+          <p class="text-slate-400 text-sm mb-3">{{ agency.description[:120] }}{% if agency.description|length > 120 %}...{% endif %}</p>
+          {% endif %}
+          
+          <div class="flex items-center space-x-4 text-xs text-slate-400">
+            <span>🔧 {{ agency.function_implementations|length }} implementations</span>
+            {% if agency.contact_name %}
+            <span>👤 {{ agency.contact_name }}</span>
             {% endif %}
           </div>
         </div>
-        
-        <!-- Location and Description -->
-        <div class="space-y-1 mb-3">
-          {% if system.location %}
-          <p class="text-slate-300 text-sm flex items-center">
-            <svg class="w-4 h-4 mr-1 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-            </svg>
-            {{ system.location }}
-          </p>
-          {% endif %}
-          
-          {% if system.description %}
-          <p class="text-slate-400 text-sm">{{ system.description[:100] }}{% if system.description|length > 100 %}...{% endif %}</p>
-          {% endif %}
-        </div>
-        
-        <!-- Key Information -->
-        <div class="flex items-center space-x-4 text-xs text-slate-400">
-          <span>🏢 {{ system.functional_areas|length }} functional areas</span>
-          {% if system.ceo %}
-          <span>👨‍💼 CEO: {{ system.ceo }}</span>
-          {% endif %}
-          {% if system.contact_name %}
-          <span>📞 Contact: {{ system.contact_name }}</span>
-          {% endif %}
-        </div>
       </div>
       
-      <!-- Right Side Stats -->
-      <div class="text-right">
-        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mb-2">
-          <span class="text-lg font-bold text-white">{{ system.functional_areas|length }}</span>
+      <!-- Stats Badge -->
+      <div class="text-center">
+        <div class="w-10 h-10 bg-blue-600/20 border border-blue-600/30 rounded-full flex items-center justify-center mb-1">
+          <span class="text-sm font-bold text-blue-300">{{ agency.function_implementations|length }}</span>
         </div>
-        <div class="text-xs text-slate-500 text-center">Areas</div>
+        <div class="text-xs text-slate-500">Tech</div>
       </div>
     </div>
     
-    <!-- Card Footer with Quick Actions -->
+    <!-- Footer with Quick Actions -->
     <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-      <div class="flex items-center space-x-2">
-        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-        <span class="text-xs text-slate-400">Active</span>
-        
-        <!-- Contact Quick Actions -->
-        {% if system.contact_phone or system.phone_number %}
-        <a href="tel:{{ system.contact_phone or system.phone_number }}" 
-           class="text-xs text-green-400 hover:text-green-300 ml-2 transition-colors"
-           onclick="event.stopPropagation()" title="Call">
-          📞
-        </a>
-        {% endif %}
-        
-        {% if system.contact_email %}
-        <a href="mailto:{{ system.contact_email }}" 
+      <div class="flex items-center space-x-3">
+        {% if agency.website %}
+        <a href="{{ agency.website }}" target="_blank" 
            class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-           onclick="event.stopPropagation()" title="Email">
-          ✉️
+           onclick="event.stopPropagation()" title="Website">
+          🌐 Website
         </a>
         {% endif %}
         
-        {% if system.website %}
-        <a href="{{ system.website }}" target="_blank" 
-           class="text-xs text-purple-400 hover:text-purple-300 transition-colors"
-           onclick="event.stopPropagation()" title="Website">
-          🌐
+        {% if agency.contact_email %}
+        <a href="mailto:{{ agency.contact_email }}" 
+           class="text-xs text-green-400 hover:text-green-300 transition-colors"
+           onclick="event.stopPropagation()" title="Email">
+          📧 Contact
         </a>
         {% endif %}
       </div>
       
-      <!-- Edit Action -->
-      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1 rounded hover:bg-slate-700/50"
-              hx-get="/api/transit-systems/{{ system.id }}/form" hx-target="#transit-system-details" hx-swap="innerHTML"
-              onclick="event.stopPropagation()" title="Edit">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-        </svg>
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
+              onclick="event.stopPropagation()">
+        Edit →
       </button>
     </div>
   </div>
@@ -3254,8 +2401,8 @@ function closeFunctionalAreaForm() {
       <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
     </svg>
   </div>
-  <h3 class="text-lg font-medium text-slate-400 mb-2">No Transit Systems Found</h3>
-  <p class="text-slate-500">Try adjusting your search or add a new transit system.</p>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No Transit Agencies Found</h3>
+  <p class="text-slate-500">Try adjusting your search or add a new transit agency.</p>
 </div>
 {% endif %}
 # End of app/templates/fragments/agency_list.html
