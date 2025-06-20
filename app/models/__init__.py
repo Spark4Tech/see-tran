@@ -3,12 +3,31 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String
 from app import db
 
-class Example(db.Model):
-    __tablename__ = "examples"
+# Import existing models
+from .tran import (
+    Agency, FunctionalArea, Vendor, Component, Function,
+    IntegrationPoint, UserRole, UpdateLog, Standard, TagGroup, Tag,
+    AgencyFunctionImplementation
+)
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(64), nullable=False)
+# Import GTFS models
+from .gtfs import (
+    GTFSAgency, GTFSStop, GTFSRoute, GTFSCalendar, GTFSCalendarDate,
+    GTFSTrip, GTFSStopTime, GTFSShape, GTFSFeedInfo,
+    GTFSFareMedia, GTFSRiderCategory, GTFSFareProduct, 
+    GTFSTimeframe, GTFSFareLegRule, GTFSFareTransferRule
+)
 
-    def __repr__(self) -> str:
-        return f"<Example id={self.id} name={self.name!r}>"
+__all__ = [
+    # Base models
+    'Agency', 'FunctionalArea', 'Function', 'Vendor', 'Component',
+    'IntegrationPoint', 'UserRole', 'UpdateLog', 'Standard', 'TagGroup', 'Tag',
+    'AgencyFunctionImplementation',
+    
+    # GTFS models  
+    'GTFSAgency', 'GTFSStop', 'GTFSRoute', 'GTFSCalendar', 'GTFSCalendarDate',
+    'GTFSTrip', 'GTFSStopTime', 'GTFSShape', 'GTFSFeedInfo',
+    'GTFSFareMedia', 'GTFSRiderCategory', 'GTFSFareProduct', 
+    'GTFSTimeframe', 'GTFSFareLegRule', 'GTFSFareTransferRule'
+]
 

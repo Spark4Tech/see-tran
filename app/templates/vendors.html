@@ -60,47 +60,116 @@
     </div>
   </div>
 
-  <!-- Search and Filters -->
-  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
-    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+  <!-- Enhanced Search and Filters -->
+  <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8" id="vendor-filters-container">
+    <form id="vendor-filters" class="space-y-4">
       
-      <!-- Search and Sort -->
-      <div class="flex flex-col sm:flex-row gap-4 flex-1">
+      <!-- Main Filter Row -->
+      <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
         
-        <!-- Search -->
+        <!-- Search Input -->
         <div class="relative flex-1 max-w-md">
-          <input type="text" id="vendor-search" placeholder="Search vendors..." 
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-                 hx-get="/api/vendors/list" hx-target="#vendors-list" hx-trigger="keyup changed delay:300ms" 
-                 hx-include="[id='sort-select']" hx-vals='js:{"search": event.target.value}'>
-          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+          <input type="text" 
+                 id="vendor-search" 
+                 name="search"
+                 placeholder="Search vendors..." 
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 pl-10 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
+                 hx-get="/api/vendors/list" 
+                 hx-target="#vendors-list" 
+                 hx-trigger="keyup changed delay:300ms" 
+                 hx-include="#vendor-filters">
+          <svg class="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
           </svg>
         </div>
 
+        <!-- Agency Filter -->
+        <div class="flex-1 max-w-xs">
+          <select id="agency-filter" 
+                  name="agency"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
+                  hx-get="/api/vendors/list" 
+                  hx-target="#vendors-list" 
+                  hx-trigger="change" 
+                  hx-include="#vendor-filters">
+            <option value="">All Agencies</option>
+            <!-- Options will be loaded dynamically -->
+          </select>
+        </div>
+
+        <!-- Functional Area Filter -->
+        <div class="flex-1 max-w-xs">
+          <select id="functional-area-filter" 
+                  name="functional_area"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
+                  hx-get="/api/vendors/list" 
+                  hx-target="#vendors-list" 
+                  hx-trigger="change" 
+                  hx-include="#vendor-filters">
+            <option value="">All Functional Areas</option>
+            <!-- Options will be loaded dynamically -->
+          </select>
+        </div>
+
         <!-- Sort Options -->
-        <select id="sort-select" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/vendors/list" hx-target="#vendors-list" hx-include="[id='vendor-search']" hx-vals='js:{"sort": event.target.value}'>
-          <option value="name">Sort by Name</option>
-          <option value="systems">Sort by System Count</option>
-          <option value="recent">Sort by Recent Activity</option>
-        </select>
+        <div class="flex-1 max-w-xs">
+          <select id="sort-select" 
+                  name="sort"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none transition-colors"
+                  hx-get="/api/vendors/list" 
+                  hx-target="#vendors-list" 
+                  hx-trigger="change" 
+                  hx-include="#vendor-filters">
+            <option value="name">Sort by Name</option>
+            <option value="components">Sort by Component Count</option>
+            <option value="recent">Sort by Recent Activity</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Actions -->
-      <div class="flex gap-2">
-        <button class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-          </svg>
-          Add Vendor
-        </button>
-        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-          Export List
-        </button>
+      <!-- Active Filters and Actions Row -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-slate-700/30">
+        
+        <!-- Active Filter Badges -->
+        <div class="flex-1">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-slate-400">Filters:</span>
+            <div id="active-filters" class="flex flex-wrap gap-2">
+              <!-- Filter badges will be populated by JavaScript -->
+            </div>
+            <button type="button" 
+                    onclick="clearAllFilters('#vendor-filters', '#vendors-list')"
+                    class="text-xs text-slate-500 hover:text-slate-300 transition-colors ml-2"
+                    id="clear-filters-btn" style="display: none;">
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2">
+          <button type="button"
+                  hx-get="/api/vendors/form" 
+                  hx-target="#vendor-details" 
+                  hx-swap="innerHTML"
+                  class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            Add Vendor
+          </button>
+          
+          <button type="button" 
+                  class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors text-white">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+              <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
+            </svg>
+            Export List
+          </button>
+        </div>
       </div>
-    </div>
+    </form>
   </div>
 
   <!-- Main Content Area -->
@@ -111,6 +180,12 @@
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-semibold text-white">Vendor Portfolio</h2>
+          <div class="flex items-center space-x-2 text-sm text-slate-400">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span id="vendor-count-display">Loading...</span>
+          </div>
         </div>
         
         <div id="vendors-list" class="space-y-6" hx-get="/api/vendors/list" hx-trigger="load">
@@ -124,6 +199,7 @@
       </div>
     </div>
 
+    <!-- Sidebar -->
     <div class="space-y-6 sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto">
       <!-- Vendor Details Panel -->
       <div id="vendor-details">
@@ -155,7 +231,7 @@
       <!-- Vendor Performance Insights -->
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <h3 class="text-lg font-semibold text-white mb-4">Performance Insights</h3>
-        <div class="space-y-3">
+        <div class="space-y-3" id="performance-insights">
           <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
             <span class="text-slate-300 text-sm">Most Reliable</span>
             <span class="text-green-400 font-medium text-sm" id="most-reliable-vendor">--</span>
@@ -205,40 +281,406 @@
 
 {% block scripts %}
 <script>
-// Load vendor stats
-document.addEventListener('DOMContentLoaded', function() {
-  fetch('/api/vendors/stats')
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById('active-vendors-count').textContent = data.active_vendors;
-      document.getElementById('avg-systems-count').textContent = data.avg_systems_per_vendor;
-      
-      if (data.top_vendor) {
-        document.getElementById('top-vendor-count').textContent = data.top_vendor.system_count;
-        document.getElementById('largest-vendor').textContent = data.top_vendor.name;
+// =============================================================================
+// VENDOR PAGE STATE MANAGEMENT - Embedded Controller
+// =============================================================================
+
+class VendorPageController {
+  constructor() {
+    this.currentFilters = {
+      search: '',
+      agency: '',
+      functional_area: '',
+      sort: 'name'
+    };
+    this.selectedVendorId = null;
+    this.isLoading = false;
+    this.refreshTimers = [];
+    
+    this.init();
+  }
+
+  init() {
+    this.setupEventListeners();
+    this.loadInitialData();
+    this.setupPeriodicRefresh();
+    console.log('🏢 Vendor page controller initialized');
+  }
+
+  setupEventListeners() {
+    const form = document.getElementById('vendor-filters');
+    if (form) {
+      form.addEventListener('input', this.handleFilterChange.bind(this));
+      form.addEventListener('change', this.handleFilterChange.bind(this));
+    }
+
+    document.body.addEventListener('htmx:beforeRequest', this.handleBeforeRequest.bind(this));
+    document.body.addEventListener('htmx:afterRequest', this.handleAfterRequest.bind(this));
+    document.body.addEventListener('htmx:afterSwap', this.handleAfterSwap.bind(this));
+    document.body.addEventListener('htmx:responseError', this.handleResponseError.bind(this));
+  }
+
+  async loadInitialData() {
+    try {
+      await Promise.all([
+        this.loadFilterOptions(),
+        this.loadVendorStats(),
+        this.loadVendorPerformance()
+      ]);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      showToast('Error loading page data. Please refresh.', false);
+    }
+  }
+
+  async loadFilterOptions() {
+    try {
+      const agencyResponse = await fetch('/api/vendors/filter-options/agencies');
+      const agencyHtml = await agencyResponse.text();
+      const agencySelect = document.getElementById('agency-filter');
+      if (agencySelect) agencySelect.innerHTML = agencyHtml;
+
+      const faResponse = await fetch('/api/vendors/filter-options/functional-areas');
+      const faHtml = await faResponse.text();
+      const faSelect = document.getElementById('functional-area-filter');
+      if (faSelect) faSelect.innerHTML = faHtml;
+    } catch (error) {
+      console.error('Error loading filter options:', error);
+    }
+  }
+
+  handleFilterChange(event) {
+    const formData = new FormData(document.getElementById('vendor-filters'));
+    const newFilters = {};
+    
+    for (const [key, value] of formData.entries()) {
+      newFilters[key] = value.trim();
+    }
+    this.currentFilters = { ...this.currentFilters, ...newFilters };
+
+    if (event.target.name === 'search') {
+      clearTimeout(this.searchTimeout);
+      this.searchTimeout = setTimeout(() => {
+        this.refreshVendorList();
+        this.updateActiveFilters();
+      }, 300);
+    } else {
+      this.refreshVendorList();
+      this.updateActiveFilters();
+    }
+
+    this.loadVendorStats();
+    this.loadVendorPerformance();
+  }
+
+  refreshVendorList() {
+    if (this.isLoading) return;
+    
+    const vendorsList = document.getElementById('vendors-list');
+    if (vendorsList) {
+      this.showListLoading(true);
+      htmx.trigger(vendorsList, 'refresh');
+    }
+  }
+
+  updateActiveFilters() {
+    const filterContainer = document.getElementById('active-filters');
+    const clearBtn = document.getElementById('clear-filters-btn');
+    
+    if (!filterContainer) return;
+    
+    filterContainer.innerHTML = '';
+    let hasActiveFilters = false;
+    
+    Object.entries(this.currentFilters).forEach(([key, value]) => {
+      if (value && value !== '' && key !== 'sort') {
+        hasActiveFilters = true;
+        
+        let displayKey = key;
+        if (key === 'functional_area') displayKey = 'functional area';
+        
+        const badge = document.createElement('span');
+        badge.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-600/20 text-purple-300 border border-purple-600/30';
+        badge.innerHTML = `
+          ${displayKey}: ${value}
+          <button onclick="vendorController.clearSpecificFilter('${key}')" class="ml-1 text-purple-400 hover:text-purple-200 transition-colors">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+        `;
+        filterContainer.appendChild(badge);
       }
     });
+    
+    if (clearBtn) {
+      clearBtn.style.display = hasActiveFilters ? 'inline-block' : 'none';
+    }
+  }
+
+  clearSpecificFilter(filterKey) {
+    const form = document.getElementById('vendor-filters');
+    if (form) {
+      const element = form.querySelector(`[name="${filterKey}"]`);
+      if (element) {
+        element.value = '';
+        this.currentFilters[filterKey] = '';
+        this.refreshVendorList();
+        this.updateActiveFilters();
+        this.loadVendorStats();
+        this.loadVendorPerformance();
+      }
+    }
+  }
+
+  clearAllFilters() {
+    const form = document.getElementById('vendor-filters');
+    if (form) {
+      form.reset();
+      this.currentFilters = { search: '', agency: '', functional_area: '', sort: 'name' };
+      this.refreshVendorList();
+      this.updateActiveFilters();
+      this.loadVendorStats();
+      this.loadVendorPerformance();
+    }
+  }
+
+  async loadVendorStats() {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(this.currentFilters).forEach(([key, value]) => {
+        if (value && value.trim() !== '') params.append(key, value.trim());
+      });
+      
+      const response = await fetch('/api/vendors/stats?' + params.toString());
+      const data = await response.json();
+      
+      if (data.status !== 'error') {
+        document.getElementById('active-vendors-count').textContent = data.active_vendors;
+        document.getElementById('avg-systems-count').textContent = data.avg_components_per_vendor;
+        if (data.top_vendor) {
+          document.getElementById('top-vendor-count').textContent = data.top_vendor.component_count;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading vendor stats:', error);
+    }
+  }
+
+  async loadVendorPerformance() {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(this.currentFilters).forEach(([key, value]) => {
+        if (value && value.trim() !== '') params.append(key, value.trim());
+      });
+      
+      const response = await fetch('/api/vendors/performance?' + params.toString());
+      const data = await response.json();
+      
+      if (data.status !== 'error') {
+        document.getElementById('most-reliable-vendor').textContent = data.most_reliable;
+        document.getElementById('newest-vendor').textContent = data.newest;
+        document.getElementById('largest-vendor').textContent = data.largest;
+      }
+    } catch (error) {
+      console.error('Error loading vendor performance:', error);
+    }
+  }
+
+  showListLoading(show) {
+    const vendorsList = document.getElementById('vendors-list');
+    if (!vendorsList) return;
+    
+    if (show) {
+      vendorsList.style.opacity = '0.6';
+      vendorsList.style.pointerEvents = 'none';
+    } else {
+      vendorsList.style.opacity = '1';
+      vendorsList.style.pointerEvents = 'auto';
+    }
+  }
+
+  updateVendorCount() {
+    const metaElement = document.getElementById('vendor-list-meta');
+    const countDisplay = document.getElementById('vendor-count-display');
+    
+    if (metaElement && countDisplay) {
+      const count = parseInt(metaElement.dataset.count) || 0;
+      countDisplay.textContent = `${count} vendor${count !== 1 ? 's' : ''} found`;
+    }
+  }
+
+  setupPeriodicRefresh() {
+    this.refreshTimers.push(
+      setInterval(() => {
+        const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+        elements.forEach(el => htmx.trigger(el, 'refresh'));
+      }, 30000)
+    );
+  }
+
+  handleBeforeRequest(event) {
+    if (event.target.id === 'vendors-list') {
+      this.isLoading = true;
+      this.showListLoading(true);
+    }
+  }
+
+  handleAfterRequest(event) {
+    if (event.target.id === 'vendors-list') {
+      this.isLoading = false;
+      this.showListLoading(false);
+    }
+  }
+
+  handleAfterSwap(event) {
+    if (event.target.id === 'vendors-list') {
+      setTimeout(() => this.updateVendorCount(), 100);
+      this.setupVendorCardEffects();
+      if (this.selectedVendorId) {
+        this.highlightSelectedVendor(this.selectedVendorId);
+      }
+    }
+  }
+
+  handleResponseError(event) {
+    if (event.target.id === 'vendors-list') {
+      this.isLoading = false;
+      this.showListLoading(false);
+      showToast('Error loading vendors. Please try again.', false);
+    }
+  }
+
+  setupVendorCardEffects() {
+    const vendorCards = document.querySelectorAll('.vendor-card');
+    vendorCards.forEach(card => {
+      card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-4px)';
+        this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+      });
+      
+      card.addEventListener('mouseleave', function() {
+        if (!this.classList.contains('selected')) {
+          this.style.transform = 'translateY(0)';
+          this.style.boxShadow = 'none';
+        }
+      });
+      
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('a') && !e.target.closest('button')) {
+          this.selectedVendorId = card.dataset.vendorId;
+          this.highlightSelectedVendor(this.selectedVendorId);
+        }
+      });
+    });
+  }
+
+  highlightSelectedVendor(vendorId) {
+    document.querySelectorAll('.vendor-card').forEach(card => {
+      card.classList.remove('selected');
+      if (!card.matches(':hover')) {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = 'none';
+      }
+    });
+    
+    const selectedCard = document.querySelector(`[data-vendor-id="${vendorId}"]`);
+    if (selectedCard) {
+      selectedCard.classList.add('selected');
+      selectedCard.style.transform = 'translateY(-4px)';
+      selectedCard.style.boxShadow = '0 10px 25px rgba(147, 51, 234, 0.3)';
+    }
+  }
+
+  closeVendorDetails() {
+    this.selectedVendorId = null;
+    document.getElementById('vendor-details').innerHTML = `
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
+        <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
+        <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, system portfolio, and contact details.</p>
+      </div>`;
+  }
+}
+
+// =============================================================================
+// GLOBAL FUNCTIONS AND INITIALIZATION
+// =============================================================================
+
+let vendorController;
+
+function clearSpecificFilter(filterKey) {
+  if (vendorController) vendorController.clearSpecificFilter(filterKey);
+}
+
+function clearAllFilters() {
+  if (vendorController) vendorController.clearAllFilters();
+}
+
+function closeVendorDetails() {
+  if (vendorController) vendorController.closeVendorDetails();
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  vendorController = new VendorPageController();
+  
+  // Make functions globally available
+  window.clearSpecificFilter = clearSpecificFilter;
+  window.clearAllFilters = clearAllFilters;
+  window.closeVendorDetails = closeVendorDetails;
+  window.vendorController = vendorController;
 });
 
-// Add vendor card hover effects
-document.body.addEventListener('htmx:afterSwap', function(e) {
-  const vendorCards = document.querySelectorAll('.vendor-card');
-  vendorCards.forEach(card => {
-    card.addEventListener('mouseenter', function() {
-      this.style.transform = 'translateY(-4px)';
-      this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
-    });
-    card.addEventListener('mouseleave', function() {
-      this.style.transform = 'translateY(0)';
-      this.style.boxShadow = 'none';
-    });
-  });
+// Enhanced form handling for vendor operations
+document.body.addEventListener('htmx:afterRequest', function(e) {
+  // Handle vendor form submissions
+  if (e.target.id === 'vendor-form') {
+    try {
+      const response = JSON.parse(e.detail.xhr.response);
+      
+      if (response.status === 'success') {
+        // Trigger custom events for vendor operations
+        if (e.detail.requestConfig.path.includes('POST') && !e.detail.requestConfig.path.match(/\/\d+$/)) {
+          // New vendor created
+          document.dispatchEvent(new CustomEvent('vendor:created', { 
+            detail: { message: response.message } 
+          }));
+        } else if (e.detail.requestConfig.path.includes('POST') && e.detail.requestConfig.path.match(/\/\d+$/)) {
+          // Vendor updated
+          const vendorId = e.detail.requestConfig.path.match(/\/(\d+)$/)[1];
+          document.dispatchEvent(new CustomEvent('vendor:updated', { 
+            detail: { vendorId: vendorId, message: response.message } 
+          }));
+        }
+      }
+    } catch (error) {
+      // Response is not JSON, handle as before
+    }
+  }
 });
 
-// Auto-refresh stats every 30 seconds
-setInterval(function() {
-  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
-  elements.forEach(el => htmx.trigger(el, 'refresh'));
-}, 30000);
+// Handle vendor deletion
+document.addEventListener('vendor:deleted', function(e) {
+  if (vendorController) {
+    vendorController.refreshVendorList();
+    vendorController.loadVendorStats();
+    vendorController.loadVendorPerformance();
+    if (e.detail.vendorId === vendorController.selectedVendorId) {
+      vendorController.closeVendorDetails();
+    }
+  }
+});
+
+// Export functionality
+function exportVendorList() {
+  showToast('Export functionality coming soon!', true);
+}
+
+window.exportVendorList = exportVendorList;
 </script>
 {% endblock %}

@@ -10,8 +10,15 @@
     </button>
   </div>
 
-  <form {% if vendor %}hx-post="/api/vendors/{{ vendor.id }}"{% else %}hx-post="/api/vendors"{% endif %}
-        hx-target="#result-message" hx-swap="innerHTML" class="space-y-8">
+  <form id="vendor-form"
+        {% if vendor %}
+        hx-post="/api/vendors/{{ vendor.id }}"
+        {% else %}
+        hx-post="/api/vendors"
+        {% endif %}
+        hx-trigger="submit"
+        hx-swap="none"
+        class="space-y-8">
     
     <!-- Basic Information Section -->
     <div class="form-section">
@@ -30,9 +37,7 @@
                  value="{{ form.name.data if form.name.data else '' }}"
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
                  placeholder="e.g., Acme Transportation Systems">
-          {% if form.name.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.name.errors[0] }}</div>
-          {% endif %}
+          <div class="field-error text-red-400 text-xs mt-1 hidden"></div>
         </div>
 
         <div class="md:col-span-1">
@@ -42,9 +47,7 @@
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
                  placeholder="e.g., acme">
           <p class="text-xs text-slate-500 mt-1">Used for logo and header image file names</p>
-          {% if form.short_name.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.short_name.errors[0] }}</div>
-          {% endif %}
+          <div class="field-error text-red-400 text-xs mt-1 hidden"></div>
         </div>
 
         <div class="md:col-span-2">
@@ -52,9 +55,7 @@
           <textarea id="description" name="description" rows="3"
                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors resize-vertical"
                     placeholder="Brief description of the vendor and their specialties">{{ form.description.data if form.description.data else '' }}</textarea>
-          {% if form.description.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.description.errors[0] }}</div>
-          {% endif %}
+          <div class="field-error text-red-400 text-xs mt-1 hidden"></div>
         </div>
       </div>
     </div>
@@ -75,9 +76,7 @@
                  value="{{ form.vendor_email.data if form.vendor_email.data else '' }}"
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
                  placeholder="e.g., info@vendor.com">
-          {% if form.vendor_email.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.vendor_email.errors[0] }}</div>
-          {% endif %}
+          <div class="field-error text-red-400 text-xs mt-1 hidden"></div>
         </div>
 
         <div>
@@ -86,9 +85,7 @@
                  value="{{ form.vendor_phone.data if form.vendor_phone.data else '' }}"
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
                  placeholder="e.g., (555) 123-4567">
-          {% if form.vendor_phone.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.vendor_phone.errors[0] }}</div>
-          {% endif %}
+          <div class="field-error text-red-400 text-xs mt-1 hidden"></div>
         </div>
       </div>
       <p class="text-xs text-slate-500 mt-2">General contact information for the vendor organization</p>
@@ -109,24 +106,29 @@
                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
                placeholder="e.g., https://www.vendor.com">
         <p class="text-xs text-slate-500 mt-1">Company website URL</p>
-        {% if form.website.errors %}
-          <div class="text-red-400 text-xs mt-1">{{ form.website.errors[0] }}</div>
-        {% endif %}
+        <div class="field-error text-red-400 text-xs mt-1 hidden"></div>
       </div>
     </div>
-
-    <!-- Form Messages -->
-    <div id="result-message" class="form-section"></div>
 
     <!-- Form Actions -->
     <div class="form-section sticky bottom-0 bg-slate-800/95 backdrop-blur-sm border-t border-slate-600 pt-6 mt-8">
       <div class="flex flex-col sm:flex-row gap-3">
         <button type="submit" 
-                class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-          </svg>
-          {% if vendor %}Update Vendor{% else %}Create Vendor{% endif %}
+                id="submit-btn"
+                class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+          <span class="submit-text">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            {% if vendor %}Update Vendor{% else %}Create Vendor{% endif %}
+          </span>
+          <span class="loading-text hidden">
+            <svg class="w-4 h-4 inline mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+          </span>
         </button>
         
         <button type="button" onclick="closeVendorForm()" 
@@ -136,9 +138,8 @@
         
         {% if vendor %}
         <button type="button" 
-                hx-delete="/api/vendors/{{ vendor.id }}"
-                hx-confirm="Are you sure you want to delete this vendor? This action cannot be undone if the vendor has associated components."
-                hx-target="#result-message"
+                id="delete-btn"
+                onclick="deleteVendor({{ vendor.id }})"
                 class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">
           <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
@@ -153,6 +154,13 @@
 </div>
 
 <script>
+// =============================================================================
+// VENDOR FORM HANDLING
+// =============================================================================
+
+/**
+ * Close vendor form and return to default state
+ */
 function closeVendorForm() {
   document.getElementById('vendor-details').innerHTML = `
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
@@ -162,17 +170,207 @@ function closeVendorForm() {
         </svg>
       </div>
       <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
-      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, component portfolio, and contact details.</p>
+      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, system portfolio, and contact details.</p>
     </div>`;
 }
 
-// Success/error handling for forms
-document.body.addEventListener('htmx:afterRequest', function(e) {
-  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
-    // Success: refresh list and show success message
-    htmx.trigger('#vendors-list', 'refresh');
+/**
+ * Clear form validation errors
+ */
+function clearFormErrors() {
+  const form = document.getElementById('vendor-form');
+  if (!form) return;
+  
+  // Remove error styling from fields
+  const fields = form.querySelectorAll('input, textarea, select');
+  fields.forEach(field => {
+    field.classList.remove('border-red-500');
+    field.classList.add('border-slate-700');
+  });
+  
+  // Hide error messages
+  const errorElements = form.querySelectorAll('.field-error');
+  errorElements.forEach(element => {
+    element.classList.add('hidden');
+    element.textContent = '';
+  });
+}
+
+/**
+ * Show form validation errors
+ */
+function showFormErrors(errors) {
+  const form = document.getElementById('vendor-form');
+  if (!form) return;
+  
+  Object.entries(errors).forEach(([fieldName, errorMessage]) => {
+    const field = form.querySelector(`[name="${fieldName}"]`);
+    if (field) {
+      // Add error styling to field
+      field.classList.add('border-red-500');
+      field.classList.remove('border-slate-700');
+      
+      // Show error message
+      const errorElement = field.parentNode.querySelector('.field-error');
+      if (errorElement) {
+        errorElement.textContent = errorMessage;
+        errorElement.classList.remove('hidden');
+      }
+    }
+  });
+}
+
+/**
+ * Show loading state on submit button
+ */
+function showSubmitLoading() {
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.querySelector('.submit-text').classList.add('hidden');
+    submitBtn.querySelector('.loading-text').classList.remove('hidden');
+  }
+}
+
+/**
+ * Hide loading state on submit button
+ */
+function hideSubmitLoading() {
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.querySelector('.submit-text').classList.remove('hidden');
+    submitBtn.querySelector('.loading-text').classList.add('hidden');
+  }
+}
+
+/**
+ * Delete vendor with confirmation
+ */
+function deleteVendor(vendorId) {
+  if (!confirm('Are you sure you want to delete this vendor? This action cannot be undone if the vendor has associated components.')) {
+    return;
+  }
+  
+  const deleteBtn = document.getElementById('delete-btn');
+  if (deleteBtn) {
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = `
+      <svg class="w-4 h-4 inline mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Deleting...
+    `;
+  }
+  
+  fetch(`/api/vendors/${vendorId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      showToast(data.message, true);
+      closeVendorForm();
+      // Refresh vendor list
+      htmx.trigger('#vendors-list', 'refresh');
+    } else {
+      showToast(data.message, false);
+    }
+  })
+  .catch(error => {
+    showToast('Error deleting vendor. Please try again.', false);
+  })
+  .finally(() => {
+    if (deleteBtn) {
+      deleteBtn.disabled = false;
+      deleteBtn.innerHTML = `
+        <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
+        </svg>
+        Delete Vendor
+      `;
+    }
+  });
+}
+
+// =============================================================================
+// FORM EVENT HANDLERS
+// =============================================================================
+
+// Handle form submission
+document.addEventListener('htmx:beforeRequest', function(e) {
+  if (e.target.id === 'vendor-form') {
+    clearFormErrors();
+    showSubmitLoading();
   }
 });
+
+// Handle form response
+document.addEventListener('htmx:afterRequest', function(e) {
+  if (e.target.id === 'vendor-form') {
+    hideSubmitLoading();
+    
+    try {
+      const response = JSON.parse(e.detail.xhr.response);
+      
+      if (response.status === 'success') {
+        showToast(response.message, true);
+        closeVendorForm();
+        // Refresh vendor list
+        htmx.trigger('#vendors-list', 'refresh');
+        // Refresh stats
+        loadVendorStats();
+      } else if (response.status === 'validation_error') {
+        showToast(response.message, false);
+        if (response.errors) {
+          showFormErrors(response.errors);
+        }
+      } else {
+        showToast(response.message, false);
+      }
+    } catch (error) {
+      showToast('An error occurred. Please try again.', false);
+    }
+  }
+});
+
+// Handle form errors
+document.addEventListener('htmx:responseError', function(e) {
+  if (e.target.id === 'vendor-form') {
+    hideSubmitLoading();
+    showToast('Network error. Please check your connection and try again.', false);
+  }
+});
+
+// Clear validation errors when user starts typing
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('vendor-form');
+  if (form) {
+    const fields = form.querySelectorAll('input, textarea, select');
+    fields.forEach(field => {
+      field.addEventListener('input', function() {
+        // Clear error state for this field
+        this.classList.remove('border-red-500');
+        this.classList.add('border-slate-700');
+        
+        const errorElement = this.parentNode.querySelector('.field-error');
+        if (errorElement) {
+          errorElement.classList.add('hidden');
+          errorElement.textContent = '';
+        }
+      });
+    });
+  }
+});
+
+// Make functions globally available
+window.closeVendorForm = closeVendorForm;
+window.deleteVendor = deleteVendor;
 </script>
 
 <style>
@@ -197,5 +395,20 @@ document.body.addEventListener('htmx:afterRequest', function(e) {
 
 .glass-effect::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
+}
+
+/* Transition for error states */
+input, textarea, select {
+  transition: border-color 0.2s ease-in-out;
+}
+
+/* Loading button animation */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

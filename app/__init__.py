@@ -33,6 +33,11 @@ def create_app(test_config=None):
     db.init_app(app)
     migrate.init_app(app, db)
     
+    # Import models so Flask-Migrate can detect them
+    with app.app_context():
+        from app.models import tran  # Import existing models
+        from app.models import gtfs  # Import GTFS models
+    
     # register blueprints
     from app.routes.main import main as main_bp
     app.register_blueprint(main_bp)

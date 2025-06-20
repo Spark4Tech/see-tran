@@ -10,9 +10,10 @@ from app.forms.forms import AgencyForm, VendorForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
-    html_error_fragment, html_success_fragment
+    html_error_fragment, html_success_fragment,
+    json_form_error_response
 )
-from sqlalchemy import func, case
+from sqlalchemy import func, case, distinct
 from datetime import datetime, timedelta
 
 main = Blueprint("main", __name__)
@@ -355,22 +356,49 @@ def vendors_page():
 
 @main.route("/api/vendors/list")
 def vendors_list():
-    """Get all vendors with filtering and component counts"""
+    """Get all vendors with enhanced filtering and component counts"""
     try:
         search = request.args.get('search', '').lower()
         sort_by = request.args.get('sort', 'name')
+        agency_filter = request.args.get('agency', '')
+        functional_area_filter = request.args.get('functional_area', '')
         
+        # Base query with component counts
         query = db.session.query(
             Vendor,
-            func.count(Component.id).label('component_count')
+            func.count(distinct(Component.id)).label('component_count')
         ).outerjoin(Component).group_by(Vendor.id)
         
+        # Apply search filter
         if search:
             query = query.filter(Vendor.name.ilike(f'%{search}%'))
         
+        # Apply agency filter - Fixed SQLAlchemy warning
+        if agency_filter:
+            agency_component_ids = db.session.query(Component.id)\
+                .join(AgencyFunctionImplementation)\
+                .join(Agency)\
+                .filter(Agency.name == agency_filter)
+            
+            # Convert subquery to select() explicitly
+            query = query.filter(Component.id.in_(agency_component_ids.scalar_subquery()))
+        
+        # Apply functional area filter - Fixed SQLAlchemy warning
+        if functional_area_filter:
+            fa_component_ids = db.session.query(Component.id)\
+                .join(AgencyFunctionImplementation)\
+                .join(Function)\
+                .join(FunctionalArea)\
+                .filter(FunctionalArea.name == functional_area_filter)
+            
+            # Convert subquery to select() explicitly
+            query = query.filter(Component.id.in_(fa_component_ids.scalar_subquery()))
+        
+        # Apply sorting
         if sort_by == 'components':
-            query = query.order_by(func.count(Component.id).desc())
+            query = query.order_by(func.count(distinct(Component.id)).desc())
         elif sort_by == 'recent':
+            # Sort by most recent component deployment
             subquery = db.session.query(
                 Component.vendor_id,
                 func.max(Component.deployment_date).label('latest_deployment')
@@ -383,7 +411,7 @@ def vendors_list():
         
         vendors_with_counts = query.all()
         
-        # Add component count to vendors
+        # Add component count to vendors for template
         for vendor, component_count in vendors_with_counts:
             vendor.component_count = component_count
         
@@ -468,7 +496,7 @@ def vendor_edit_form(vendor_id):
 @main.route("/api/vendors", methods=['POST'])
 @login_required
 def create_vendor():
-    """Create a new vendor"""
+    """Create a new vendor with JSON response"""
     try:
         form = VendorForm()
         
@@ -476,7 +504,7 @@ def create_vendor():
             # Check for duplicate names
             existing = Vendor.query.filter_by(name=form.name.data).first()
             if existing:
-                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+                return json_error_response(f"Vendor '{form.name.data}' already exists")
             
             # Create new vendor
             vendor = Vendor()
@@ -485,21 +513,19 @@ def create_vendor():
             db.session.add(vendor)
             db.session.commit()
             
-            return html_success_fragment(f"Vendor '{vendor.name}' created successfully")
+            return json_success_response(f"Vendor '{vendor.name}' created successfully")
         else:
-            # Form validation failed, return form with errors
-            return render_template('fragments/vendor_form.html', 
-                                 form=form, 
-                                 vendor=None)
+            # Form validation failed - return validation error response
+            return json_form_error_response(form)
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error creating vendor: {str(e)}")
+        return json_error_response(f"Error creating vendor: {str(e)}")
 
-@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])  # Using POST with _method=PUT for HTMX
+@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])
 @login_required
 def update_vendor(vendor_id):
-    """Update an existing vendor"""
+    """Update an existing vendor with JSON response"""
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         form = VendorForm()
@@ -511,72 +537,121 @@ def update_vendor(vendor_id):
                 Vendor.id != vendor_id
             ).first()
             if existing:
-                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+                return json_error_response(f"Vendor '{form.name.data}' already exists")
             
             # Update vendor
             form.populate_vendor(vendor)
             
             db.session.commit()
             
-            return html_success_fragment(f"Vendor '{vendor.name}' updated successfully")
+            return json_success_response(f"Vendor '{vendor.name}' updated successfully")
         else:
-            # Form validation failed, return form with errors
-            return render_template('fragments/vendor_form.html', 
-                                 form=form, 
-                                 vendor=vendor)
+            # Form validation failed - return validation error response
+            return json_form_error_response(form)
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error updating vendor: {str(e)}")
+        return json_error_response(f"Error updating vendor: {str(e)}")
 
 @main.route("/api/vendors/<int:vendor_id>", methods=['DELETE'])
 @login_required
 def delete_vendor(vendor_id):
-    """Delete a vendor"""
+    """Delete a vendor with JSON response"""
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         name = vendor.name
         
-        # Check if vendor has components
+        # Check if vendor has components (prevent deletion)
         component_count = Component.query.filter_by(vendor_id=vendor_id).count()
         if component_count > 0:
-            return html_error_fragment(f"Cannot delete vendor '{name}' because it has {component_count} associated components. Please reassign or delete the components first.")
+            return json_error_response(
+                f"Cannot delete vendor '{name}' because it has {component_count} associated components. "
+                f"Please reassign or delete the components first."
+            )
         
         # Delete the vendor
         db.session.delete(vendor)
         db.session.commit()
         
-        return html_success_fragment(f"Vendor '{name}' deleted successfully")
+        return json_success_response(f"Vendor '{name}' deleted successfully")
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error deleting vendor: {str(e)}")
+        return json_error_response(f"Error deleting vendor: {str(e)}")
 
 @main.route("/api/vendors/stats")
 def vendors_stats():
-    """Get vendor statistics for dashboard"""
+    """Get vendor statistics for dashboard with optional filtering"""
     try:
+        agency_filter = request.args.get('agency', '')
+        functional_area_filter = request.args.get('functional_area', '')
+        
+        # Base vendor query
+        vendor_query = db.session.query(Vendor)
+        
+        # Apply filters to get relevant vendors
+        if agency_filter or functional_area_filter:
+            component_subquery = db.session.query(Component.vendor_id).distinct()
+            
+            if agency_filter:
+                component_subquery = component_subquery\
+                    .join(AgencyFunctionImplementation)\
+                    .join(Agency)\
+                    .filter(Agency.name == agency_filter)
+            
+            if functional_area_filter:
+                if not agency_filter:
+                    component_subquery = component_subquery.join(AgencyFunctionImplementation)
+                component_subquery = component_subquery\
+                    .join(Function)\
+                    .join(FunctionalArea)\
+                    .filter(FunctionalArea.name == functional_area_filter)
+            
+            # Fix: Use scalar_subquery() to avoid SQLAlchemy warning
+            vendor_ids_subquery = component_subquery.scalar_subquery()
+            vendor_query = vendor_query.filter(Vendor.id.in_(vendor_ids_subquery))
+        
         stats = {
-            'total_vendors': Vendor.query.count(),
-            'active_vendors': db.session.query(Vendor).join(Component).distinct().count(),
+            'total_vendors': vendor_query.count(),
+            'active_vendors': vendor_query.join(Component).distinct().count(),
             'top_vendor': None,
             'avg_components_per_vendor': 0
         }
         
+        # Get top vendor within filtered set
         top_vendor_query = db.session.query(
             Vendor.name,
             func.count(Component.id).label('component_count')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
-         .order_by(func.count(Component.id).desc()).first()
+        ).join(Component)
         
-        if top_vendor_query:
+        if agency_filter or functional_area_filter:
+            # Apply same filter to top vendor query
+            vendor_ids_list = [v.id for v in vendor_query.all()]
+            if vendor_ids_list:
+                top_vendor_query = top_vendor_query.filter(Vendor.id.in_(vendor_ids_list))
+        
+        top_vendor_result = top_vendor_query.group_by(Vendor.id, Vendor.name)\
+                                          .order_by(func.count(Component.id).desc())\
+                                          .first()
+        
+        if top_vendor_result:
             stats['top_vendor'] = {
-                'name': top_vendor_query.name,
-                'component_count': top_vendor_query.component_count
+                'name': top_vendor_result.name,
+                'component_count': top_vendor_result.component_count
             }
         
+        # Calculate average components per vendor
         if stats['active_vendors'] > 0:
-            total_components = Component.query.filter(Component.vendor_id.isnot(None)).count()
+            total_components_query = db.session.query(func.count(Component.id))\
+                .filter(Component.vendor_id.isnot(None))
+            
+            if agency_filter or functional_area_filter:
+                vendor_ids_list = [v.id for v in vendor_query.all()]
+                if vendor_ids_list:
+                    total_components_query = total_components_query\
+                        .filter(Component.vendor_id.in_(vendor_ids_list))
+            
+            total_components = total_components_query.scalar()
             stats['avg_components_per_vendor'] = round(total_components / stats['active_vendors'], 1)
         
         return jsonify(stats)
@@ -614,28 +689,68 @@ def integration_standards():
 
 @main.route("/api/vendors/performance")
 def vendor_performance():
-    """Get vendor performance insights"""
+    """Get vendor performance insights with filtering support"""
     try:
+        agency_filter = request.args.get('agency', '')
+        functional_area_filter = request.args.get('functional_area', '')
+        
+        # Base vendor filter condition
+        vendor_filter_condition = True
+        
+        if agency_filter or functional_area_filter:
+            # Build subquery for vendor IDs that match filters
+            component_query = db.session.query(Component.vendor_id).distinct()
+            
+            if agency_filter:
+                component_query = component_query\
+                    .join(AgencyFunctionImplementation)\
+                    .join(Agency)\
+                    .filter(Agency.name == agency_filter)
+            
+            if functional_area_filter:
+                if not agency_filter:
+                    component_query = component_query.join(AgencyFunctionImplementation)
+                component_query = component_query\
+                    .join(Function)\
+                    .join(FunctionalArea)\
+                    .filter(FunctionalArea.name == functional_area_filter)
+            
+            # Get list of vendor IDs that match the filters
+            vendor_ids_list = [row[0] for row in component_query.all() if row[0] is not None]
+            if vendor_ids_list:
+                vendor_filter_condition = Vendor.id.in_(vendor_ids_list)
+            else:
+                vendor_filter_condition = False  # No vendors match filters
+        
+        # Most reliable vendor (least issues)
         reliable_vendor = db.session.query(
             Vendor.name,
             func.count(Component.id).label('total_components'),
             func.sum(case((Component.known_issues.isnot(None), 1), else_=0)).label('issues_count')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
+        ).join(Component)\
+         .filter(vendor_filter_condition)\
+         .group_by(Vendor.id, Vendor.name)\
          .having(func.count(Component.id) > 0)\
          .order_by((func.sum(case((Component.known_issues.isnot(None), 1), else_=0)) / func.count(Component.id)).asc())\
          .first()
         
+        # Newest vendor (most recent first deployment)
         newest_vendor = db.session.query(
             Vendor.name,
             func.min(Component.deployment_date).label('first_deployment')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
+        ).join(Component)\
+         .filter(vendor_filter_condition)\
+         .group_by(Vendor.id, Vendor.name)\
          .order_by(func.min(Component.deployment_date).desc())\
          .first()
         
+        # Largest vendor (most components)
         largest_vendor = db.session.query(
             Vendor.name,
             func.count(Component.id).label('component_count')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
+        ).join(Component)\
+         .filter(vendor_filter_condition)\
+         .group_by(Vendor.id, Vendor.name)\
          .order_by(func.count(Component.id).desc())\
          .first()
         
@@ -1307,6 +1422,49 @@ def vendors_filter_options():
         return html
     except Exception as e:
         return '<option value="">All Vendors</option>'
+    
+@main.route("/api/vendors/filter-options/agencies")
+def vendor_agencies_filter_options():
+    """Get agencies that have vendor relationships for filter dropdown"""
+    try:
+        # Find agencies that have components from vendors
+        agencies = db.session.query(Agency.name)\
+            .join(AgencyFunctionImplementation)\
+            .join(Component)\
+            .join(Vendor)\
+            .distinct()\
+            .order_by(Agency.name)\
+            .all()
+        
+        html = '<option value="">All Agencies</option>'
+        for agency in agencies:
+            html += f'<option value="{agency.name}">{agency.name}</option>'
+        
+        return html
+    except Exception as e:
+        return '<option value="">All Agencies</option>'
+
+@main.route("/api/vendors/filter-options/functional-areas")
+def vendor_functional_areas_filter_options():
+    """Get functional areas that have vendor relationships for filter dropdown"""
+    try:
+        # Find functional areas that have components from vendors
+        functional_areas = db.session.query(FunctionalArea.name)\
+            .join(Function)\
+            .join(AgencyFunctionImplementation)\
+            .join(Component)\
+            .join(Vendor)\
+            .distinct()\
+            .order_by(FunctionalArea.name)\
+            .all()
+        
+        html = '<option value="">All Functional Areas</option>'
+        for fa in functional_areas:
+            html += f'<option value="{fa.name}">{fa.name}</option>'
+        
+        return html
+    except Exception as e:
+        return '<option value="">All Functional Areas</option>'
 
 @main.route("/api/components/<int:component_id>/vendor")
 def component_vendor_details(component_id):

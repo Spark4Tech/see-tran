@@ -44,8 +44,14 @@
                     cota_logo.png
                     c-tran_logo.png
                     trimet_logo.png
+                vendor_logos/
+                    init_logo.png
+                    apollo_logo.png
+                    byd_logo.png
                 transit_headers/
+                    cota_header.png
                     c-tran_header.png
+                vendor_headers/
             js/
                 .keep
         templates/
@@ -59,6 +65,9 @@
             contribute.html
             vendors.html
             fragments/
+                vendor_details.html
+                vendor_form.html
+                vendor_list.html
                 agency_details.html
                 functional_area_details.html
                 agency_list.html
@@ -86,15 +95,199 @@
 
 # End of Directory Structure
 
+# Start of app/__init__.py
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+import os
+
+db = SQLAlchemy()
+migrate = Migrate()
+
+def create_app(test_config=None):
+    app = Flask(__name__)
+    
+    if test_config:
+        app.config.update(test_config)
+    else:
+        # Import config classes
+        from config import DevelopmentConfig, ProductionConfig, TestConfig
+        
+        # Use DevelopmentConfig by default, or based on environment
+        flask_env = os.environ.get('FLASK_ENV', 'development')
+        if flask_env == 'production':
+            app.config.from_object(ProductionConfig)
+        elif flask_env == 'testing':
+            app.config.from_object(TestConfig)
+        else:
+            app.config.from_object(DevelopmentConfig)
+    
+    # Ensure the instance folder exists
+    try:
+        os.makedirs(app.instance_path)
+    except OSError:
+        pass
+    
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
+    # register blueprints
+    from app.routes.main import main as main_bp
+    app.register_blueprint(main_bp)
+    
+    return app
+# End of app/__init__.py
+
+# Start of run.py
+# run.py
+from app import create_app, db
+from app.models.tran import (
+    Agency, FunctionalArea, Vendor, Component,
+    IntegrationPoint, UserRole, UpdateLog
+)
+import os
+
+# Create the Flask app using the factory pattern
+# The create_app() function now handles config selection internally
+app = create_app()
+
+# Ensure models are imported so Flask-Migrate can detect them
+@app.shell_context_processor
+def make_shell_context():
+    return {
+        'app': app,
+        'db': db,
+        'Agency': Agency,                    # was TransitSystem
+        'FunctionalArea': FunctionalArea,
+        'Vendor': Vendor,
+        'Component': Component,              # was System
+        'IntegrationPoint': IntegrationPoint,
+        'UserRole': UserRole,
+        'UpdateLog': UpdateLog
+    }
+
+if __name__ == '__main__':
+    app.run(debug=True)
+# End of run.py
+
+# Start of config.py
+# config.py
+
+import os
+from dotenv import load_dotenv
+from datetime import timedelta
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '.env'))
+
+class Config:
+    # Core Flask settings
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    DEBUG = os.environ.get('FLASK_ENV') == 'development'
+    
+    # Database settings - SQLite support
+    DB_TYPE = os.environ.get('DB_TYPE', 'sqlite')
+    
+    if DB_TYPE == 'postgres':
+        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    else:
+        # SQLite database
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(basedir, 'instance', 'app.db')}"
+    
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_COMMIT_ON_TEARDOWN = True
+    
+    # Security settings
+    CSRF_ENABLED = True
+    
+    # Application paths and cookies
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    SESSION_REFRESH_EACH_REQUEST = True
+
+    WTF_CSRF_TIME_LIMIT = 24 * 3600  # 24 hours in seconds
+    WTF_CSRF_SSL_STRICT = False
+    
+    # File upload settings
+    MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500 MB limit
+    
+    # Email settings
+    POSTMARK_API_KEY = os.getenv('POSTMARK_API_KEY')
+    POSTMARK_SENDER_EMAIL = os.getenv('POSTMARK_SENDER_EMAIL')
+    POSTMARK_NOTIFY_EMAIL = os.getenv('POSTMARK_NOTIFY_EMAIL')
+
+    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
+    CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
+    CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-3-5-haiku-20241022')
+    
+    # AWS settings
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_REGION = os.environ.get('AWS_REGION', 'us-west-2')
+    S3_BUCKET = os.environ.get('S3_BUCKET', 'well-app')
+    
+    # Application URLs
+    SMS_BASE_URL = os.environ.get('SMS_BASE_URL', 'https://well.voice4equity.com/app')
+    
+    @staticmethod
+    def get_s3_prefix(tenant_id):
+        """Generate S3 key prefix for tenant isolation"""
+        return f'tenant_{tenant_id}'
+    
+    # SMS settings
+    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+    TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
+
+    SMS_TEST_PHONE_NUMBER = os.environ.get('SMS_TEST_PHONE_NUMBER', '+18084649192')
+
+class DevelopmentConfig(Config):
+    """Development configuration."""
+    FLASK_ENV = 'development'
+    DEBUG = True
+    DEVELOPMENT = True
+    
+    # More permissive session cookie settings for development
+    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_DOMAIN = None  # Allow all domains in development
+
+class ProductionConfig(Config):
+    """Production configuration."""
+    DEBUG = False
+    DEVELOPMENT = False
+    SESSION_COOKIE_SECURE = True
+    PREFERRED_URL_SCHEME = 'https'
+    
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_FILE_DIR = '/home/ubuntu/see-tran/flask_session'
+
+class TestConfig(Config):
+    """Test configuration."""
+    TESTING = True
+    DEBUG = False
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    WTF_CSRF_ENABLED = False
+# End of config.py
+
+# Start of .flaskenv
+FLASK_APP=app:create_app
+
+# End of .flaskenv
+
+# Start of app/routes/__init__.py
+
+# End of app/routes/__init__.py
+
 # Start of app/routes/main.py
 # app/routes/main.py - Enhanced version
 from flask import Blueprint, render_template, jsonify, request, url_for
 from app import db
 from app.models.tran import (
     Agency, FunctionalArea, Component, Vendor, IntegrationPoint, 
-    UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation
+    UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation,
+    integration_standard, component_integration
 )
-from app.forms.forms import AgencyForm
+from app.forms.forms import AgencyForm, VendorForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
@@ -113,11 +306,6 @@ def index():
 def components_page():
     """Components management page"""
     return render_template("components.html")
-
-@main.route("/vendors")
-def vendors_page():
-    """Vendors management page"""
-    return render_template("vendors.html")
 
 # Health and utility endpoints
 @main.route("/api/health")
@@ -440,7 +628,12 @@ def clear_component_details_js():
     </script>
     '''
 
-# Vendors endpoints (keeping existing functionality)
+# Vendors Management Routes
+@main.route("/vendors")
+def vendors_page():
+    """Vendors management page"""
+    return render_template("vendors.html")
+
 @main.route("/api/vendors/list")
 def vendors_list():
     """Get all vendors with filtering and component counts"""
@@ -471,77 +664,12 @@ def vendors_list():
         
         vendors_with_counts = query.all()
         
-        html = ""
+        # Add component count to vendors
         for vendor, component_count in vendors_with_counts:
-            functional_areas = db.session.query(FunctionalArea.name)\
-                .join(Component).filter(Component.vendor_id == vendor.id)\
-                .distinct().all()
-            
-            fa_names = [fa.name for fa in functional_areas]
-            fa_display = ", ".join(fa_names[:2])
-            if len(fa_names) > 2:
-                fa_display += f" +{len(fa_names) - 2} more"
-            
-            latest_component = Component.query.filter_by(vendor_id=vendor.id)\
-                .order_by(Component.deployment_date.desc().nullslast()).first()
-            
-            latest_deployment = "No deployments"
-            if latest_component and latest_component.deployment_date:
-                latest_deployment = latest_component.deployment_date.strftime('%Y-%m-%d')
-            
-            website_display = ""
-            if vendor.website:
-                domain = vendor.website.replace('https://', '').replace('http://', '').split('/')[0]
-                website_display = f'<a href="{vendor.website}" target="_blank" class="text-blue-400 hover:text-blue-300 text-xs">{domain}</a>'
-            
-            html += f'''
-            <div class="vendor-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
-                 hx-get="/api/vendors/{vendor.id}/details" hx-target="#vendor-details" hx-swap="innerHTML">
-                <div class="flex items-start justify-between mb-4">
-                    <div class="flex-1">
-                        <h3 class="font-semibold text-white text-xl mb-2">{vendor.name}</h3>
-                        <p class="text-slate-300 text-sm mb-3">{vendor.description or 'No description available'}</p>
-                        <div class="flex items-center space-x-4 text-xs text-slate-400">
-                            <span>🏢 {component_count} components</span>
-                            <span>📍 {fa_display if fa_names else 'No components'}</span>
-                            <span>📅 Latest: {latest_deployment}</span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-2">
-                            <span class="text-lg font-bold text-white">{component_count}</span>
-                        </div>
-                        <div class="text-xs text-slate-500 text-center">Components</div>
-                    </div>
-                </div>
-                
-                <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-                    <div class="flex items-center space-x-3">
-                        {website_display}
-                        {f'<span class="text-xs text-slate-500">• {vendor.contact_email or vendor.contact_name}</span>' if vendor.contact_email or vendor.contact_name else ''}
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span class="text-xs text-slate-400">Active</span>
-                    </div>
-                </div>
-            </div>
-            '''
+            vendor.component_count = component_count
         
-        if not html:
-            html = '''
-            <div class="text-center py-12">
-                <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-medium text-slate-400 mb-2">No Vendors Found</h3>
-                <p class="text-slate-500">Try adjusting your search or add new vendors.</p>
-            </div>
-            '''
-        
-        return html
+        return render_template('fragments/vendor_list.html', 
+                             vendors_with_counts=vendors_with_counts)
     except Exception as e:
         return html_error_fragment(f"Error loading vendors: {str(e)}")
 
@@ -551,133 +679,160 @@ def vendor_details(vendor_id):
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         
+        # Get components grouped by functional area
         components_by_area = {}
-        components = Component.query.filter_by(vendor_id=vendor.id).join(FunctionalArea).all()
         
-        for component in components:
-            area_name = component.functional_area.name
+        # Fixed query - proper joins through the relationship chain
+        components_query = db.session.query(Component, FunctionalArea.name.label('area_name'))\
+            .filter(Component.vendor_id == vendor_id)\
+            .join(AgencyFunctionImplementation, Component.agency_usages)\
+            .join(Function, AgencyFunctionImplementation.function)\
+            .join(FunctionalArea, Function.functional_area)\
+            .distinct(Component.id, FunctionalArea.name)\
+            .all()
+        
+        for component, area_name in components_query:
             if area_name not in components_by_area:
                 components_by_area[area_name] = []
-            components_by_area[area_name].append(component)
+            if component not in components_by_area[area_name]:
+                components_by_area[area_name].append(component)
         
-        components_html = ""
-        if components_by_area:
-            components_html = "<h4 class='font-medium text-white mb-3'>Components Portfolio:</h4>"
-            for area_name, area_components in components_by_area.items():
-                components_html += f'''
-                <div class="mb-4">
-                    <h5 class="text-sm font-medium text-blue-400 mb-2">{area_name}</h5>
-                    <div class="space-y-2 ml-3">
-                '''
-                for component in area_components:
-                    status_color = "red" if component.known_issues else "green"
-                    components_html += f'''
-                    <div class="flex items-center justify-between p-2 bg-slate-700/30 rounded">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-2 h-2 bg-{status_color}-500 rounded-full"></div>
-                            <span class="text-sm text-slate-300">{component.name}</span>
-                        </div>
-                        <span class="text-xs text-slate-500">v{component.version or 'Unknown'}</span>
-                    </div>
-                    '''
-                components_html += "</div></div>"
-        else:
-            components_html = "<p class='text-slate-400 text-sm'>No components found for this vendor.</p>"
+        # Get vendor statistics
+        total_components = Component.query.filter_by(vendor_id=vendor_id).count()
+        components_with_issues = Component.query.filter_by(vendor_id=vendor_id).filter(Component.known_issues.isnot(None)).count()
+        recent_deployments = Component.query.filter_by(vendor_id=vendor_id)\
+            .filter(Component.deployment_date >= datetime.now().date() - timedelta(days=365)).count()
         
-        total_components = len(components)
-        components_with_issues = len([s for s in components if s.known_issues])
-        recent_deployments = len([s for s in components if s.deployment_date and 
-                                 (datetime.now().date() - s.deployment_date).days <= 365])
+        # Get integration standards - simplified approach
+        vendor_components = Component.query.filter_by(vendor_id=vendor_id).all()
+        integration_standards = set()
+        for component in vendor_components:
+            for integration_point in component.integration_points:
+                for standard in integration_point.standards:
+                    integration_standards.add(standard.name)
         
-        integration_points = set()
-        for component in components:
-            for ip in component.integration_points:
-                integration_points.add(ip.name)
+        vendor.total_components = total_components
+        vendor.components_with_issues = components_with_issues
+        vendor.recent_deployments = recent_deployments
+        vendor.integration_standards = list(integration_standards)
+        vendor.components_by_area = components_by_area
         
-        integrations_html = ""
-        if integration_points:
-            integrations_html = f'''
-            <h4 class='font-medium text-white mb-2 mt-4'>Integration Standards:</h4>
-            <div class="flex flex-wrap gap-2">
-                {' '.join([f'<span class="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 rounded text-xs text-cyan-300">{ip}</span>' for ip in integration_points])}
-            </div>
-            '''
-        
-        html = f'''
-        <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center space-x-4">
-                    <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span class="text-2xl font-bold text-white">{vendor.name[0].upper()}</span>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold text-white">{vendor.name}</h2>
-                        <p class="text-slate-400">{vendor.description or 'No description available'}</p>
-                    </div>
-                </div>
-                <button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors" 
-                        onclick="document.getElementById('vendor-details').innerHTML = `
-                        <div class='glass-effect rounded-xl p-6 border border-slate-700/50 text-center'>
-                            <div class='w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4'>
-                                <svg class='w-8 h-8 text-slate-500' fill='currentColor' viewBox='0 0 20 20'>
-                                    <path d='M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z'/>
-                                </svg>
-                            </div>
-                            <h3 class='text-lg font-medium text-slate-400 mb-2'>Vendor Details</h3>
-                            <p class='text-slate-500 text-sm'>Click on a vendor to view detailed information, component portfolio, and contact details.</p>
-                        </div>`">
-                    ✕ Close
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="bg-blue-600/20 border border-blue-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-blue-300">{total_components}</div>
-                    <div class="text-sm text-blue-200">Total Components</div>
-                </div>
-                <div class="bg-green-600/20 border border-green-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-green-300">{total_components - components_with_issues}</div>
-                    <div class="text-sm text-green-200">Healthy Components</div>
-                </div>
-                <div class="bg-purple-600/20 border border-purple-600/30 rounded-lg p-4 text-center">
-                    <div class="text-2xl font-bold text-purple-300">{recent_deployments}</div>
-                    <div class="text-sm text-purple-200">Recent Deployments</div>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="font-medium text-white mb-3">Contact Information</h3>
-                    <div class="space-y-2 text-sm">
-                        <p class="text-slate-300">
-                            <strong>Website:</strong> 
-                            {f'<a href="{vendor.website}" target="_blank" class="text-blue-400 hover:text-blue-300 ml-2">{vendor.website}</a>' if vendor.website else '<span class="text-slate-500 ml-2">Not provided</span>'}
-                        </p>
-                        <p class="text-slate-300">
-                            <strong>Contact:</strong> 
-                            <span class="ml-2">{vendor.contact_email or vendor.contact_name or 'Not provided'}</span>
-                        </p>
-                        <p class="text-slate-300">
-                            <strong>Phone:</strong> 
-                            <span class="ml-2">{vendor.contact_phone or vendor.vendor_phone or 'Not provided'}</span>
-                        </p>
-                    </div>
-                    
-                    {integrations_html}
-                </div>
-                
-                <div>
-                    {components_html}
-                </div>
-            </div>
-        </div>
-        '''
-        
-        return html
+        return render_template('fragments/vendor_details.html', vendor=vendor)
     except Exception as e:
         return html_error_fragment(f"Error loading vendor details: {str(e)}")
 
-# Additional existing endpoints with error handling
+@main.route("/api/vendors/form")
+def vendor_form():
+    """Return new vendor form"""
+    try:
+        form = VendorForm()
+        return render_template('fragments/vendor_form.html', 
+                             form=form, 
+                             vendor=None)
+    except Exception as e:
+        return html_error_fragment(f"Error loading form: {str(e)}")
+
+@main.route("/api/vendors/<int:vendor_id>/form")
+def vendor_edit_form(vendor_id):
+    """Return edit vendor form"""
+    try:
+        vendor = Vendor.query.get_or_404(vendor_id)
+        form = VendorForm()
+        form.populate_from_vendor(vendor)
+        
+        return render_template('fragments/vendor_form.html', 
+                             form=form, 
+                             vendor=vendor)
+    except Exception as e:
+        return html_error_fragment(f"Error loading edit form: {str(e)}")
+
+@main.route("/api/vendors", methods=['POST'])
+@login_required
+def create_vendor():
+    """Create a new vendor"""
+    try:
+        form = VendorForm()
+        
+        if form.validate_on_submit():
+            # Check for duplicate names
+            existing = Vendor.query.filter_by(name=form.name.data).first()
+            if existing:
+                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+            
+            # Create new vendor
+            vendor = Vendor()
+            form.populate_vendor(vendor)
+            
+            db.session.add(vendor)
+            db.session.commit()
+            
+            return html_success_fragment(f"Vendor '{vendor.name}' created successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/vendor_form.html', 
+                                 form=form, 
+                                 vendor=None)
+        
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error creating vendor: {str(e)}")
+
+@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])  # Using POST with _method=PUT for HTMX
+@login_required
+def update_vendor(vendor_id):
+    """Update an existing vendor"""
+    try:
+        vendor = Vendor.query.get_or_404(vendor_id)
+        form = VendorForm()
+        
+        if form.validate_on_submit():
+            # Check for duplicate names (excluding current vendor)
+            existing = Vendor.query.filter(
+                Vendor.name == form.name.data,
+                Vendor.id != vendor_id
+            ).first()
+            if existing:
+                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+            
+            # Update vendor
+            form.populate_vendor(vendor)
+            
+            db.session.commit()
+            
+            return html_success_fragment(f"Vendor '{vendor.name}' updated successfully")
+        else:
+            # Form validation failed, return form with errors
+            return render_template('fragments/vendor_form.html', 
+                                 form=form, 
+                                 vendor=vendor)
+        
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error updating vendor: {str(e)}")
+
+@main.route("/api/vendors/<int:vendor_id>", methods=['DELETE'])
+@login_required
+def delete_vendor(vendor_id):
+    """Delete a vendor"""
+    try:
+        vendor = Vendor.query.get_or_404(vendor_id)
+        name = vendor.name
+        
+        # Check if vendor has components
+        component_count = Component.query.filter_by(vendor_id=vendor_id).count()
+        if component_count > 0:
+            return html_error_fragment(f"Cannot delete vendor '{name}' because it has {component_count} associated components. Please reassign or delete the components first.")
+        
+        # Delete the vendor
+        db.session.delete(vendor)
+        db.session.commit()
+        
+        return html_success_fragment(f"Vendor '{name}' deleted successfully")
+        
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error deleting vendor: {str(e)}")
+
 @main.route("/api/vendors/stats")
 def vendors_stats():
     """Get vendor statistics for dashboard"""
@@ -1101,6 +1256,112 @@ def delete_agency(agency_id):
         db.session.rollback()
         return html_error_fragment(f"Error deleting agency: {str(e)}")
     
+@main.route("/api/agencies/stats")
+def agencies_stats():
+    """Get agency statistics for dashboard"""
+    try:
+        # Total agencies
+        total_agencies = Agency.query.count()
+        
+        # Active implementations
+        active_implementations = AgencyFunctionImplementation.query.filter_by(status='Active').count()
+        
+        # Average implementations per agency
+        avg_implementations = 0
+        if total_agencies > 0:
+            total_implementations = AgencyFunctionImplementation.query.count()
+            avg_implementations = round(total_implementations / total_agencies, 1)
+        
+        # Average vendors per agency (agencies that use components from different vendors)
+        avg_vendors = 0
+        if total_agencies > 0:
+            # Count unique vendors per agency
+            vendor_counts = db.session.query(
+                AgencyFunctionImplementation.agency_id,
+                func.count(func.distinct(Component.vendor_id)).label('vendor_count')
+            ).join(Component)\
+             .filter(Component.vendor_id.isnot(None))\
+             .group_by(AgencyFunctionImplementation.agency_id)\
+             .all()
+            
+            if vendor_counts:
+                total_vendor_relationships = sum([count.vendor_count for count in vendor_counts])
+                agencies_with_vendors = len(vendor_counts)
+                avg_vendors = round(total_vendor_relationships / agencies_with_vendors, 1)
+        
+        # Most active agency (agency with most implementations)
+        most_active = db.session.query(
+            Agency.name,
+            func.count(AgencyFunctionImplementation.id).label('impl_count')
+        ).join(AgencyFunctionImplementation)\
+         .group_by(Agency.id, Agency.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        stats = {
+            'total_agencies': total_agencies,
+            'active_implementations': active_implementations,
+            'avg_implementations_per_agency': avg_implementations,
+            'avg_vendors_per_agency': avg_vendors,
+            'most_active_agency': most_active.name if most_active else 'N/A',
+            'most_active_count': most_active.impl_count if most_active else 0
+        }
+        
+        return jsonify(stats)
+    except Exception as e:
+        return json_error_response(f"Error getting agency stats: {str(e)}")
+
+@main.route("/api/count/active-implementations")
+def count_active_implementations():
+    """Get count of active implementations"""
+    try:
+        count = AgencyFunctionImplementation.query.filter_by(status='Active').count()
+        return str(count)
+    except Exception as e:
+        return "0"
+
+@main.route("/api/agencies/insights")
+def agency_insights():
+    """Get agency insights for the sidebar"""
+    try:
+        # Most tech-advanced agency
+        tech_leader = db.session.query(
+            Agency.name,
+            func.count(AgencyFunctionImplementation.id).label('tech_count')
+        ).join(AgencyFunctionImplementation)\
+         .group_by(Agency.id, Agency.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        # Most common functional area
+        common_area = db.session.query(
+            FunctionalArea.name,
+            func.count(AgencyFunctionImplementation.id).label('usage_count')
+        ).join(Function)\
+         .join(AgencyFunctionImplementation)\
+         .group_by(FunctionalArea.id, FunctionalArea.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        # Most used vendor
+        top_vendor = db.session.query(
+            Vendor.name,
+            func.count(AgencyFunctionImplementation.id).label('deployment_count')
+        ).join(Component)\
+         .join(AgencyFunctionImplementation)\
+         .group_by(Vendor.id, Vendor.name)\
+         .order_by(func.count(AgencyFunctionImplementation.id).desc())\
+         .first()
+        
+        return jsonify({
+            'tech_leader': tech_leader.name if tech_leader else 'N/A',
+            'tech_leader_count': tech_leader.tech_count if tech_leader else 0,
+            'common_area': common_area.name if common_area else 'N/A',
+            'top_vendor': top_vendor.name if top_vendor else 'N/A'
+        })
+    except Exception as e:
+        return json_error_response(f"Error getting agency insights: {str(e)}")
+    
 # Functional Areas Management Routes
 @main.route("/functional-areas")
 def functional_areas_page():
@@ -1397,6 +1658,24 @@ def component_integration_details(component_id):
         return f'<div class="text-center py-4"><span class="text-red-400 text-sm">Error loading integrations</span></div>'
 # End of app/routes/main.py
 
+# Start of app/models/__init__.py
+# Example model - create more files in app/models/ as needed
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String
+from app import db
+
+class Example(db.Model):
+    __tablename__ = "examples"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<Example id={self.id} name={self.name!r}>"
+
+
+# End of app/models/__init__.py
+
 # Start of app/models/tran.py
 # models/tran.py
 
@@ -1505,12 +1784,10 @@ class Vendor(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    short_name = db.Column(db.String(50))
     website = db.Column(db.String(255))
     vendor_email = db.Column(db.String(255))
     vendor_phone = db.Column(db.String(50))
-    contact_name = db.Column(db.String(100))
-    contact_email = db.Column(db.String(255))
-    contact_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 
     components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan')
@@ -1519,22 +1796,20 @@ class Vendor(db.Model):
         return f"<Vendor(name={self.name})>"
     
     @property
-    def contact_info(self):
-        """
-        Consolidated contact information for backward compatibility
-        """
-        if self.contact_email:
-            return self.contact_email
-        elif self.contact_name:
-            return self.contact_name
-        elif self.contact_phone:
-            return self.contact_phone
-        elif self.vendor_email:
-            return self.vendor_email
-        elif self.vendor_phone:
-            return self.vendor_phone
-        else:
-            return None
+    def logo_url(self):
+        """Generate vendor logo URL"""
+        from flask import url_for
+        if self.short_name:
+            return url_for('static', filename=f'images/vendor_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
+        return None
+    
+    @property
+    def header_url(self):
+        """Generate vendor header URL"""
+        from flask import url_for
+        if self.short_name:
+            return url_for('static', filename=f'images/vendor_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
+        return None
 
 class Component(db.Model):
     __tablename__ = 'components'
@@ -1681,13 +1956,199 @@ class UpdateLog(db.Model):
 
 # End of app/models/tran.py
 
+# Start of app/forms/__init__.py
+
+# End of app/forms/__init__.py
+
+# Start of app/forms/forms.py
+# app/forms.py (create this file)
+from flask_wtf import FlaskForm
+from wtforms import StringField, TextAreaField, EmailField, URLField, TelField, FieldList, FormField
+from wtforms.validators import DataRequired, Email, URL, Optional, Length
+from wtforms.widgets import TextArea
+
+class MetadataField(FlaskForm):
+    """Sub-form for metadata key-value pairs"""
+    key = StringField('Key', validators=[Optional(), Length(max=100)])
+    value = StringField('Value', validators=[Optional(), Length(max=500)])
+
+class AgencyForm(FlaskForm):
+    """Form for creating and editing transit agencies"""
+    
+    # Basic Information
+    name = StringField('Agency Name', 
+                      validators=[DataRequired(message="Agency name is required"), 
+                                Length(max=100, message="Name must be less than 100 characters")])
+    
+    location = StringField('Location', 
+                          validators=[Optional(), Length(max=100)])
+    
+    description = TextAreaField('Description', 
+                               validators=[Optional(), Length(max=500)],
+                               widget=TextArea())
+    
+    # Address & Location
+    address_hq = TextAreaField('Headquarters Address', 
+                              validators=[Optional(), Length(max=256)],
+                              widget=TextArea())
+    
+    # Leadership
+    ceo = StringField('Chief Executive Officer', 
+                     validators=[Optional(), Length(max=128)])
+    
+    # Contact Information
+    contact_name = StringField('Primary Contact Name', 
+                              validators=[Optional(), Length(max=100)])
+    
+    contact_email = EmailField('Primary Contact Email', 
+                              validators=[Optional(), Email(message="Please enter a valid email address")])
+    
+    contact_phone = TelField('Primary Contact Phone', 
+                            validators=[Optional(), Length(max=50)])
+    
+    phone_number = TelField('Main Phone Number', 
+                           validators=[Optional(), Length(max=64)])
+    
+    # Web & Resources
+    website = URLField('Official Website', 
+                      validators=[Optional(), URL(message="Please enter a valid URL")])
+    
+    transit_map_link = URLField('Transit Map URL', 
+                              validators=[Optional(), URL(message="Please enter a valid URL")])
+    
+    # Dynamic metadata fields will be handled separately in the template and route
+    
+    def populate_from_agency(self, agency):
+        """Populate form with data from agency model"""
+        self.name.data = agency.name
+        self.location.data = agency.location
+        self.description.data = agency.description
+        self.address_hq.data = agency.address_hq
+        self.ceo.data = agency.ceo
+        self.contact_name.data = agency.contact_name
+        self.contact_email.data = agency.contact_email
+        self.contact_phone.data = agency.contact_phone
+        self.phone_number.data = agency.phone_number
+        self.website.data = agency.website
+        self.transit_map_link.data = agency.transit_map_link
+    
+    def populate_agency(self, agency):
+        """Populate agency model with form data"""
+        agency.name = self.name.data
+        agency.location = self.location.data or None
+        agency.description = self.description.data or None
+        agency.address_hq = self.address_hq.data or None
+        agency.ceo = self.ceo.data or None
+        agency.contact_name = self.contact_name.data or None
+        agency.contact_email = self.contact_email.data or None
+        agency.contact_phone = self.contact_phone.data or None
+        agency.phone_number = self.phone_number.data or None
+        agency.website = self.website.data or None
+        agency.transit_map_link = self.transit_map_link.data or None
+
+class VendorForm(FlaskForm):
+    name = StringField('Vendor Name', validators=[DataRequired(), Length(min=2, max=100)])
+    short_name = StringField('Short Name', validators=[Length(max=50)])
+    description = TextAreaField('Description', validators=[Length(max=500)])
+    website = URLField('Website', validators=[Optional(), URL()])
+    vendor_email = StringField('General Email', validators=[Optional(), Email(), Length(max=255)])
+    vendor_phone = StringField('General Phone', validators=[Optional(), Length(max=50)])
+    
+    def populate_from_vendor(self, vendor):
+        """Populate form fields from vendor object"""
+        self.name.data = vendor.name
+        self.short_name.data = vendor.short_name
+        self.description.data = vendor.description
+        self.website.data = vendor.website
+        self.vendor_email.data = vendor.vendor_email
+        self.vendor_phone.data = vendor.vendor_phone
+    
+    def populate_vendor(self, vendor):
+        """Populate vendor object from form data"""
+        vendor.name = self.name.data
+        vendor.short_name = self.short_name.data
+        vendor.description = self.description.data
+        vendor.website = self.website.data
+        vendor.vendor_email = self.vendor_email.data
+        vendor.vendor_phone = self.vendor_phone.data
+# End of app/forms/forms.py
+
+# Start of app/utils/errors.py
+# app/utils/errors.py
+from flask import jsonify, render_template_string
+
+def json_error_response(message, status_code=400, details=None):
+    """
+    Return a JSON error response for API endpoints
+    """
+    response = {
+        'status': 'error',
+        'message': message
+    }
+    if details:
+        response['details'] = details
+    
+    return jsonify(response), status_code
+
+def json_success_response(message="Success", data=None):
+    """
+    Return a JSON success response for API endpoints
+    """
+    response = {
+        'status': 'success',
+        'message': message
+    }
+    if data:
+        response['data'] = data
+    
+    return jsonify(response)
+
+def html_error_fragment(message, title="Error"):
+    """
+    Return an HTML error fragment for HTMX responses
+    """
+    template = '''
+    <div class="bg-red-900/20 border border-red-700/30 rounded-lg p-4 mb-4">
+        <div class="flex items-center space-x-3">
+            <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+                <h4 class="text-red-300 font-medium">{{ title }}</h4>
+                <p class="text-red-200 text-sm">{{ message }}</p>
+            </div>
+        </div>
+    </div>
+    '''
+    return render_template_string(template, title=title, message=message)
+
+def html_success_fragment(message, title="Success"):
+    """
+    Return an HTML success fragment for HTMX responses
+    """
+    template = '''
+    <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-4 mb-4">
+        <div class="flex items-center space-x-3">
+            <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+                <h4 class="text-green-300 font-medium">{{ title }}</h4>
+                <p class="text-green-200 text-sm">{{ message }}</p>
+            </div>
+        </div>
+    </div>
+    '''
+    return render_template_string(template, title=title, message=message)
+# End of app/utils/errors.py
+
 # Start of app/templates/base.html
 <!doctype html>
 <html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ title|default("SeeTran - Transit System Intelligence") }}</title>
+  <title>{{ title|default("See-Tran - Transit System Intelligence") }}</title>
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for("static", filename="css/tailwind.css") }}">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1731,13 +2192,12 @@ class UpdateLog(db.Model):
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
   
   <!-- Navigation -->
-  <nav class="glass-effect border-b border-slate-700/50 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        
-        <!-- Logo and Brand -->
-        <div class="flex items-center space-x-3">
-          <div class="flex items-center space-x-3">
+<nav class="glass-effect border-b border-slate-700/50 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <!-- Logo and Brand -->
+      <div class="flex-shrink-0">
+        <a href="/" class="flex items-center space-x-3 group hover:opacity-90 transition-opacity">
           <div class="w-8 h-8 rounded-lg flex items-center justify-center">
             <img src="{{ url_for('static', filename='images/logo.png') }}" 
                  alt="SeeTran Logo" 
@@ -1747,22 +2207,25 @@ class UpdateLog(db.Model):
             <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               see-tran
             </h1>
-            <p class="text-xs text-slate-400">Transit System Intelligence</p>
           </div>
-        </div>
+        </a>
+      </div>
 
+      <!-- Navigation and User Menu -->
+      <div class="flex items-center space-x-8">
+        <!-- Main Navigation -->
         <div class="hidden md:flex items-center space-x-8">
           <a href="/" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Dashboard</a>
-          <a href="/agencies" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Transit Agencies</a>
-          <a href="/functional-areas" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Functional Areas</a>
-          <a href="/components" class="nav-link text-slate-300 hover:text-white text-sm font-medium">System Components</a>
+          <a href="/agencies" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Agencies</a>
+          <a href="/functional-areas" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Functions</a>
+          <a href="/components" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Components</a>
           <a href="/vendors" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Vendors</a>
-          <a href="/integration" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Integration</a>
+          <a href="/integration" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Integrations</a>
           <a href="/reports" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Reports</a>
         </div>
 
         <!-- User Menu -->
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-4 ml-8">
           <button class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
             <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"/>
@@ -1773,7 +2236,8 @@ class UpdateLog(db.Model):
         </div>
       </div>
     </div>
-  </nav>
+  </div>
+</nav>
 
   <!-- Main Content -->
   <main class="min-h-screen">
@@ -1932,13 +2396,6 @@ class UpdateLog(db.Model):
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-semibold text-white">Vendor Portfolio</h2>
-          <button hx-get="/api/vendors/list" hx-target="#vendors-list" 
-                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
-            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-            </svg>
-            Refresh
-          </button>
         </div>
         
         <div id="vendors-list" class="space-y-6" hx-get="/api/vendors/list" hx-trigger="load">
@@ -1952,9 +2409,7 @@ class UpdateLog(db.Model):
       </div>
     </div>
 
-    <!-- Vendor Details Sidebar -->
-    <div class="space-y-6">
-      
+    <div class="space-y-6 sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto">
       <!-- Vendor Details Panel -->
       <div id="vendor-details">
         <!-- Default state -->
@@ -2005,7 +2460,8 @@ class UpdateLog(db.Model):
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
         <div class="space-y-3">
-          <button class="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
+          <button hx-get="/api/vendors/form" hx-target="#vendor-details" hx-swap="innerHTML"
+                  class="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
             </svg>
@@ -2073,360 +2529,216 @@ setInterval(function() {
 {% endblock %}
 # End of app/templates/vendors.html
 
-# Start of app/templates/fragments/agency_details.html
+# Start of app/templates/fragments/vendor_details.html
+<!-- app/templates/fragments/vendor_details.html -->
 <div class="glass-effect rounded-xl overflow-hidden border border-slate-700/50">
   <!-- Header Image -->
+  {% if vendor.header_url %}
   <div class="relative aspect-[2/1] bg-gradient-to-r from-slate-800 to-slate-700">
-    <img src="{{ agency.header_url }}" 
-         alt="{{ agency.name }} header" 
+    <img src="{{ vendor.header_url }}" 
+         alt="{{ vendor.name }} header" 
          class="w-full h-full object-cover"
          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
     <!-- Fallback gradient when image doesn't exist -->
-    <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 hidden items-center justify-center">
+    <div class="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 hidden items-center justify-center">
       <svg class="w-12 h-12 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
       </svg>
     </div>
   </div>
+  {% endif %}
   
   <!-- Content with name and buttons -->
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-white">{{ agency.name }}</h2>
+      <div class="flex items-center space-x-4">
+        {% if vendor.logo_url %}
+        <div class="w-16 h-16 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
+               class="w-full h-full object-contain"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
+            <span class="text-2xl font-bold text-white">{{ vendor.name[0].upper() }}</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+          <span class="text-2xl font-bold text-white">{{ vendor.name[0].upper() }}</span>
+        </div>
+        {% endif %}
+        
+        <div>
+          <h2 class="text-2xl font-bold text-white">{{ vendor.name }}</h2>
+          <p class="text-slate-400">{{ vendor.description or 'Technology vendor' }}</p>
+        </div>
+      </div>
+      
       <div class="flex gap-2">
-      <button hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
-              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
-        Edit
-      </button>
-      <button onclick="closeAgencyDetails()"
-              class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
-        ✕ Close
-      </button>
-    </div>
-  </div>
-  
-  <div class="space-y-6">
-    <!-- Basic Information Section -->
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-        </svg>
-        Location & Identity
-      </h3>
-      <div class="space-y-3 text-sm">
-        <div class="flex flex-col sm:flex-row sm:justify-between">
-          <span class="text-slate-400 mb-1 sm:mb-0">Location:</span>
-          <span class="text-white">{{ agency.location or 'Not specified' }}</span>
-        </div>
-        {% if agency.description %}
-        <div class="pt-1">
-          <span class="text-slate-400 block mb-2">Description:</span>
-          <p class="text-slate-300 leading-relaxed">{{ agency.description }}</p>
-        </div>
-        {% endif %}
+        <button hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML"
+                class="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors">
+          Edit
+        </button>
+        <button onclick="closeVendorDetails()"
+                class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+          ✕ Close
+        </button>
       </div>
     </div>
 
-    <!-- Leadership & Organization -->
-    {% if agency.ceo %}
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-        </svg>
-        Leadership
-      </h3>
-      <div class="text-sm">
-        <div class="flex flex-col sm:flex-row sm:justify-between">
-          <span class="text-slate-400 mb-1 sm:mb-0">CEO:</span>
-          <span class="text-white">{{ agency.ceo }}</span>
-        </div>
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="bg-blue-600/20 border border-blue-600/30 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold text-blue-300">{{ vendor.total_components }}</div>
+        <div class="text-sm text-blue-200">Total Components</div>
+      </div>
+      <div class="bg-green-600/20 border border-green-600/30 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold text-green-300">{{ vendor.total_components - vendor.components_with_issues }}</div>
+        <div class="text-sm text-green-200">Healthy Components</div>
+      </div>
+      <div class="bg-purple-600/20 border border-purple-600/30 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold text-purple-300">{{ vendor.recent_deployments }}</div>
+        <div class="text-sm text-purple-200">Recent Deployments</div>
       </div>
     </div>
-    {% endif %}
-
-    <!-- Contact Information -->
-    {% if agency.contact_name or agency.contact_email or agency.contact_phone or agency.phone_number %}
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-        </svg>
-        Contact Information
-      </h3>
-      <div class="space-y-3 text-sm">
-        {% if agency.contact_name %}
-        <div class="flex flex-col sm:flex-row sm:justify-between">
-          <span class="text-slate-400 mb-1 sm:mb-0">Contact Person:</span>
-          <span class="text-white">{{ agency.contact_name }}</span>
+    
+    <div class="space-y-6">
+      <!-- Contact Information Section -->
+      <div class="bg-slate-700/30 rounded-lg p-4">
+        <h3 class="font-semibold text-white mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+          </svg>
+          Contact Information
+        </h3>
+        <div class="space-y-3 text-sm">
+          {% if vendor.website %}
+          <div class="flex flex-col">
+            <span class="text-slate-400 mb-1">Website:</span>
+            <a href="{{ vendor.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
+              {{ vendor.website }}
+              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
+              </svg>
+            </a>
+          </div>
+          {% endif %}
+          {% if vendor.vendor_email %}
+          <div class="flex flex-col">
+            <span class="text-slate-400 mb-1">General Email:</span>
+            <a href="mailto:{{ vendor.vendor_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ vendor.vendor_email }}</a>
+          </div>
+          {% endif %}
+          {% if vendor.vendor_phone %}
+          <div class="flex flex-col">
+            <span class="text-slate-400 mb-1">General Phone:</span>
+            <a href="tel:{{ vendor.vendor_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ vendor.vendor_phone }}</a>
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
-        {% if agency.contact_email %}
-        <div class="flex flex-col sm:flex-row sm:justify-between">
-          <span class="text-slate-400 mb-1 sm:mb-0">Email:</span>
-          <a href="mailto:{{ agency.contact_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ agency.contact_email }}</a>
-        </div>
-        {% endif %}
-        {% if agency.contact_phone %}
-        <div class="flex flex-col sm:flex-row sm:justify-between">
-          <span class="text-slate-400 mb-1 sm:mb-0">Phone:</span>
-          <a href="tel:{{ agency.contact_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ agency.contact_phone }}</a>
-        </div>
-        {% endif %}
-        {% if agency.phone_number and agency.phone_number != agency.contact_phone %}
-        <div class="flex flex-col sm:flex-row sm:justify-between">
-          <span class="text-slate-400 mb-1 sm:mb-0">Main Phone:</span>
-          <a href="tel:{{ agency.phone_number }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ agency.phone_number }}</a>
-        </div>
-        {% endif %}
       </div>
-    </div>
-    {% endif %}
 
-    <!-- Address & Location -->
-    {% if agency.address_hq %}
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2v.01H16V6H4zm0 2v8h12V8H4z" clip-rule="evenodd"/>
-        </svg>
-        Headquarters
-      </h3>
-      <div class="text-sm">
-        <p class="text-slate-300 leading-relaxed">{{ agency.address_hq }}</p>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Online Resources -->
-    {% if agency.website or agency.agency_map_link %}
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
-        </svg>
-        Online Resources
-      </h3>
-      <div class="space-y-3 text-sm">
-        {% if agency.website %}
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <span class="text-slate-400 mb-2 sm:mb-0">Website:</span>
-          <a href="{{ agency.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
-            Visit Site
-            <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
-            </svg>
-          </a>
-        </div>
-        {% endif %}
-        {% if agency.agency_map_link %}
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <span class="text-slate-400 mb-2 sm:mb-0">Transit Map:</span>
-          <a href="{{ agency.agency_map_link }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
-            View Map
-            <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
-            </svg>
-          </a>
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Additional Metadata -->
-    {% if agency.additional_metadata %}
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"/>
-        </svg>
-        Additional Information
-      </h3>
-      <div class="text-sm space-y-2">
-        {% for key, value in agency.additional_metadata.items() %}
-        <div class="flex flex-col sm:flex-row sm:justify-between py-1">
-          <span class="text-slate-400 mb-1 sm:mb-0">{{ key|title }}:</span>
-          <span class="text-white">{{ value }}</span>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Function Implementations -->
-    {% if agency.function_implementations %}
-    <div class="bg-slate-700/30 rounded-lg p-4">
-      <h3 class="font-semibold text-white mb-3 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
-        </svg>
-        Technology Implementations ({{ agency.function_implementations|length }})
-      </h3>
-      <div class="space-y-3 max-h-64 overflow-y-auto">
-        {% for impl in agency.function_implementations %}
-        <div class="bg-slate-600/30 rounded-lg p-3">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ impl.function.name }}</span>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded">
-                {{ impl.function.functional_area.name }}
-              </span>
-              <span class="text-xs px-2 py-1 rounded 
-                {% if impl.status == 'Active' %}bg-green-600/20 text-green-300
-                {% elif impl.status == 'Planned' %}bg-yellow-600/20 text-yellow-300
-                {% else %}bg-slate-600/20 text-slate-300{% endif %}">
-                {{ impl.status }}
-              </span>
+      <!-- Component Portfolio -->
+      {% if vendor.components_by_area %}
+      <div class="bg-slate-700/30 rounded-lg p-4">
+        <h3 class="font-semibold text-white mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          </svg>
+          Component Portfolio
+        </h3>
+        <div class="space-y-4 max-h-64 overflow-y-auto">
+          {% for area_name, components in vendor.components_by_area.items() %}
+          <div>
+            <h4 class="text-sm font-medium text-blue-400 mb-2">{{ area_name }} ({{ components|length }})</h4>
+            <div class="space-y-2 mb-4">
+              {% for component in components %}
+              <div class="flex items-center justify-between p-2 bg-slate-600/30 rounded">
+                <div class="flex items-center space-x-2">
+                  <div class="w-2 h-2 bg-{% if component.known_issues %}red{% else %}green{% endif %}-500 rounded-full"></div>
+                  <span class="text-sm text-slate-300">{{ component.name }}</span>
+                </div>
+                <span class="text-xs text-slate-500">v{{ component.version or 'Unknown' }}</span>
+              </div>
+              {% endfor %}
             </div>
           </div>
-          <div class="text-xs text-slate-400 flex items-center justify-between">
-            <span>Component: {{ impl.component.name }}</span>
-            {% if impl.deployment_date %}
-            <span>Deployed: {{ impl.deployment_date.strftime('%Y-%m-%d') }}</span>
-            {% endif %}
-          </div>
+          {% endfor %}
         </div>
-        {% endfor %}
       </div>
+      {% else %}
+      <div class="bg-slate-700/30 rounded-lg p-4">
+        <h3 class="font-semibold text-white mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          </svg>
+          Component Portfolio
+        </h3>
+        <div class="text-center py-8">
+          <svg class="w-12 h-12 text-slate-500 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          </svg>
+          <p class="text-slate-400 text-sm">No deployed components found for this vendor.</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Integration Standards -->
+      {% if vendor.integration_standards %}
+      <div class="bg-slate-700/30 rounded-lg p-4">
+        <h3 class="font-semibold text-white mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+          Integration Standards
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {% for standard in vendor.integration_standards %}
+          <span class="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 rounded text-xs text-cyan-300">{{ standard }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </div>
 
 <script>
-function closeAgencyDetails() {
-  document.getElementById('agency-details').innerHTML = `
+function closeVendorDetails() {
+  document.getElementById('vendor-details').innerHTML = `
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
       <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
         <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
         </svg>
       </div>
-      <h3 class="text-lg font-medium text-slate-400 mb-2">Agency Details</h3>
-      <p class="text-slate-500 text-sm">Click on a transit agency to view details or use the Add button to create a new one.</p>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
+      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, component portfolio, and contact details.</p>
     </div>`;
 }
 </script>
-# End of app/templates/fragments/agency_details.html
+# End of app/templates/fragments/vendor_details.html
 
-# Start of app/templates/fragments/agency_list.html
-{% if agencies %}
-  {% for agency in agencies %}
-  <div class="agency-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
-       hx-get="/api/agencies/{{ agency.id }}/details" hx-target="#agency-details" hx-swap="innerHTML">
-    
-    <div class="flex items-start justify-between mb-4">
-      <div class="flex items-start space-x-4 flex-1">
-        <!-- Agency Logo -->
-        {% if agency.logo_url %}
-        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
-          <img src="{{ agency.logo_url }}" alt="{{ agency.name }} logo" 
-               class="w-full h-full object-contain">
-        </div>
-        {% else %}
-        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span class="text-lg font-bold text-white">{{ agency.name[0].upper() }}</span>
-        </div>
-        {% endif %}
-        
-        <!-- Agency Info -->
-        <div class="flex-1">
-          <div class="flex items-center space-x-3 mb-2">
-            <h3 class="font-semibold text-white text-lg">{{ agency.name }}</h3>
-            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-          </div>
-          
-          {% if agency.location %}
-          <p class="text-slate-300 text-sm mb-2">📍 {{ agency.location }}</p>
-          {% endif %}
-          
-          {% if agency.description %}
-          <p class="text-slate-400 text-sm mb-3">{{ agency.description[:120] }}{% if agency.description|length > 120 %}...{% endif %}</p>
-          {% endif %}
-          
-          <div class="flex items-center space-x-4 text-xs text-slate-400">
-            <span>🔧 {{ agency.function_implementations|length }} implementations</span>
-            {% if agency.contact_name %}
-            <span>👤 {{ agency.contact_name }}</span>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-      
-      <!-- Stats Badge -->
-      <div class="text-center">
-        <div class="w-10 h-10 bg-blue-600/20 border border-blue-600/30 rounded-full flex items-center justify-center mb-1">
-          <span class="text-sm font-bold text-blue-300">{{ agency.function_implementations|length }}</span>
-        </div>
-        <div class="text-xs text-slate-500">Tech</div>
-      </div>
-    </div>
-    
-    <!-- Footer with Quick Actions -->
-    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-      <div class="flex items-center space-x-3">
-        {% if agency.website %}
-        <a href="{{ agency.website }}" target="_blank" 
-           class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-           onclick="event.stopPropagation()" title="Website">
-          🌐 Website
-        </a>
-        {% endif %}
-        
-        {% if agency.contact_email %}
-        <a href="mailto:{{ agency.contact_email }}" 
-           class="text-xs text-green-400 hover:text-green-300 transition-colors"
-           onclick="event.stopPropagation()" title="Email">
-          📧 Contact
-        </a>
-        {% endif %}
-      </div>
-      
-      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
-              onclick="event.stopPropagation()">
-        Edit →
-      </button>
-    </div>
-  </div>
-  {% endfor %}
-{% else %}
-<div class="text-center py-12">
-  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-      <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-    </svg>
-  </div>
-  <h3 class="text-lg font-medium text-slate-400 mb-2">No Transit Agencies Found</h3>
-  <p class="text-slate-500">Try adjusting your search or add a new transit agency.</p>
-</div>
-{% endif %}
-# End of app/templates/fragments/agency_list.html
-
-# Start of app/templates/fragments/agency_form.html
-<!-- app/templates/fragments/transit_system_form.html -->
+# Start of app/templates/fragments/vendor_form.html
+<!-- app/templates/fragments/vendor_form.html -->
 <div class="glass-effect rounded-xl p-6 border border-slate-700/50 max-h-[90vh] overflow-y-auto">
   <div class="flex items-center justify-between mb-6 sticky top-0 bg-slate-800/90 backdrop-blur-sm z-10 py-2 -mt-2">
     <h2 class="text-xl font-bold text-white">
-      {% if transit_system %}Edit Transit System{% else %}Add Transit System{% endif %}
+      {% if vendor %}Edit Vendor{% else %}Add Vendor{% endif %}
     </h2>
-    <button onclick="closeForm()"
+    <button onclick="closeVendorForm()"
             class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
       ✕ Cancel
     </button>
   </div>
 
-  <form {% if transit_system %}hx-put="/api/transit-systems/{{ transit_system.id }}"{% else %}hx-post="/api/transit-systems"{% endif %}
+  <form {% if vendor %}hx-post="/api/vendors/{{ vendor.id }}"{% else %}hx-post="/api/vendors"{% endif %}
         hx-target="#result-message" hx-swap="innerHTML" class="space-y-8">
     
     <!-- Basic Information Section -->
     <div class="form-section">
       <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
         </svg>
         Basic Information
@@ -2434,63 +2746,38 @@ function closeAgencyDetails() {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-1">
           <label for="name" class="block text-sm font-medium text-slate-300 mb-2">
-            Name <span class="text-red-400">*</span>
+            Vendor Name <span class="text-red-400">*</span>
           </label>
           <input type="text" id="name" name="name" required
-                 value="{{ transit_system.name if transit_system else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
-                 placeholder="e.g., Metro Transit">
+                 value="{{ form.name.data if form.name.data else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
+                 placeholder="e.g., Acme Transportation Systems">
+          {% if form.name.errors %}
+            <div class="text-red-400 text-xs mt-1">{{ form.name.errors[0] }}</div>
+          {% endif %}
         </div>
 
         <div class="md:col-span-1">
-          <label for="location" class="block text-sm font-medium text-slate-300 mb-2">Location</label>
-          <input type="text" id="location" name="location"
-                 value="{{ transit_system.location if transit_system else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
-                 placeholder="e.g., Minneapolis, MN">
+          <label for="short_name" class="block text-sm font-medium text-slate-300 mb-2">Short Name</label>
+          <input type="text" id="short_name" name="short_name"
+                 value="{{ form.short_name.data if form.short_name.data else '' }}"
+                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
+                 placeholder="e.g., acme">
+          <p class="text-xs text-slate-500 mt-1">Used for logo and header image file names</p>
+          {% if form.short_name.errors %}
+            <div class="text-red-400 text-xs mt-1">{{ form.short_name.errors[0] }}</div>
+          {% endif %}
         </div>
 
         <div class="md:col-span-2">
           <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Description</label>
           <textarea id="description" name="description" rows="3"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors resize-vertical"
-                    placeholder="Brief description of the transit system and its services">{{ transit_system.description if transit_system else '' }}</textarea>
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors resize-vertical"
+                    placeholder="Brief description of the vendor and their specialties">{{ form.description.data if form.description.data else '' }}</textarea>
+          {% if form.description.errors %}
+            <div class="text-red-400 text-xs mt-1">{{ form.description.errors[0] }}</div>
+          {% endif %}
         </div>
-      </div>
-    </div>
-
-    <!-- Address & Location Section -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-        </svg>
-        Address & Location
-      </h3>
-      <div>
-        <label for="address_hq" class="block text-sm font-medium text-slate-300 mb-2">Headquarters Address</label>
-        <textarea id="address_hq" name="address_hq" rows="2"
-                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none transition-colors resize-vertical"
-                  placeholder="e.g., 560 6th Ave N, Seattle, WA 98109">{{ transit_system.address_hq if transit_system else '' }}</textarea>
-        <p class="text-xs text-slate-500 mt-1">Full street address of the main headquarters</p>
-      </div>
-    </div>
-
-    <!-- Leadership Section -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-        </svg>
-        Leadership
-      </h3>
-      <div>
-        <label for="ceo" class="block text-sm font-medium text-slate-300 mb-2">Chief Executive Officer</label>
-        <input type="text" id="ceo" name="ceo"
-               value="{{ transit_system.ceo if transit_system else '' }}"
-               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
-               placeholder="e.g., John Smith">
-        <p class="text-xs text-slate-500 mt-1">Current CEO or top executive</p>
       </div>
     </div>
 
@@ -2505,117 +2792,49 @@ function closeAgencyDetails() {
       </h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label for="contact_name" class="block text-sm font-medium text-slate-300 mb-2">Primary Contact Name</label>
-          <input type="text" id="contact_name" name="contact_name"
-                 value="{{ transit_system.contact_name if transit_system else '' }}"
+          <label for="vendor_email" class="block text-sm font-medium text-slate-300 mb-2">General Email</label>
+          <input type="email" id="vendor_email" name="vendor_email"
+                 value="{{ form.vendor_email.data if form.vendor_email.data else '' }}"
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
-                 placeholder="e.g., Jane Doe">
+                 placeholder="e.g., info@vendor.com">
+          {% if form.vendor_email.errors %}
+            <div class="text-red-400 text-xs mt-1">{{ form.vendor_email.errors[0] }}</div>
+          {% endif %}
         </div>
 
         <div>
-          <label for="contact_email" class="block text-sm font-medium text-slate-300 mb-2">Primary Contact Email</label>
-          <input type="email" id="contact_email" name="contact_email"
-                 value="{{ transit_system.contact_email if transit_system else '' }}"
+          <label for="vendor_phone" class="block text-sm font-medium text-slate-300 mb-2">General Phone</label>
+          <input type="tel" id="vendor_phone" name="vendor_phone"
+                 value="{{ form.vendor_phone.data if form.vendor_phone.data else '' }}"
                  class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
-                 placeholder="e.g., contact@transit.gov">
-        </div>
-
-        <div>
-          <label for="contact_phone" class="block text-sm font-medium text-slate-300 mb-2">Primary Contact Phone</label>
-          <input type="tel" id="contact_phone" name="contact_phone"
-                 value="{{ transit_system.contact_phone if transit_system else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
-                 placeholder="e.g., (206) 555-0123">
-        </div>
-
-        <div>
-          <label for="phone_number" class="block text-sm font-medium text-slate-300 mb-2">Main Phone Number</label>
-          <input type="tel" id="phone_number" name="phone_number"
-                 value="{{ transit_system.phone_number if transit_system else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
-                 placeholder="e.g., (206) 555-0100">
+                 placeholder="e.g., (555) 123-4567">
+          {% if form.vendor_phone.errors %}
+            <div class="text-red-400 text-xs mt-1">{{ form.vendor_phone.errors[0] }}</div>
+          {% endif %}
         </div>
       </div>
-      <p class="text-xs text-slate-500 mt-2">Primary contact is for direct inquiries, main phone is the public number</p>
+      <p class="text-xs text-slate-500 mt-2">General contact information for the vendor organization</p>
     </div>
 
-    <!-- Web & Resources Section -->
+    <!-- Web Resources Section -->
     <div class="form-section">
       <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
         <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
         </svg>
-        Web & Resources
+        Web Resources
       </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="website" class="block text-sm font-medium text-slate-300 mb-2">Official Website</label>
-          <input type="url" id="website" name="website"
-                 value="{{ transit_system.website if transit_system else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
-                 placeholder="e.g., https://www.transit.gov">
-          <p class="text-xs text-slate-500 mt-1">Main public website</p>
-        </div>
-
-        <div>
-          <label for="transit_map_link" class="block text-sm font-medium text-slate-300 mb-2">Transit Map URL</label>
-          <input type="url" id="transit_map_link" name="transit_map_link"
-                 value="{{ transit_system.transit_map_link if transit_system else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
-                 placeholder="e.g., https://www.transit.gov/map">
-          <p class="text-xs text-slate-500 mt-1">Link to interactive transit map</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Additional Information Section -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"/>
-        </svg>
-        Additional Information
-        <span class="ml-auto text-xs text-slate-500">Custom fields</span>
-      </h3>
-      
-      <div id="metadata-fields" class="space-y-3">
-        {% if transit_system and transit_system.additional_metadata %}
-          {% for key, value in transit_system.additional_metadata.items() %}
-          <div class="metadata-field bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Field Name</label>
-                <input type="text" name="metadata_key[]" value="{{ key }}"
-                       class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
-                       placeholder="e.g., Fleet Size">
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Field Value</label>
-                <input type="text" name="metadata_value[]" value="{{ value }}"
-                       class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
-                       placeholder="e.g., 250 buses">
-              </div>
-            </div>
-            <button type="button" onclick="removeMetadataField(this)"
-                    class="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors flex items-center">
-              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-              </svg>
-              Remove Field
-            </button>
-          </div>
-          {% endfor %}
+      <div>
+        <label for="website" class="block text-sm font-medium text-slate-300 mb-2">Official Website</label>
+        <input type="url" id="website" name="website"
+               value="{{ form.website.data if form.website.data else '' }}"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
+               placeholder="e.g., https://www.vendor.com">
+        <p class="text-xs text-slate-500 mt-1">Company website URL</p>
+        {% if form.website.errors %}
+          <div class="text-red-400 text-xs mt-1">{{ form.website.errors[0] }}</div>
         {% endif %}
       </div>
-      
-      <button type="button" onclick="addMetadataField()" 
-              class="mt-3 px-4 py-2 bg-orange-600/20 border border-orange-600/30 rounded-lg text-orange-300 text-sm hover:bg-orange-600/30 transition-colors flex items-center">
-        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-        </svg>
-        Add Custom Field
-      </button>
-      <p class="text-xs text-slate-500 mt-2">Add any additional information like fleet size, ridership, service hours, etc.</p>
     </div>
 
     <!-- Form Messages -->
@@ -2625,29 +2844,29 @@ function closeAgencyDetails() {
     <div class="form-section sticky bottom-0 bg-slate-800/95 backdrop-blur-sm border-t border-slate-600 pt-6 mt-8">
       <div class="flex flex-col sm:flex-row gap-3">
         <button type="submit" 
-                class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all text-white shadow-lg">
+                class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg">
           <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
           </svg>
-          {% if transit_system %}Update Transit System{% else %}Create Transit System{% endif %}
+          {% if vendor %}Update Vendor{% else %}Create Vendor{% endif %}
         </button>
         
-        <button type="button" onclick="closeForm()" 
+        <button type="button" onclick="closeVendorForm()" 
                 class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">
           Cancel
         </button>
         
-        {% if transit_system %}
+        {% if vendor %}
         <button type="button" 
-                hx-delete="/api/transit-systems/{{ transit_system.id }}"
-                hx-confirm="Are you sure you want to delete this transit system? This will permanently delete all associated functional areas, categories, and functions."
+                hx-delete="/api/vendors/{{ vendor.id }}"
+                hx-confirm="Are you sure you want to delete this vendor? This action cannot be undone if the vendor has associated components."
                 hx-target="#result-message"
                 class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">
           <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
             <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
           </svg>
-          Delete System
+          Delete Vendor
         </button>
         {% endif %}
       </div>
@@ -2656,85 +2875,31 @@ function closeAgencyDetails() {
 </div>
 
 <script>
-function closeForm() {
-  document.getElementById('transit-system-details').innerHTML = `
+function closeVendorForm() {
+  document.getElementById('vendor-details').innerHTML = `
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
       <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
         <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
         </svg>
       </div>
-      <h3 class="text-lg font-medium text-slate-400 mb-2">Transit System Details</h3>
-      <p class="text-slate-500 text-sm">Click on a transit system to view details or use the Add button to create a new one.</p>
+      <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
+      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, component portfolio, and contact details.</p>
     </div>`;
 }
 
-function addMetadataField() {
-  const container = document.getElementById('metadata-fields');
-  const fieldDiv = document.createElement('div');
-  fieldDiv.className = 'metadata-field bg-slate-800/50 rounded-lg p-4 border border-slate-700/50';
-  fieldDiv.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Field Name</label>
-        <input type="text" name="metadata_key[]" 
-               class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
-               placeholder="e.g., Fleet Size">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Field Value</label>
-        <input type="text" name="metadata_value[]" 
-               class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 focus:outline-none transition-colors text-sm"
-               placeholder="e.g., 250 buses">
-      </div>
-    </div>
-    <button type="button" onclick="removeMetadataField(this)"
-            class="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors flex items-center">
-      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-      </svg>
-      Remove Field
-    </button>
-  `;
-  container.appendChild(fieldDiv);
-}
-
-function removeMetadataField(button) {
-  button.closest('.metadata-field').remove();
-}
-
-// Auto-save draft functionality (optional enhancement)
-function saveDraft() {
-  const formData = new FormData(document.querySelector('form'));
-  const draft = {};
-  for (let [key, value] of formData.entries()) {
-    draft[key] = value;
+// Success/error handling for forms
+document.body.addEventListener('htmx:afterRequest', function(e) {
+  if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
+    // Success: refresh list and show success message
+    htmx.trigger('#vendors-list', 'refresh');
   }
-  localStorage.setItem('transit_system_draft', JSON.stringify(draft));
-}
-
-// Optional: Save draft every 30 seconds
-setInterval(saveDraft, 30000);
+});
 </script>
 
 <style>
 .form-section {
   scroll-margin-top: 100px;
-}
-
-.metadata-field {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Custom scrollbar for better UX */
@@ -2756,5 +2921,198 @@ setInterval(saveDraft, 30000);
   background: rgba(148, 163, 184, 0.7);
 }
 </style>
-# End of app/templates/fragments/agency_form.html
+# End of app/templates/fragments/vendor_form.html
+
+# Start of app/templates/fragments/vendor_list.html
+<!-- app/templates/fragments/vendor_list.html -->
+{% if vendors_with_counts %}
+  {% for vendor, component_count in vendors_with_counts %}
+  <div class="vendor-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
+       hx-get="/api/vendors/{{ vendor.id }}/details" hx-target="#vendor-details" hx-swap="innerHTML">
+    
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-start space-x-4 flex-1">
+        <!-- Vendor Logo -->
+        {% if vendor.logo_url %}
+        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
+               class="w-full h-full object-contain"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
+            <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
+        </div>
+        {% endif %}
+        
+        <!-- Vendor Info -->
+        <div class="flex-1">
+          <div class="flex items-center space-x-3 mb-2">
+            <h3 class="font-semibold text-white text-lg">{{ vendor.name }}</h3>
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+          </div>
+          
+          {% if vendor.description %}
+          <p class="text-slate-400 text-sm mb-3">{{ vendor.description[:120] }}{% if vendor.description|length > 120 %}...{% endif %}</p>
+          {% endif %}
+          
+          <div class="flex items-center space-x-4 text-xs text-slate-400">
+            <span>🏢 {{ component_count }} components</span>
+            {% if vendor.website %}
+            <span>🌐 Website</span>
+            {% endif %}
+            {% if vendor.vendor_email %}
+            <span>📧 {{ vendor.vendor_email }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stats Badge -->
+      <div class="text-center">
+        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-1">
+          <span class="text-lg font-bold text-white">{{ component_count }}</span>
+        </div>
+        <div class="text-xs text-slate-500">Components</div>
+      </div>
+    </div>
+    
+    <!-- Footer with Quick Actions -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
+      <div class="flex items-center space-x-3">
+        {% if vendor.website %}
+        <a href="{{ vendor.website }}" target="_blank" 
+           class="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center"
+           onclick="event.stopPropagation()" title="Visit Website">
+          🌐 {{ vendor.website.replace('https://', '').replace('http://', '').split('/')[0] }}
+        </a>
+        {% endif %}
+        
+        {% if vendor.vendor_email %}
+        <a href="mailto:{{ vendor.vendor_email }}" 
+           class="text-xs text-green-400 hover:text-green-300 transition-colors"
+           onclick="event.stopPropagation()" title="Email">
+          📧 Contact
+        </a>
+        {% endif %}
+        
+        {% if vendor.vendor_phone %}
+        <a href="tel:{{ vendor.vendor_phone }}" 
+           class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+           onclick="event.stopPropagation()" title="Phone">
+          📞 Call
+        </a>
+        {% endif %}
+      </div>
+      
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML"
+              onclick="event.stopPropagation()">
+        Edit →
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="text-center py-12">
+  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+    </svg>
+  </div>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No Vendors Found</h3>
+  <p class="text-slate-500">Try adjusting your search or add a new vendor.</p>
+</div>
+{% endif %}
+# End of app/templates/fragments/vendor_list.html
+
+# Start of scripts/load_vendors.py
+#!/usr/bin/env python3
+"""
+Vendors Data Loader
+
+Usage:
+    python load_vendors.py vendors.json
+"""
+
+import json
+import os
+import sys
+import argparse
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app import create_app, db
+from app.models.tran import Vendor
+
+def load_vendors_from_file(filename):
+    """Load vendors from JSON file"""
+    
+    app = create_app()
+    
+    with app.app_context():
+        print(f"🏢 Loading vendors from {filename}...")
+        
+        # Load JSON data
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        
+        stats = {'added': 0, 'skipped': 0}
+        
+        for vendor_data in data.get('vendors', []):
+            # Check if vendor already exists
+            existing = Vendor.query.filter_by(name=vendor_data['name']).first()
+            if existing:
+                print(f"  ⚠️  Vendor '{vendor_data['name']}' already exists, skipping")
+                stats['skipped'] += 1
+                continue
+            
+            # Create vendor
+            vendor = Vendor(
+                name=vendor_data['name'],
+                description=vendor_data.get('description'),
+                website=vendor_data.get('website'),
+                vendor_email=vendor_data.get('vendor_email'),
+                vendor_phone=vendor_data.get('vendor_phone'),
+                contact_name=vendor_data.get('contact_name'),
+                contact_email=vendor_data.get('contact_email'),
+                contact_phone=vendor_data.get('contact_phone')
+            )
+            
+            db.session.add(vendor)
+            stats['added'] += 1
+            print(f"  ➕ Added vendor: {vendor.name}")
+        
+        try:
+            db.session.commit()
+            print(f"\n✅ Vendors loaded successfully!")
+            print(f"📊 Summary:")
+            print(f"   Added: {stats['added']}")
+            print(f"   Skipped: {stats['skipped']}")
+            print(f"   Total Vendors: {Vendor.query.count()}")
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"\n❌ Error committing changes: {e}")
+            return False
+
+def main():
+    parser = argparse.ArgumentParser(description="Load vendors into the database.")
+    parser.add_argument('file', help='JSON file to load')
+    
+    args = parser.parse_args()
+    
+    if not os.path.exists(args.file):
+        print(f"❌ File not found: {args.file}")
+        return
+    
+    success = load_vendors_from_file(args.file)
+    if not success:
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+# End of scripts/load_vendors.py
 

@@ -1,5 +1,7 @@
 <!-- app/templates/fragments/vendor_details.html -->
 <div class="glass-effect rounded-xl overflow-hidden border border-slate-700/50">
+  
+  <!-- Header Image Section -->
   <!-- Header Image -->
   {% if vendor.header_url %}
   <div class="relative aspect-[2/1] bg-gradient-to-r from-slate-800 to-slate-700">
@@ -16,117 +18,182 @@
   </div>
   {% endif %}
   
-  <!-- Content with name and buttons -->
+  <!-- Content Section -->
   <div class="p-6">
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center space-x-4">
-        {% if vendor.logo_url %}
-        <div class="w-16 h-16 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
-          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
-               class="w-full h-full object-contain"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
-            <span class="text-2xl font-bold text-white">{{ vendor.name[0].upper() }}</span>
-          </div>
+    
+    <!-- Vendor Title and Description -->
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-white mb-2">{{ vendor.name }}</h2>
+        <div class="flex items-center space-x-3 mb-3">
+            {% if vendor.short_name %}
+            <span class="px-2 py-1 bg-purple-600/20 border border-purple-600/30 rounded text-xs text-purple-300 font-medium">
+            {{ vendor.short_name }}
+            </span>
+            {% endif %}
+            {% if vendor.website %}
+            <a href="{{ vendor.website }}" 
+            target="_blank" 
+            class="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 rounded text-xs text-cyan-300 font-medium hover:bg-cyan-600/30 transition-colors flex items-center">
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
+            </svg>
+            Visit Website
+            </a>
+            {% endif %}
         </div>
+        {% if vendor.description %}
+        <p class="text-slate-300 leading-relaxed">{{ vendor.description }}</p>
         {% else %}
-        <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-          <span class="text-2xl font-bold text-white">{{ vendor.name[0].upper() }}</span>
-        </div>
+        <p class="text-slate-400 italic">No description available</p>
         {% endif %}
-        
-        <div>
-          <h2 class="text-2xl font-bold text-white">{{ vendor.name }}</h2>
-          <p class="text-slate-400">{{ vendor.description or 'Technology vendor' }}</p>
-        </div>
-      </div>
-      
-      <div class="flex gap-2">
-        <button hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML"
-                class="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors">
-          Edit
-        </button>
-        <button onclick="closeVendorDetails()"
-                class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
-          ✕ Close
-        </button>
-      </div>
     </div>
 
-    <!-- Stats Overview -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-      <div class="bg-blue-600/20 border border-blue-600/30 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-blue-300">{{ vendor.total_components }}</div>
+    <!-- Action Buttons Row -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6 pb-6 border-b border-slate-700/30">
+      <button hx-get="/api/vendors/{{ vendor.id }}/form" 
+              hx-target="#vendor-details" 
+              hx-swap="innerHTML"
+              class="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg font-medium transition-all text-white shadow-lg">
+        <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+        </svg>
+        Edit Vendor
+      </button>
+      
+      <button onclick="closeVendorDetails()"
+              class="flex-1 sm:flex-none px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">
+        <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        </svg>
+        Close
+      </button>
+    </div>
+
+    <!-- Stats Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-gradient-to-r from-blue-600/20 to-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold text-blue-300 mb-1">{{ vendor.total_components }}</div>
         <div class="text-sm text-blue-200">Total Components</div>
       </div>
-      <div class="bg-green-600/20 border border-green-600/30 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-green-300">{{ vendor.total_components - vendor.components_with_issues }}</div>
+      <div class="bg-gradient-to-r from-green-600/20 to-emerald-500/20 border border-green-500/30 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold text-green-300 mb-1">{{ vendor.total_components - vendor.components_with_issues }}</div>
         <div class="text-sm text-green-200">Healthy Components</div>
       </div>
-      <div class="bg-purple-600/20 border border-purple-600/30 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-purple-300">{{ vendor.recent_deployments }}</div>
+      <div class="bg-gradient-to-r from-purple-600/20 to-purple-500/20 border border-purple-500/30 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold text-purple-300 mb-1">{{ vendor.recent_deployments }}</div>
         <div class="text-sm text-purple-200">Recent Deployments</div>
       </div>
     </div>
     
+    <!-- Main Content Sections -->
     <div class="space-y-6">
+      
       <!-- Contact Information Section -->
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+      <div class="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+        <h3 class="font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-3 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
           </svg>
           Contact Information
         </h3>
-        <div class="space-y-3 text-sm">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           {% if vendor.website %}
-          <div class="flex flex-col">
-            <span class="text-slate-400 mb-1">Website:</span>
-            <a href="{{ vendor.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
-              {{ vendor.website }}
-              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
-              </svg>
-            </a>
+          <div class="space-y-2">
+            <span class="text-slate-400 font-medium">Website</span>
+            <div>
+              <a href="{{ vendor.website }}" target="_blank" 
+                 class="text-cyan-400 hover:text-cyan-300 transition-colors flex items-center break-all">
+                {{ vendor.website }}
+                <svg class="w-3 h-3 ml-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
+                </svg>
+              </a>
+            </div>
           </div>
           {% endif %}
+          
           {% if vendor.vendor_email %}
-          <div class="flex flex-col">
-            <span class="text-slate-400 mb-1">General Email:</span>
-            <a href="mailto:{{ vendor.vendor_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ vendor.vendor_email }}</a>
+          <div class="space-y-2">
+            <span class="text-slate-400 font-medium">General Email</span>
+            <div>
+              <a href="mailto:{{ vendor.vendor_email }}" 
+                 class="text-cyan-400 hover:text-cyan-300 transition-colors break-all">
+                {{ vendor.vendor_email }}
+              </a>
+            </div>
           </div>
           {% endif %}
+          
           {% if vendor.vendor_phone %}
-          <div class="flex flex-col">
-            <span class="text-slate-400 mb-1">General Phone:</span>
-            <a href="tel:{{ vendor.vendor_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ vendor.vendor_phone }}</a>
+          <div class="space-y-2">
+            <span class="text-slate-400 font-medium">General Phone</span>
+            <div>
+              <a href="tel:{{ vendor.vendor_phone }}" 
+                 class="text-cyan-400 hover:text-cyan-300 transition-colors">
+                {{ vendor.vendor_phone }}
+              </a>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if not vendor.website and not vendor.vendor_email and not vendor.vendor_phone %}
+          <div class="md:col-span-2 text-center py-4">
+            <span class="text-slate-500 italic">No contact information available</span>
           </div>
           {% endif %}
         </div>
       </div>
 
-      <!-- Component Portfolio -->
+      <!-- Component Portfolio Section -->
       {% if vendor.components_by_area %}
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+      <div class="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+        <h3 class="font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-3 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
           </svg>
           Component Portfolio
+          <span class="ml-auto text-sm text-slate-400 font-normal">
+            {{ vendor.total_components }} total components
+          </span>
         </h3>
-        <div class="space-y-4 max-h-64 overflow-y-auto">
+        
+        <div class="space-y-5 max-h-80 overflow-y-auto pr-2">
           {% for area_name, components in vendor.components_by_area.items() %}
-          <div>
-            <h4 class="text-sm font-medium text-blue-400 mb-2">{{ area_name }} ({{ components|length }})</h4>
-            <div class="space-y-2 mb-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-medium text-indigo-300 flex items-center">
+                <span class="w-2 h-2 bg-indigo-400 rounded-full mr-2"></span>
+                {{ area_name }}
+              </h4>
+              <span class="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">
+                {{ components|length }} component{{ 's' if components|length != 1 else '' }}
+              </span>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-2 ml-4">
               {% for component in components %}
-              <div class="flex items-center justify-between p-2 bg-slate-600/30 rounded">
-                <div class="flex items-center space-x-2">
-                  <div class="w-2 h-2 bg-{% if component.known_issues %}red{% else %}green{% endif %}-500 rounded-full"></div>
-                  <span class="text-sm text-slate-300">{{ component.name }}</span>
+              <div class="flex items-center justify-between p-3 bg-slate-700/40 rounded-lg hover:bg-slate-700/60 transition-colors">
+                <div class="flex items-center space-x-3">
+                  <div class="w-2 h-2 bg-{% if component.known_issues %}red{% else %}green{% endif %}-500 rounded-full flex-shrink-0"></div>
+                  <div>
+                    <span class="text-sm font-medium text-slate-200">{{ component.name }}</span>
+                    {% if component.known_issues %}
+                    <div class="text-xs text-red-400 mt-1">⚠ Has known issues</div>
+                    {% endif %}
+                  </div>
                 </div>
-                <span class="text-xs text-slate-500">v{{ component.version or 'Unknown' }}</span>
+                <div class="text-right flex-shrink-0">
+                  <span class="text-xs text-slate-400 bg-slate-800/50 px-2 py-1 rounded">
+                    v{{ component.version or 'Unknown' }}
+                  </span>
+                  {% if component.deployment_date %}
+                  <div class="text-xs text-slate-500 mt-1">
+                    {{ component.deployment_date.strftime('%Y-%m-%d') }}
+                  </div>
+                  {% endif %}
+                </div>
               </div>
               {% endfor %}
             </div>
@@ -135,9 +202,9 @@
         </div>
       </div>
       {% else %}
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+      <div class="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+        <h3 class="font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-3 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
           </svg>
           Component Portfolio
@@ -147,23 +214,42 @@
             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
           </svg>
           <p class="text-slate-400 text-sm">No deployed components found for this vendor.</p>
+          <p class="text-slate-500 text-xs mt-1">Components will appear here once deployed by transit agencies.</p>
         </div>
       </div>
       {% endif %}
 
-      <!-- Integration Standards -->
+      <!-- Integration Standards Section -->
       {% if vendor.integration_standards %}
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+      <div class="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+        <h3 class="font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-3 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+          Integration Standards
+          <span class="ml-auto text-sm text-slate-400 font-normal">
+            {{ vendor.integration_standards|length }} standard{{ 's' if vendor.integration_standards|length != 1 else '' }}
+          </span>
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {% for standard in vendor.integration_standards %}
+          <span class="px-3 py-1.5 bg-cyan-600/20 border border-cyan-600/30 rounded-lg text-sm text-cyan-300 font-medium">
+            {{ standard }}
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="bg-slate-800/30 rounded-lg p-5 border border-slate-700/30">
+        <h3 class="font-semibold text-white mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-3 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
           Integration Standards
         </h3>
-        <div class="flex flex-wrap gap-2">
-          {% for standard in vendor.integration_standards %}
-          <span class="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 rounded text-xs text-cyan-300">{{ standard }}</span>
-          {% endfor %}
+        <div class="text-center py-6">
+          <p class="text-slate-400 text-sm">No integration standards documented for this vendor.</p>
+          <p class="text-slate-500 text-xs mt-1">Standards will appear here as components are deployed.</p>
         </div>
       </div>
       {% endif %}
@@ -181,7 +267,7 @@ function closeVendorDetails() {
         </svg>
       </div>
       <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
-      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, component portfolio, and contact details.</p>
+      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, system portfolio, and contact details.</p>
     </div>`;
 }
 </script>

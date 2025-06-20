@@ -27,9 +27,32 @@ def json_success_response(message="Success", data=None):
     
     return jsonify(response)
 
+def json_validation_error_response(message="Validation failed", errors=None):
+    """
+    Return a JSON validation error response with field-specific errors
+    """
+    response = {
+        'status': 'validation_error',
+        'message': message
+    }
+    if errors:
+        response['errors'] = errors
+    
+    return jsonify(response), 422
+
+def json_form_error_response(form):
+    """
+    Convert Flask-WTF form errors to JSON response
+    """
+    errors = {}
+    for field_name, field_errors in form.errors.items():
+        errors[field_name] = field_errors[0] if field_errors else 'Invalid input'
+    
+    return json_validation_error_response("Please correct the errors below", errors)
+
 def html_error_fragment(message, title="Error"):
     """
-    Return an HTML error fragment for HTMX responses
+    Return an HTML error fragment for HTMX responses (legacy support)
     """
     template = '''
     <div class="bg-red-900/20 border border-red-700/30 rounded-lg p-4 mb-4">
@@ -48,7 +71,7 @@ def html_error_fragment(message, title="Error"):
 
 def html_success_fragment(message, title="Success"):
     """
-    Return an HTML success fragment for HTMX responses
+    Return an HTML success fragment for HTMX responses (legacy support)
     """
     template = '''
     <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-4 mb-4">

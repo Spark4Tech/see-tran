@@ -3,59 +3,91 @@ from gitignore_parser import parse_gitignore
 
 files_to_concatenate = [
     # Core application files
-    #'app/__init__.py',           # Flask app initialization
-    #'run.py',                    # Application entry point
+    'app/__init__.py',           # Flask app initialization
+    'run.py',                    # Application entry point
+    'config.py',                 # Main configuration
+    '.flaskenv',                 # Flask environment variables
     
     # Routes and Views
-    #'app/routes/__init__.py',    # Routes initialization
+    'app/routes/__init__.py',    # Routes initialization
     'app/routes/main.py',        # Main route handlers
+    #'app/routes/vendor.py',      # Vendor routes
+    #'app/routes/agency.py',      # Agency routes
+    #'app/routes/standard.py',    # Standards routes
+    #'app/routes/integration.py', # Integration routes
+    #'app/routes/component.py',   # Component routes
+    #'app/routes/function.py',    # Function routes
     
     # Models and Data
-    #'app/models/__init__.py',    # Models initialization
+    'app/models/__init__.py',    # Models initialization
     'app/models/tran.py',        # Core data model
     
-    # Configuration
-    #'.flaskenv',                  # Flask-specific configuration
-    #'config.py',                 # Main configuration
+    # Forms and Auth
+    'app/forms/__init__.py',     # Forms initialization
+    'app/forms/forms.py',        # Form definitions
+    #'app/auth.py',               # Authentication logic
+    
+    # Agents
+    #'app/agents/__init__.py',    # Agents initialization
+    #'app/agents/agency_agent.py',# Agency business logic
+    #'app/agents/component_agent.py', # Component business logic
+    
+    # Utils
+    #'app/utils/__init__.py',     # Utils initialization
+    'app/utils/errors.py',       # Error handling
     
     # Frontend Assets
-    #'app/static/js/main.js',     # JavaScript functionality
-    #'app/static/css/styles.css', # Custom styles
-    #'app/static/css/output.css', # Compiled Tailwind CSS
     #'tailwind/input.css',        # Tailwind source CSS
     #'tailwind.config.js',        # Tailwind configuration
+    #'postcss.config.js',         # PostCSS configuration
+    #'app/static/css/style.css',  # Custom styles
+    'app/static/js/main.js',     # Main JavaScript file
+    #'app/static/js/htmx.min.js',   # Vendor JavaScript file
     
     # Templates
-    #'app/templates/contribute.html',
-    'app/templates/base.html',   # Base template
-    #'app/templates/index.html',  # Main page template
-    #'app/templates/components.html',
-    'app/templates/vendors.html',
-    #'app/templates/standards.html',
-    #'app/templates/functional_areas.html',
-    #'app/templates/integrations.html',
-    #'app/templates/agencies.html',
-
-    # Template Partials
+    'app/templates/base.html',    # Base template
+    #'app/templates/index.html',   # Main page
+    #'app/templates/systems.html', # Systems page
+    'app/templates/vendors.html', # Vendors page
+    #'app/templates/components.html', # Components page
+    #'app/templates/standards.html',  # Standards page
+    #'app/templates/integrations.html', # Integrations page
+    #'app/templates/functional_areas.html', # Functional areas page
+    #'app/templates/agencies.html',   # Agencies page
+    #'app/templates/contribute.html', # Contribute page
+    
+    # Template Fragments
+    'app/templates/fragments/vendor_details.html',
+    'app/templates/fragments/vendor_form.html',
+    'app/templates/fragments/vendor_list.html',
+    #'app/templates/fragments/agency_details.html',
+    #'app/templates/fragments/agency_list.html',
+    #'app/templates/fragments/agency_form.html',
     #'app/templates/fragments/functional_area_details.html',
     #'app/templates/fragments/functional_area_form.html',
     #'app/templates/fragments/functional_area_list.html',
-    'app/templates/fragments/agency_details.html',
-    'app/templates/fragments/agency_list.html',
-    'app/templates/fragments/agency_form.html',
     
-    # Data Loading Scripts
-    #'scripts/load_tran.py',      # TRAN data loader
-    #'scripts/load_vendors.py',   # Vendors data loader
-    #'scripts/load_standards.py', # Standards data loader
+    # Scripts
+    #'scripts/load_functional_areas.py',
+    #'scripts/load_tran.py',
+    #'scripts/load_transit_systems.py',
+    'scripts/load_vendors.py',
+    #'scripts/load_standards.py',
     
     # Tests
-    #'tests/test_app.py',        # Application tests
+    #'tests/__init__.py',
+    #'tests/test_app.py',
+    #'tests/test_phase1.py',
+    #'tests/test_phase2.py',
+    #'tests/test_phase2_functional_areas.py',
     
     # Documentation
-    #'prompts/Technical_Design.md',# Technical documentation
-    #'prompts/Data_Model.md',     # Data model documentation
-    #'README.md'                  # Project overview
+    #'prompts/Technical_Design.md',
+    #'prompts/Data_Model.md',
+    #'prompts/Vendors.md',
+    #'prompts/More_Vendors.md',
+    #'prompts/Full_Vendors.md',
+    #'README.md'
 ]
 
 # Define the output file
@@ -73,7 +105,7 @@ def create_directory_tree(startpath):
         ignorer = lambda f: False  # If no .gitignore, don't ignore anything
     
     # Additional directories to exclude
-    exclude_dirs = {'migrations', '.git'}
+    exclude_dirs = {'migrations', '.git', 'scripts', 'data', 'prompts'}
     
     for root, dirs, files in os.walk(startpath, topdown=True):
         # Remove ignored and explicitly excluded directories
