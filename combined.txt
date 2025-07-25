@@ -3,6 +3,7 @@
     .flaskenv
     run.py
     tailwind.config.js
+    gtfs_loader.py
     config.py
     requirements.txt
     cat.py
@@ -28,6 +29,7 @@
         models/
             tran.py
             __init__.py
+            gtfs.py
         static/
             css/
                 .keep
@@ -52,8 +54,11 @@
                     cota_header.png
                     c-tran_header.png
                 vendor_headers/
+                    apollo_header.png
             js/
                 .keep
+                main.js
+                vendor-page-controller.js
         templates/
             index.html
             base.html
@@ -87,6 +92,7 @@
         test_phase2_functional_areas.py
         test_phase2.py
         __init__.py
+        test_vendors_crud.py
         test_phase1.py
         test_app.py
     tailwind/
@@ -131,152 +137,17 @@ def create_app(test_config=None):
     db.init_app(app)
     migrate.init_app(app, db)
     
+    # Import models so Flask-Migrate can detect them
+    with app.app_context():
+        from app.models import tran  # Import existing models
+        from app.models import gtfs  # Import GTFS models
+    
     # register blueprints
     from app.routes.main import main as main_bp
     app.register_blueprint(main_bp)
     
     return app
 # End of app/__init__.py
-
-# Start of run.py
-# run.py
-from app import create_app, db
-from app.models.tran import (
-    Agency, FunctionalArea, Vendor, Component,
-    IntegrationPoint, UserRole, UpdateLog
-)
-import os
-
-# Create the Flask app using the factory pattern
-# The create_app() function now handles config selection internally
-app = create_app()
-
-# Ensure models are imported so Flask-Migrate can detect them
-@app.shell_context_processor
-def make_shell_context():
-    return {
-        'app': app,
-        'db': db,
-        'Agency': Agency,                    # was TransitSystem
-        'FunctionalArea': FunctionalArea,
-        'Vendor': Vendor,
-        'Component': Component,              # was System
-        'IntegrationPoint': IntegrationPoint,
-        'UserRole': UserRole,
-        'UpdateLog': UpdateLog
-    }
-
-if __name__ == '__main__':
-    app.run(debug=True)
-# End of run.py
-
-# Start of config.py
-# config.py
-
-import os
-from dotenv import load_dotenv
-from datetime import timedelta
-
-basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '.env'))
-
-class Config:
-    # Core Flask settings
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    DEBUG = os.environ.get('FLASK_ENV') == 'development'
-    
-    # Database settings - SQLite support
-    DB_TYPE = os.environ.get('DB_TYPE', 'sqlite')
-    
-    if DB_TYPE == 'postgres':
-        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    else:
-        # SQLite database
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(basedir, 'instance', 'app.db')}"
-    
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_COMMIT_ON_TEARDOWN = True
-    
-    # Security settings
-    CSRF_ENABLED = True
-    
-    # Application paths and cookies
-    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
-    SESSION_REFRESH_EACH_REQUEST = True
-
-    WTF_CSRF_TIME_LIMIT = 24 * 3600  # 24 hours in seconds
-    WTF_CSRF_SSL_STRICT = False
-    
-    # File upload settings
-    MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500 MB limit
-    
-    # Email settings
-    POSTMARK_API_KEY = os.getenv('POSTMARK_API_KEY')
-    POSTMARK_SENDER_EMAIL = os.getenv('POSTMARK_SENDER_EMAIL')
-    POSTMARK_NOTIFY_EMAIL = os.getenv('POSTMARK_NOTIFY_EMAIL')
-
-    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
-    CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
-    CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-3-5-haiku-20241022')
-    
-    # AWS settings
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_REGION = os.environ.get('AWS_REGION', 'us-west-2')
-    S3_BUCKET = os.environ.get('S3_BUCKET', 'well-app')
-    
-    # Application URLs
-    SMS_BASE_URL = os.environ.get('SMS_BASE_URL', 'https://well.voice4equity.com/app')
-    
-    @staticmethod
-    def get_s3_prefix(tenant_id):
-        """Generate S3 key prefix for tenant isolation"""
-        return f'tenant_{tenant_id}'
-    
-    # SMS settings
-    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-    TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
-
-    SMS_TEST_PHONE_NUMBER = os.environ.get('SMS_TEST_PHONE_NUMBER', '+18084649192')
-
-class DevelopmentConfig(Config):
-    """Development configuration."""
-    FLASK_ENV = 'development'
-    DEBUG = True
-    DEVELOPMENT = True
-    
-    # More permissive session cookie settings for development
-    SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_DOMAIN = None  # Allow all domains in development
-
-class ProductionConfig(Config):
-    """Production configuration."""
-    DEBUG = False
-    DEVELOPMENT = False
-    SESSION_COOKIE_SECURE = True
-    PREFERRED_URL_SCHEME = 'https'
-    
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    SESSION_FILE_DIR = '/home/ubuntu/see-tran/flask_session'
-
-class TestConfig(Config):
-    """Test configuration."""
-    TESTING = True
-    DEBUG = False
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-    WTF_CSRF_ENABLED = False
-# End of config.py
-
-# Start of .flaskenv
-FLASK_APP=app:create_app
-
-# End of .flaskenv
-
-# Start of app/routes/__init__.py
-
-# End of app/routes/__init__.py
 
 # Start of app/routes/main.py
 # app/routes/main.py - Enhanced version
@@ -291,9 +162,10 @@ from app.forms.forms import AgencyForm, VendorForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
-    html_error_fragment, html_success_fragment
+    html_error_fragment, html_success_fragment,
+    json_form_error_response
 )
-from sqlalchemy import func, case
+from sqlalchemy import func, case, distinct
 from datetime import datetime, timedelta
 
 main = Blueprint("main", __name__)
@@ -636,22 +508,49 @@ def vendors_page():
 
 @main.route("/api/vendors/list")
 def vendors_list():
-    """Get all vendors with filtering and component counts"""
+    """Get all vendors with enhanced filtering and component counts"""
     try:
         search = request.args.get('search', '').lower()
         sort_by = request.args.get('sort', 'name')
+        agency_filter = request.args.get('agency', '')
+        functional_area_filter = request.args.get('functional_area', '')
         
+        # Base query with component counts
         query = db.session.query(
             Vendor,
-            func.count(Component.id).label('component_count')
+            func.count(distinct(Component.id)).label('component_count')
         ).outerjoin(Component).group_by(Vendor.id)
         
+        # Apply search filter
         if search:
             query = query.filter(Vendor.name.ilike(f'%{search}%'))
         
+        # Apply agency filter - Fixed SQLAlchemy warning
+        if agency_filter:
+            agency_component_ids = db.session.query(Component.id)\
+                .join(AgencyFunctionImplementation)\
+                .join(Agency)\
+                .filter(Agency.name == agency_filter)
+            
+            # Convert subquery to select() explicitly
+            query = query.filter(Component.id.in_(agency_component_ids.scalar_subquery()))
+        
+        # Apply functional area filter - Fixed SQLAlchemy warning
+        if functional_area_filter:
+            fa_component_ids = db.session.query(Component.id)\
+                .join(AgencyFunctionImplementation)\
+                .join(Function)\
+                .join(FunctionalArea)\
+                .filter(FunctionalArea.name == functional_area_filter)
+            
+            # Convert subquery to select() explicitly
+            query = query.filter(Component.id.in_(fa_component_ids.scalar_subquery()))
+        
+        # Apply sorting
         if sort_by == 'components':
-            query = query.order_by(func.count(Component.id).desc())
+            query = query.order_by(func.count(distinct(Component.id)).desc())
         elif sort_by == 'recent':
+            # Sort by most recent component deployment
             subquery = db.session.query(
                 Component.vendor_id,
                 func.max(Component.deployment_date).label('latest_deployment')
@@ -664,7 +563,7 @@ def vendors_list():
         
         vendors_with_counts = query.all()
         
-        # Add component count to vendors
+        # Add component count to vendors for template
         for vendor, component_count in vendors_with_counts:
             vendor.component_count = component_count
         
@@ -749,7 +648,7 @@ def vendor_edit_form(vendor_id):
 @main.route("/api/vendors", methods=['POST'])
 @login_required
 def create_vendor():
-    """Create a new vendor"""
+    """Create a new vendor with JSON response"""
     try:
         form = VendorForm()
         
@@ -757,7 +656,7 @@ def create_vendor():
             # Check for duplicate names
             existing = Vendor.query.filter_by(name=form.name.data).first()
             if existing:
-                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+                return json_error_response(f"Vendor '{form.name.data}' already exists")
             
             # Create new vendor
             vendor = Vendor()
@@ -766,21 +665,19 @@ def create_vendor():
             db.session.add(vendor)
             db.session.commit()
             
-            return html_success_fragment(f"Vendor '{vendor.name}' created successfully")
+            return json_success_response(f"Vendor '{vendor.name}' created successfully")
         else:
-            # Form validation failed, return form with errors
-            return render_template('fragments/vendor_form.html', 
-                                 form=form, 
-                                 vendor=None)
+            # Form validation failed - return validation error response
+            return json_form_error_response(form)
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error creating vendor: {str(e)}")
+        return json_error_response(f"Error creating vendor: {str(e)}")
 
-@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])  # Using POST with _method=PUT for HTMX
+@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])
 @login_required
 def update_vendor(vendor_id):
-    """Update an existing vendor"""
+    """Update an existing vendor with JSON response"""
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         form = VendorForm()
@@ -792,72 +689,121 @@ def update_vendor(vendor_id):
                 Vendor.id != vendor_id
             ).first()
             if existing:
-                return html_error_fragment(f"Vendor '{form.name.data}' already exists")
+                return json_error_response(f"Vendor '{form.name.data}' already exists")
             
             # Update vendor
             form.populate_vendor(vendor)
             
             db.session.commit()
             
-            return html_success_fragment(f"Vendor '{vendor.name}' updated successfully")
+            return json_success_response(f"Vendor '{vendor.name}' updated successfully")
         else:
-            # Form validation failed, return form with errors
-            return render_template('fragments/vendor_form.html', 
-                                 form=form, 
-                                 vendor=vendor)
+            # Form validation failed - return validation error response
+            return json_form_error_response(form)
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error updating vendor: {str(e)}")
+        return json_error_response(f"Error updating vendor: {str(e)}")
 
 @main.route("/api/vendors/<int:vendor_id>", methods=['DELETE'])
 @login_required
 def delete_vendor(vendor_id):
-    """Delete a vendor"""
+    """Delete a vendor with JSON response"""
     try:
         vendor = Vendor.query.get_or_404(vendor_id)
         name = vendor.name
         
-        # Check if vendor has components
+        # Check if vendor has components (prevent deletion)
         component_count = Component.query.filter_by(vendor_id=vendor_id).count()
         if component_count > 0:
-            return html_error_fragment(f"Cannot delete vendor '{name}' because it has {component_count} associated components. Please reassign or delete the components first.")
+            return json_error_response(
+                f"Cannot delete vendor '{name}' because it has {component_count} associated components. "
+                f"Please reassign or delete the components first."
+            )
         
         # Delete the vendor
         db.session.delete(vendor)
         db.session.commit()
         
-        return html_success_fragment(f"Vendor '{name}' deleted successfully")
+        return json_success_response(f"Vendor '{name}' deleted successfully")
         
     except Exception as e:
         db.session.rollback()
-        return html_error_fragment(f"Error deleting vendor: {str(e)}")
+        return json_error_response(f"Error deleting vendor: {str(e)}")
 
 @main.route("/api/vendors/stats")
 def vendors_stats():
-    """Get vendor statistics for dashboard"""
+    """Get vendor statistics for dashboard with optional filtering"""
     try:
+        agency_filter = request.args.get('agency', '')
+        functional_area_filter = request.args.get('functional_area', '')
+        
+        # Base vendor query
+        vendor_query = db.session.query(Vendor)
+        
+        # Apply filters to get relevant vendors
+        if agency_filter or functional_area_filter:
+            component_subquery = db.session.query(Component.vendor_id).distinct()
+            
+            if agency_filter:
+                component_subquery = component_subquery\
+                    .join(AgencyFunctionImplementation)\
+                    .join(Agency)\
+                    .filter(Agency.name == agency_filter)
+            
+            if functional_area_filter:
+                if not agency_filter:
+                    component_subquery = component_subquery.join(AgencyFunctionImplementation)
+                component_subquery = component_subquery\
+                    .join(Function)\
+                    .join(FunctionalArea)\
+                    .filter(FunctionalArea.name == functional_area_filter)
+            
+            # Fix: Use scalar_subquery() to avoid SQLAlchemy warning
+            vendor_ids_subquery = component_subquery.scalar_subquery()
+            vendor_query = vendor_query.filter(Vendor.id.in_(vendor_ids_subquery))
+        
         stats = {
-            'total_vendors': Vendor.query.count(),
-            'active_vendors': db.session.query(Vendor).join(Component).distinct().count(),
+            'total_vendors': vendor_query.count(),
+            'active_vendors': vendor_query.join(Component).distinct().count(),
             'top_vendor': None,
             'avg_components_per_vendor': 0
         }
         
+        # Get top vendor within filtered set
         top_vendor_query = db.session.query(
             Vendor.name,
             func.count(Component.id).label('component_count')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
-         .order_by(func.count(Component.id).desc()).first()
+        ).join(Component)
         
-        if top_vendor_query:
+        if agency_filter or functional_area_filter:
+            # Apply same filter to top vendor query
+            vendor_ids_list = [v.id for v in vendor_query.all()]
+            if vendor_ids_list:
+                top_vendor_query = top_vendor_query.filter(Vendor.id.in_(vendor_ids_list))
+        
+        top_vendor_result = top_vendor_query.group_by(Vendor.id, Vendor.name)\
+                                          .order_by(func.count(Component.id).desc())\
+                                          .first()
+        
+        if top_vendor_result:
             stats['top_vendor'] = {
-                'name': top_vendor_query.name,
-                'component_count': top_vendor_query.component_count
+                'name': top_vendor_result.name,
+                'component_count': top_vendor_result.component_count
             }
         
+        # Calculate average components per vendor
         if stats['active_vendors'] > 0:
-            total_components = Component.query.filter(Component.vendor_id.isnot(None)).count()
+            total_components_query = db.session.query(func.count(Component.id))\
+                .filter(Component.vendor_id.isnot(None))
+            
+            if agency_filter or functional_area_filter:
+                vendor_ids_list = [v.id for v in vendor_query.all()]
+                if vendor_ids_list:
+                    total_components_query = total_components_query\
+                        .filter(Component.vendor_id.in_(vendor_ids_list))
+            
+            total_components = total_components_query.scalar()
             stats['avg_components_per_vendor'] = round(total_components / stats['active_vendors'], 1)
         
         return jsonify(stats)
@@ -895,28 +841,68 @@ def integration_standards():
 
 @main.route("/api/vendors/performance")
 def vendor_performance():
-    """Get vendor performance insights"""
+    """Get vendor performance insights with filtering support"""
     try:
+        agency_filter = request.args.get('agency', '')
+        functional_area_filter = request.args.get('functional_area', '')
+        
+        # Base vendor filter condition
+        vendor_filter_condition = True
+        
+        if agency_filter or functional_area_filter:
+            # Build subquery for vendor IDs that match filters
+            component_query = db.session.query(Component.vendor_id).distinct()
+            
+            if agency_filter:
+                component_query = component_query\
+                    .join(AgencyFunctionImplementation)\
+                    .join(Agency)\
+                    .filter(Agency.name == agency_filter)
+            
+            if functional_area_filter:
+                if not agency_filter:
+                    component_query = component_query.join(AgencyFunctionImplementation)
+                component_query = component_query\
+                    .join(Function)\
+                    .join(FunctionalArea)\
+                    .filter(FunctionalArea.name == functional_area_filter)
+            
+            # Get list of vendor IDs that match the filters
+            vendor_ids_list = [row[0] for row in component_query.all() if row[0] is not None]
+            if vendor_ids_list:
+                vendor_filter_condition = Vendor.id.in_(vendor_ids_list)
+            else:
+                vendor_filter_condition = False  # No vendors match filters
+        
+        # Most reliable vendor (least issues)
         reliable_vendor = db.session.query(
             Vendor.name,
             func.count(Component.id).label('total_components'),
             func.sum(case((Component.known_issues.isnot(None), 1), else_=0)).label('issues_count')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
+        ).join(Component)\
+         .filter(vendor_filter_condition)\
+         .group_by(Vendor.id, Vendor.name)\
          .having(func.count(Component.id) > 0)\
          .order_by((func.sum(case((Component.known_issues.isnot(None), 1), else_=0)) / func.count(Component.id)).asc())\
          .first()
         
+        # Newest vendor (most recent first deployment)
         newest_vendor = db.session.query(
             Vendor.name,
             func.min(Component.deployment_date).label('first_deployment')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
+        ).join(Component)\
+         .filter(vendor_filter_condition)\
+         .group_by(Vendor.id, Vendor.name)\
          .order_by(func.min(Component.deployment_date).desc())\
          .first()
         
+        # Largest vendor (most components)
         largest_vendor = db.session.query(
             Vendor.name,
             func.count(Component.id).label('component_count')
-        ).join(Component).group_by(Vendor.id, Vendor.name)\
+        ).join(Component)\
+         .filter(vendor_filter_condition)\
+         .group_by(Vendor.id, Vendor.name)\
          .order_by(func.count(Component.id).desc())\
          .first()
         
@@ -1588,6 +1574,49 @@ def vendors_filter_options():
         return html
     except Exception as e:
         return '<option value="">All Vendors</option>'
+    
+@main.route("/api/vendors/filter-options/agencies")
+def vendor_agencies_filter_options():
+    """Get agencies that have vendor relationships for filter dropdown"""
+    try:
+        # Find agencies that have components from vendors
+        agencies = db.session.query(Agency.name)\
+            .join(AgencyFunctionImplementation)\
+            .join(Component)\
+            .join(Vendor)\
+            .distinct()\
+            .order_by(Agency.name)\
+            .all()
+        
+        html = '<option value="">All Agencies</option>'
+        for agency in agencies:
+            html += f'<option value="{agency.name}">{agency.name}</option>'
+        
+        return html
+    except Exception as e:
+        return '<option value="">All Agencies</option>'
+
+@main.route("/api/vendors/filter-options/functional-areas")
+def vendor_functional_areas_filter_options():
+    """Get functional areas that have vendor relationships for filter dropdown"""
+    try:
+        # Find functional areas that have components from vendors
+        functional_areas = db.session.query(FunctionalArea.name)\
+            .join(Function)\
+            .join(AgencyFunctionImplementation)\
+            .join(Component)\
+            .join(Vendor)\
+            .distinct()\
+            .order_by(FunctionalArea.name)\
+            .all()
+        
+        html = '<option value="">All Functional Areas</option>'
+        for fa in functional_areas:
+            html += f'<option value="{fa.name}">{fa.name}</option>'
+        
+        return html
+    except Exception as e:
+        return '<option value="">All Functional Areas</option>'
 
 @main.route("/api/components/<int:component_id>/vendor")
 def component_vendor_details(component_id):
@@ -1664,14 +1693,33 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String
 from app import db
 
-class Example(db.Model):
-    __tablename__ = "examples"
+# Import existing models
+from .tran import (
+    Agency, FunctionalArea, Vendor, Component, Function,
+    IntegrationPoint, UserRole, UpdateLog, Standard, TagGroup, Tag,
+    AgencyFunctionImplementation
+)
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(64), nullable=False)
+# Import GTFS models
+from .gtfs import (
+    GTFSAgency, GTFSStop, GTFSRoute, GTFSCalendar, GTFSCalendarDate,
+    GTFSTrip, GTFSStopTime, GTFSShape, GTFSFeedInfo,
+    GTFSFareMedia, GTFSRiderCategory, GTFSFareProduct, 
+    GTFSTimeframe, GTFSFareLegRule, GTFSFareTransferRule
+)
 
-    def __repr__(self) -> str:
-        return f"<Example id={self.id} name={self.name!r}>"
+__all__ = [
+    # Base models
+    'Agency', 'FunctionalArea', 'Function', 'Vendor', 'Component',
+    'IntegrationPoint', 'UserRole', 'UpdateLog', 'Standard', 'TagGroup', 'Tag',
+    'AgencyFunctionImplementation',
+    
+    # GTFS models  
+    'GTFSAgency', 'GTFSStop', 'GTFSRoute', 'GTFSCalendar', 'GTFSCalendarDate',
+    'GTFSTrip', 'GTFSStopTime', 'GTFSShape', 'GTFSFeedInfo',
+    'GTFSFareMedia', 'GTFSRiderCategory', 'GTFSFareProduct', 
+    'GTFSTimeframe', 'GTFSFareLegRule', 'GTFSFareTransferRule'
+]
 
 
 # End of app/models/__init__.py
@@ -1956,191 +2004,266 @@ class UpdateLog(db.Model):
 
 # End of app/models/tran.py
 
-# Start of app/forms/__init__.py
+# Start of app/models/gtfs.py
+# app/models/gtfs.py
+from sqlalchemy import String, Integer, Float, Date, Time, Boolean, Text, ForeignKey, DECIMAL
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional
+from datetime import date, time
+from app import db
 
-# End of app/forms/__init__.py
+# GTFS Models with prefix to avoid naming conflicts
+class GTFSAgency(db.Model):
+    __tablename__ = "gtfs_agency"
+    
+    agency_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    agency_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    agency_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    agency_timezone: Mapped[str] = mapped_column(String(50), nullable=False)
+    agency_lang: Mapped[Optional[str]] = mapped_column(String(10))
+    agency_phone: Mapped[Optional[str]] = mapped_column(String(50))
+    agency_fare_url: Mapped[Optional[str]] = mapped_column(String(500))
+    
+    # Relationships
+    routes: Mapped[list["GTFSRoute"]] = relationship(back_populates="agency")
 
-# Start of app/forms/forms.py
-# app/forms.py (create this file)
-from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, EmailField, URLField, TelField, FieldList, FormField
-from wtforms.validators import DataRequired, Email, URL, Optional, Length
-from wtforms.widgets import TextArea
 
-class MetadataField(FlaskForm):
-    """Sub-form for metadata key-value pairs"""
-    key = StringField('Key', validators=[Optional(), Length(max=100)])
-    value = StringField('Value', validators=[Optional(), Length(max=500)])
+class GTFSStop(db.Model):
+    __tablename__ = "gtfs_stops"
+    
+    stop_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    stop_code: Mapped[Optional[str]] = mapped_column(String(50))
+    stop_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    stop_desc: Mapped[Optional[str]] = mapped_column(Text)
+    stop_lat: Mapped[float] = mapped_column(Float, nullable=False)
+    stop_lon: Mapped[float] = mapped_column(Float, nullable=False)
+    zone_id: Mapped[Optional[str]] = mapped_column(String(50))
+    stop_url: Mapped[Optional[str]] = mapped_column(String(500))
+    location_type: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    parent_station: Mapped[Optional[str]] = mapped_column(String(50), ForeignKey("gtfs_stops.stop_id"))
+    stop_timezone: Mapped[Optional[str]] = mapped_column(String(50))
+    wheelchair_boarding: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    
+    # Self-referential relationship for parent station
+    child_stops: Mapped[list["GTFSStop"]] = relationship(remote_side=[stop_id])
+    
+    # Relationships
+    stop_times: Mapped[list["GTFSStopTime"]] = relationship(back_populates="stop")
 
-class AgencyForm(FlaskForm):
-    """Form for creating and editing transit agencies"""
-    
-    # Basic Information
-    name = StringField('Agency Name', 
-                      validators=[DataRequired(message="Agency name is required"), 
-                                Length(max=100, message="Name must be less than 100 characters")])
-    
-    location = StringField('Location', 
-                          validators=[Optional(), Length(max=100)])
-    
-    description = TextAreaField('Description', 
-                               validators=[Optional(), Length(max=500)],
-                               widget=TextArea())
-    
-    # Address & Location
-    address_hq = TextAreaField('Headquarters Address', 
-                              validators=[Optional(), Length(max=256)],
-                              widget=TextArea())
-    
-    # Leadership
-    ceo = StringField('Chief Executive Officer', 
-                     validators=[Optional(), Length(max=128)])
-    
-    # Contact Information
-    contact_name = StringField('Primary Contact Name', 
-                              validators=[Optional(), Length(max=100)])
-    
-    contact_email = EmailField('Primary Contact Email', 
-                              validators=[Optional(), Email(message="Please enter a valid email address")])
-    
-    contact_phone = TelField('Primary Contact Phone', 
-                            validators=[Optional(), Length(max=50)])
-    
-    phone_number = TelField('Main Phone Number', 
-                           validators=[Optional(), Length(max=64)])
-    
-    # Web & Resources
-    website = URLField('Official Website', 
-                      validators=[Optional(), URL(message="Please enter a valid URL")])
-    
-    transit_map_link = URLField('Transit Map URL', 
-                              validators=[Optional(), URL(message="Please enter a valid URL")])
-    
-    # Dynamic metadata fields will be handled separately in the template and route
-    
-    def populate_from_agency(self, agency):
-        """Populate form with data from agency model"""
-        self.name.data = agency.name
-        self.location.data = agency.location
-        self.description.data = agency.description
-        self.address_hq.data = agency.address_hq
-        self.ceo.data = agency.ceo
-        self.contact_name.data = agency.contact_name
-        self.contact_email.data = agency.contact_email
-        self.contact_phone.data = agency.contact_phone
-        self.phone_number.data = agency.phone_number
-        self.website.data = agency.website
-        self.transit_map_link.data = agency.transit_map_link
-    
-    def populate_agency(self, agency):
-        """Populate agency model with form data"""
-        agency.name = self.name.data
-        agency.location = self.location.data or None
-        agency.description = self.description.data or None
-        agency.address_hq = self.address_hq.data or None
-        agency.ceo = self.ceo.data or None
-        agency.contact_name = self.contact_name.data or None
-        agency.contact_email = self.contact_email.data or None
-        agency.contact_phone = self.contact_phone.data or None
-        agency.phone_number = self.phone_number.data or None
-        agency.website = self.website.data or None
-        agency.transit_map_link = self.transit_map_link.data or None
 
-class VendorForm(FlaskForm):
-    name = StringField('Vendor Name', validators=[DataRequired(), Length(min=2, max=100)])
-    short_name = StringField('Short Name', validators=[Length(max=50)])
-    description = TextAreaField('Description', validators=[Length(max=500)])
-    website = URLField('Website', validators=[Optional(), URL()])
-    vendor_email = StringField('General Email', validators=[Optional(), Email(), Length(max=255)])
-    vendor_phone = StringField('General Phone', validators=[Optional(), Length(max=50)])
+class GTFSRoute(db.Model):
+    __tablename__ = "gtfs_routes"
     
-    def populate_from_vendor(self, vendor):
-        """Populate form fields from vendor object"""
-        self.name.data = vendor.name
-        self.short_name.data = vendor.short_name
-        self.description.data = vendor.description
-        self.website.data = vendor.website
-        self.vendor_email.data = vendor.vendor_email
-        self.vendor_phone.data = vendor.vendor_phone
+    route_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    agency_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_agency.agency_id"), nullable=False)
+    route_short_name: Mapped[Optional[str]] = mapped_column(String(50))
+    route_long_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    route_desc: Mapped[Optional[str]] = mapped_column(Text)
+    route_type: Mapped[int] = mapped_column(Integer, nullable=False)
+    route_url: Mapped[Optional[str]] = mapped_column(String(500))
+    route_color: Mapped[Optional[str]] = mapped_column(String(6), default="FFFFFF")
+    route_text_color: Mapped[Optional[str]] = mapped_column(String(6), default="000000")
+    route_sort_order: Mapped[Optional[int]] = mapped_column(Integer)
+    network_id: Mapped[Optional[str]] = mapped_column(String(50))
     
-    def populate_vendor(self, vendor):
-        """Populate vendor object from form data"""
-        vendor.name = self.name.data
-        vendor.short_name = self.short_name.data
-        vendor.description = self.description.data
-        vendor.website = self.website.data
-        vendor.vendor_email = self.vendor_email.data
-        vendor.vendor_phone = self.vendor_phone.data
-# End of app/forms/forms.py
+    # Relationships
+    agency: Mapped["GTFSAgency"] = relationship(back_populates="routes")
+    trips: Mapped[list["GTFSTrip"]] = relationship(back_populates="route")
 
-# Start of app/utils/errors.py
-# app/utils/errors.py
-from flask import jsonify, render_template_string
 
-def json_error_response(message, status_code=400, details=None):
-    """
-    Return a JSON error response for API endpoints
-    """
-    response = {
-        'status': 'error',
-        'message': message
-    }
-    if details:
-        response['details'] = details
+class GTFSCalendar(db.Model):
+    __tablename__ = "gtfs_calendar"
     
-    return jsonify(response), status_code
-
-def json_success_response(message="Success", data=None):
-    """
-    Return a JSON success response for API endpoints
-    """
-    response = {
-        'status': 'success',
-        'message': message
-    }
-    if data:
-        response['data'] = data
+    service_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    monday: Mapped[int] = mapped_column(Integer, nullable=False)
+    tuesday: Mapped[int] = mapped_column(Integer, nullable=False)
+    wednesday: Mapped[int] = mapped_column(Integer, nullable=False)
+    thursday: Mapped[int] = mapped_column(Integer, nullable=False)
+    friday: Mapped[int] = mapped_column(Integer, nullable=False)
+    saturday: Mapped[int] = mapped_column(Integer, nullable=False)
+    sunday: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
     
-    return jsonify(response)
+    # Relationships
+    trips: Mapped[list["GTFSTrip"]] = relationship(back_populates="calendar")
+    calendar_dates: Mapped[list["GTFSCalendarDate"]] = relationship(back_populates="calendar")
 
-def html_error_fragment(message, title="Error"):
-    """
-    Return an HTML error fragment for HTMX responses
-    """
-    template = '''
-    <div class="bg-red-900/20 border border-red-700/30 rounded-lg p-4 mb-4">
-        <div class="flex items-center space-x-3">
-            <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-            </svg>
-            <div>
-                <h4 class="text-red-300 font-medium">{{ title }}</h4>
-                <p class="text-red-200 text-sm">{{ message }}</p>
-            </div>
-        </div>
-    </div>
-    '''
-    return render_template_string(template, title=title, message=message)
 
-def html_success_fragment(message, title="Success"):
-    """
-    Return an HTML success fragment for HTMX responses
-    """
-    template = '''
-    <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-4 mb-4">
-        <div class="flex items-center space-x-3">
-            <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-            <div>
-                <h4 class="text-green-300 font-medium">{{ title }}</h4>
-                <p class="text-green-200 text-sm">{{ message }}</p>
-            </div>
-        </div>
-    </div>
-    '''
-    return render_template_string(template, title=title, message=message)
-# End of app/utils/errors.py
+class GTFSCalendarDate(db.Model):
+    __tablename__ = "gtfs_calendar_dates"
+    
+    service_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_calendar.service_id"), primary_key=True)
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    exception_type: Mapped[int] = mapped_column(Integer, nullable=False)
+    
+    # Relationships
+    calendar: Mapped["GTFSCalendar"] = relationship(back_populates="calendar_dates")
+
+
+class GTFSTrip(db.Model):
+    __tablename__ = "gtfs_trips"
+    
+    trip_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    route_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_routes.route_id"), nullable=False)
+    service_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_calendar.service_id"), nullable=False)
+    trip_headsign: Mapped[Optional[str]] = mapped_column(String(255))
+    trip_short_name: Mapped[Optional[str]] = mapped_column(String(50))
+    direction_id: Mapped[Optional[int]] = mapped_column(Integer)
+    block_id: Mapped[Optional[str]] = mapped_column(String(50))
+    shape_id: Mapped[Optional[str]] = mapped_column(String(50), ForeignKey("gtfs_shapes.shape_id"))
+    wheelchair_accessible: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    bikes_allowed: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    
+    # Relationships
+    route: Mapped["GTFSRoute"] = relationship(back_populates="trips")
+    calendar: Mapped["GTFSCalendar"] = relationship(back_populates="trips")
+    shape: Mapped[Optional["GTFSShape"]] = relationship(back_populates="trips")
+    stop_times: Mapped[list["GTFSStopTime"]] = relationship(back_populates="trip")
+
+
+class GTFSStopTime(db.Model):
+    __tablename__ = "gtfs_stop_times"
+    
+    trip_id: Mapped[str] = mapped_column(String(100), ForeignKey("gtfs_trips.trip_id"), primary_key=True)
+    arrival_time: Mapped[time] = mapped_column(Time, nullable=False)
+    departure_time: Mapped[time] = mapped_column(Time, nullable=False)
+    stop_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_stops.stop_id"), nullable=False)
+    stop_sequence: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stop_headsign: Mapped[Optional[str]] = mapped_column(String(255))
+    pickup_type: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    drop_off_type: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    shape_dist_traveled: Mapped[Optional[float]] = mapped_column(Float)
+    timepoint: Mapped[Optional[int]] = mapped_column(Integer, default=1)
+    
+    # Relationships
+    trip: Mapped["GTFSTrip"] = relationship(back_populates="stop_times")
+    stop: Mapped["GTFSStop"] = relationship(back_populates="stop_times")
+
+
+class GTFSShape(db.Model):
+    __tablename__ = "gtfs_shapes"
+    
+    shape_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    shape_pt_lat: Mapped[float] = mapped_column(Float, primary_key=True)
+    shape_pt_lon: Mapped[float] = mapped_column(Float, primary_key=True)
+    shape_pt_sequence: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shape_dist_traveled: Mapped[Optional[float]] = mapped_column(Float)
+    
+    # Relationships
+    trips: Mapped[list["GTFSTrip"]] = relationship(back_populates="shape")
+
+
+class GTFSFeedInfo(db.Model):
+    __tablename__ = "gtfs_feed_info"
+    
+    feed_publisher_name: Mapped[str] = mapped_column(String(255), primary_key=True)
+    feed_publisher_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    feed_lang: Mapped[str] = mapped_column(String(10), nullable=False)
+    feed_start_date: Mapped[Optional[date]] = mapped_column(Date)
+    feed_end_date: Mapped[Optional[date]] = mapped_column(Date)
+    feed_version: Mapped[Optional[str]] = mapped_column(String(50))
+    feed_contact_email: Mapped[Optional[str]] = mapped_column(String(255))
+    feed_contact_url: Mapped[Optional[str]] = mapped_column(String(500))
+
+
+# GTFS-Fares v2 Tables
+class GTFSFareMedia(db.Model):
+    __tablename__ = "gtfs_fare_media"
+    
+    fare_media_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    fare_media_name: Mapped[Optional[str]] = mapped_column(String(255))
+    fare_media_type: Mapped[int] = mapped_column(Integer, nullable=False)
+    
+    # Relationships
+    fare_products: Mapped[list["GTFSFareProduct"]] = relationship(back_populates="fare_media")
+
+
+class GTFSRiderCategory(db.Model):
+    __tablename__ = "gtfs_rider_categories"
+    
+    rider_category_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    rider_category_name: Mapped[Optional[str]] = mapped_column(String(255))
+    is_default_fare_category: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    min_age: Mapped[Optional[int]] = mapped_column(Integer)
+    max_age: Mapped[Optional[int]] = mapped_column(Integer)
+    eligibility_url: Mapped[Optional[str]] = mapped_column(String(500))
+    
+    # Relationships
+    fare_products: Mapped[list["GTFSFareProduct"]] = relationship(back_populates="rider_category")
+
+
+class GTFSFareProduct(db.Model):
+    __tablename__ = "gtfs_fare_products"
+    
+    fare_product_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    fare_product_name: Mapped[Optional[str]] = mapped_column(String(255))
+    rider_category_id: Mapped[Optional[str]] = mapped_column(String(50), ForeignKey("gtfs_rider_categories.rider_category_id"))
+    fare_media_id: Mapped[Optional[str]] = mapped_column(String(50), ForeignKey("gtfs_fare_media.fare_media_id"))
+    amount: Mapped[DECIMAL] = mapped_column(DECIMAL(10, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    
+    # Relationships
+    rider_category: Mapped[Optional["GTFSRiderCategory"]] = relationship(back_populates="fare_products")
+    fare_media: Mapped[Optional["GTFSFareMedia"]] = relationship(back_populates="fare_products")
+    fare_leg_rules: Mapped[list["GTFSFareLegRule"]] = relationship(back_populates="fare_product")
+    fare_transfer_rules: Mapped[list["GTFSFareTransferRule"]] = relationship(back_populates="fare_product")
+
+
+class GTFSTimeframe(db.Model):
+    __tablename__ = "gtfs_timeframes"
+    
+    timeframe_group_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    start_time: Mapped[time] = mapped_column(Time, primary_key=True)
+    end_time: Mapped[time] = mapped_column(Time, primary_key=True)
+    service_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_calendar.service_id"), nullable=False)
+    
+    # Relationships with explicit primaryjoin to fix SQLAlchemy relationship issues
+    fare_leg_rules_from: Mapped[list["GTFSFareLegRule"]] = relationship(
+        primaryjoin="GTFSTimeframe.timeframe_group_id == GTFSFareLegRule.from_timeframe_group_id",
+        back_populates="from_timeframe"
+    )
+    fare_leg_rules_to: Mapped[list["GTFSFareLegRule"]] = relationship(
+        primaryjoin="GTFSTimeframe.timeframe_group_id == GTFSFareLegRule.to_timeframe_group_id",
+        back_populates="to_timeframe"
+    )
+
+
+class GTFSFareLegRule(db.Model):
+    __tablename__ = "gtfs_fare_leg_rules"
+    
+    leg_group_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    network_id: Mapped[Optional[str]] = mapped_column(String(50))
+    fare_product_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_fare_products.fare_product_id"), primary_key=True)
+    from_timeframe_group_id: Mapped[Optional[str]] = mapped_column(String(50), primary_key=True)
+    to_timeframe_group_id: Mapped[Optional[str]] = mapped_column(String(50))
+    
+    # Relationships
+    fare_product: Mapped["GTFSFareProduct"] = relationship(back_populates="fare_leg_rules")
+    from_timeframe: Mapped[Optional["GTFSTimeframe"]] = relationship(
+        foreign_keys=[from_timeframe_group_id],
+        back_populates="fare_leg_rules_from"
+    )
+    to_timeframe: Mapped[Optional["GTFSTimeframe"]] = relationship(
+        foreign_keys=[to_timeframe_group_id],
+        back_populates="fare_leg_rules_to"
+    )
+
+
+class GTFSFareTransferRule(db.Model):
+    __tablename__ = "gtfs_fare_transfer_rules"
+    
+    from_leg_group_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    to_leg_group_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    fare_product_id: Mapped[Optional[str]] = mapped_column(String(50), ForeignKey("gtfs_fare_products.fare_product_id"))
+    transfer_count: Mapped[Optional[int]] = mapped_column(Integer)
+    duration_limit: Mapped[Optional[int]] = mapped_column(Integer)
+    duration_limit_type: Mapped[Optional[int]] = mapped_column(Integer)
+    fare_transfer_type: Mapped[Optional[int]] = mapped_column(Integer)
+    
+    # Relationships
+    fare_product: Mapped[Optional["GTFSFareProduct"]] = relationship(back_populates="fare_transfer_rules")
+# End of app/models/gtfs.py
 
 # Start of app/templates/base.html
 <!doctype html>
@@ -2265,6 +2388,7 @@ def html_success_fragment(message, title="Success"):
 
   <!-- Scripts -->
   <script src="{{ url_for("static", filename="js/htmx.min.js") }}"></script>
+  <script src="{{ url_for("static", filename="js/main.js") }}"></script>
   <script>
     // Add smooth scroll behavior
     document.documentElement.style.scrollBehavior = 'smooth';
@@ -2282,30 +2406,318 @@ def html_success_fragment(message, title="Success"):
 </html>
 # End of app/templates/base.html
 
-# Start of app/templates/vendors.html
+# Start of app/templates/index.html
 {% extends "base.html" %}
 {% block content %}
 
+<!-- Hero Section -->
+<div class="relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20"></div>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="text-center">
+      <h1 class="text-4xl md:text-6xl font-bold mb-6">
+        <span class="bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 bg-clip-text text-transparent">
+          Transit System
+        </span>
+        <br>
+        <span class="text-white">Intelligence Platform</span>
+      </h1>
+      <p class="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
+        Comprehensive visibility into public transit system infrastructure, vendor relationships, 
+        and system integrations in real-time.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <button hx-get="/api/health" hx-swap="innerHTML" hx-target="#health-demo" 
+                class="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-semibold 
+                       hover:from-blue-700 hover:to-cyan-700 transition-all glow-effect">
+          Test System Health
+        </button>
+        <button class="px-8 py-3 border border-slate-600 rounded-lg font-semibold hover:bg-slate-800 transition-all">
+          View the Docs
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard Content -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  
+  <!-- Metrics Overview -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+    
+    <!-- Transit Agency Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/agencies" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Agencies</h3>
+      <p class="text-xs text-slate-500">Active transportation networks</p>
+    </div>
+
+    <!-- Functional Areas Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/functional-areas" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Functional Areas</h3>
+      <p class="text-xs text-slate-500">Operational domains</p>
+    </div>
+
+    <!-- Active Components Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/components" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Active Components</h3>
+      <p class="text-xs text-slate-500">Deployed technology components</p>
+    </div>
+
+    <!-- Integration Points Card -->
+    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+      <div class="flex items-center justify-between mb-4">
+        <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+          </svg>
+        </div>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/integration-points" hx-trigger="load">0</span>
+      </div>
+      <h3 class="text-slate-400 text-sm font-medium mb-1">Integration Points</h3>
+      <p class="text-xs text-slate-500">System interconnections</p>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- System Status Panel -->
+    <div class="lg:col-span-2">
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-white">System Status</h2>
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span class="text-sm text-slate-300">All Systems Operational</span>
+          </div>
+        </div>
+        
+        <!-- Demo System Status -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+            <div class="flex items-center space-x-4">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <h4 class="font-medium text-white">Database Connection</h4>
+                <p class="text-sm text-slate-400">SQLite • Local Development</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400">Online</p>
+              <p class="text-xs text-slate-500">Response: 2ms</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+            <div class="flex items-center space-x-4">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <h4 class="font-medium text-white">Web Server</h4>
+                <p class="text-sm text-slate-400">Flask Development Server</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400">Online</p>
+              <p class="text-xs text-slate-500">Port: 5000</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700/30">
+            <div class="flex items-center space-x-4">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <h4 class="font-medium text-white">HTMX Integration</h4>
+                <p class="text-sm text-slate-400">Dynamic UI Updates</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-green-400">Active</p>
+              <p class="text-xs text-slate-500">v2.0.4</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      
+      <!-- System Health Demo -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">System Health</h3>
+        <div id="health-demo" class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <h4 class="text-lg font-semibold text-white mb-2">Excellent</h4>
+          <p class="text-sm text-slate-400">All systems functioning normally</p>
+        </div>
+      </div>
+
+      <!-- Getting Started -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Getting Started</h3>
+        <div class="space-y-3">
+          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+            <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-white">1</span>
+            </div>
+            <p class="text-sm text-slate-300">Add your first transit agency</p>
+          </div>
+          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+            <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-white">2</span>
+            </div>
+            <p class="text-sm text-slate-300">Define functional areas</p>
+          </div>
+          <div class="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
+            <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-bold text-white">3</span>
+            </div>
+            <p class="text-sm text-slate-300">Configure system integration</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+        <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+        <div class="space-y-3">
+          <button class="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            Add Transit Agency
+          </button>
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+              <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
+            </svg>
+            Generate Report
+          </button>
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            Export Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Information Cards -->
+  <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">System Tracking</h3>
+      <p class="text-slate-400 text-sm">Monitor all your transit technology components, versions, and deployment status in one centralized dashboard.</p>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">Vendor Management</h3>
+      <p class="text-slate-400 text-sm">Track vendor relationships, contact information, and system dependencies across your entire transit network.</p>
+    </div>
+
+    <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
+      <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-2">Integration Mapping</h3>
+      <p class="text-slate-400 text-sm">Visualize system integrations, data flows, and interconnections to understand your technology ecosystem.</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh metrics every 30 seconds
+setInterval(function() {
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
+  elements.forEach(el => htmx.trigger(el, 'refresh'));
+}, 30000);
+
+// Add smooth animations for loaded content
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  const newContent = e.detail.target;
+  newContent.style.opacity = '0';
+  newContent.style.transform = 'translateY(10px)';
+  
+  setTimeout(() => {
+    newContent.style.transition = 'all 0.3s ease';
+    newContent.style.opacity = '1';
+    newContent.style.transform = 'translateY(0)';
+  }, 50);
+});
+</script>
+{% endblock %}
+# End of app/templates/index.html
+
+# Start of app/templates/agencies.html
+{% extends "base.html" %}
+
+{% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   
   <!-- Page Header -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-white mb-2">Vendor Management</h1>
-    <p class="text-slate-400">Manage vendor relationships and track system portfolios across your transit network.</p>
+    <h1 class="text-3xl font-bold text-white mb-2">Transit Agency Management</h1>
+    <p class="text-slate-400">Manage transit agencies and their organizational structure.</p>
   </div>
 
   <!-- Stats Overview -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
       <div class="flex items-center justify-between mb-2">
-        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/vendors" hx-trigger="load">--</span>
+        <span class="text-2xl font-bold text-white" hx-get="/api/count/agencies" hx-trigger="load">--</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium">Total Vendors</h3>
+      <h3 class="text-slate-400 text-sm font-medium">Total Agencies</h3>
     </div>
 
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
@@ -2315,74 +2727,62 @@ def html_success_fragment(message, title="Success"):
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" id="active-vendors-count">--</span>
+        <span class="text-2xl font-bold text-white" id="active-implementations-count">--</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium">Active Vendors</h3>
+      <h3 class="text-slate-400 text-sm font-medium">Active Implementations</h3>
     </div>
 
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
       <div class="flex items-center justify-between mb-2">
-        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+        <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" id="avg-systems-count">--</span>
+        <span class="text-2xl font-bold text-white" id="avg-implementations-count">--</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium">Avg Systems/Vendor</h3>
+      <h3 class="text-slate-400 text-sm font-medium">Avg Tech/Agency</h3>
     </div>
 
     <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
       <div class="flex items-center justify-between mb-2">
-        <div class="w-10 h-10 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
+        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
           <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
           </svg>
         </div>
-        <span class="text-2xl font-bold text-white" id="top-vendor-count">--</span>
+        <span class="text-2xl font-bold text-white" id="avg-vendors-count">--</span>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium">Top Vendor Systems</h3>
+      <h3 class="text-slate-400 text-sm font-medium">Avg Vendors/Agency</h3>
     </div>
   </div>
 
-  <!-- Search and Filters -->
+  <!-- Actions Bar -->
   <div class="glass-effect rounded-xl p-6 border border-slate-700/50 mb-8">
     <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
       
-      <!-- Search and Sort -->
-      <div class="flex flex-col sm:flex-row gap-4 flex-1">
-        
-        <!-- Search -->
-        <div class="relative flex-1 max-w-md">
-          <input type="text" id="vendor-search" placeholder="Search vendors..." 
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-                 hx-get="/api/vendors/list" hx-target="#vendors-list" hx-trigger="keyup changed delay:300ms" 
-                 hx-include="[id='sort-select']" hx-vals='js:{"search": event.target.value}'>
-          <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-          </svg>
-        </div>
-
-        <!-- Sort Options -->
-        <select id="sort-select" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/vendors/list" hx-target="#vendors-list" hx-include="[id='vendor-search']" hx-vals='js:{"sort": event.target.value}'>
-          <option value="name">Sort by Name</option>
-          <option value="systems">Sort by System Count</option>
-          <option value="recent">Sort by Recent Activity</option>
-        </select>
+      <!-- Search -->
+      <div class="relative flex-1 max-w-md">
+        <input type="text" id="agency-search" placeholder="Search transit agencies..." 
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+               hx-get="/api/agencies/list" hx-target="#agencies-list" hx-trigger="keyup changed delay:300ms" 
+               hx-vals="js:{search: event.target.value}">
+        <svg class="absolute right-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+        </svg>
       </div>
 
       <!-- Actions -->
       <div class="flex gap-2">
-        <button class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all">
+        <button hx-get="/api/agencies/form" hx-target="#agency-details" hx-swap="innerHTML"
+                class="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all">
           <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
           </svg>
-          Add Vendor
+          Add Transit Agency
         </button>
         <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
-          Export List
+          Export
         </button>
       </div>
     </div>
@@ -2391,67 +2791,63 @@ def html_success_fragment(message, title="Success"):
   <!-- Main Content Area -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
-    <!-- Vendors List -->
+    <!-- Agencies List -->
     <div class="lg:col-span-2">
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold text-white">Vendor Portfolio</h2>
+          <h2 class="text-xl font-semibold text-white">Transit Agencies</h2>
+          <button hx-get="/api/agencies/list" hx-target="#agencies-list" 
+                  class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            Refresh
+          </button>
         </div>
         
-        <div id="vendors-list" class="space-y-6" hx-get="/api/vendors/list" hx-trigger="load">
-          <!-- Vendors will be loaded here -->
-          <div class="animate-pulse space-y-6">
-            <div class="h-32 bg-slate-800 rounded-lg"></div>
-            <div class="h-32 bg-slate-800 rounded-lg"></div>
-            <div class="h-32 bg-slate-800 rounded-lg"></div>
+        <div id="agencies-list" hx-get="/api/agencies/list" hx-trigger="load">
+          <!-- Agencies will be loaded here -->
+          <div class="animate-pulse space-y-4">
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
+            <div class="h-24 bg-slate-800 rounded-lg"></div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Details/Form Sidebar -->
     <div class="space-y-6 sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto">
-      <!-- Vendor Details Panel -->
-      <div id="vendor-details">
+      
+      <!-- Agency Details Panel -->
+      <div id="agency-details">
         <!-- Default state -->
         <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
           <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
             </svg>
           </div>
-          <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
-          <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, system portfolio, and contact details.</p>
+          <h3 class="text-lg font-medium text-slate-400 mb-2">Agency Details</h3>
+          <p class="text-slate-500 text-sm">Click on a transit agency to view details or use the Add button to create a new one.</p>
         </div>
       </div>
 
-      <!-- Top Integration Standards -->
+      <!-- Agency Insights -->
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">Integration Standards</h3>
-        <div id="integration-standards" hx-get="/api/integration/standards" hx-trigger="load" class="space-y-2">
-          <!-- Integration standards will be loaded here -->
-          <div class="animate-pulse space-y-2">
-            <div class="h-6 bg-slate-800 rounded"></div>
-            <div class="h-6 bg-slate-800 rounded"></div>
-            <div class="h-6 bg-slate-800 rounded"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Vendor Performance Insights -->
-      <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">Performance Insights</h3>
+        <h3 class="text-lg font-semibold text-white mb-4">Transit Insights</h3>
         <div class="space-y-3">
           <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
-            <span class="text-slate-300 text-sm">Most Reliable</span>
-            <span class="text-green-400 font-medium text-sm" id="most-reliable-vendor">--</span>
+            <span class="text-slate-300 text-sm">Tech Leader</span>
+            <span class="text-blue-400 font-medium text-sm" id="tech-leader-agency">--</span>
           </div>
           <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
-            <span class="text-slate-300 text-sm">Newest Partnership</span>
-            <span class="text-blue-400 font-medium text-sm" id="newest-vendor">--</span>
+            <span class="text-slate-300 text-sm">Top Technology</span>
+            <span class="text-green-400 font-medium text-sm" id="common-tech-area">--</span>
           </div>
           <div class="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
-            <span class="text-slate-300 text-sm">Most Systems</span>
-            <span class="text-purple-400 font-medium text-sm" id="largest-vendor">--</span>
+            <span class="text-slate-300 text-sm">Leading Vendor</span>
+            <span class="text-purple-400 font-medium text-sm" id="top-vendor">--</span>
           </div>
         </div>
       </div>
@@ -2460,64 +2856,53 @@ def html_success_fragment(message, title="Success"):
       <div class="glass-effect rounded-xl p-6 border border-slate-700/50">
         <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
         <div class="space-y-3">
-          <button hx-get="/api/vendors/form" hx-target="#vendor-details" hx-swap="innerHTML"
-                  class="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg">
+          <button hx-get="/api/agencies/form" hx-target="#agency-details" hx-swap="innerHTML"
+                  class="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-cyan-700 transition-all text-white shadow-lg">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
             </svg>
-            Add New Vendor
+            Add New Agency
           </button>
-          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors text-white">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
               <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
             </svg>
-            Vendor Report
+            Agency Report
           </button>
-          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
+          <button class="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors text-white">
             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
-            Export Contacts
+            Export Data
           </button>
         </div>
       </div>
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Load vendor stats
+// Load agency stats
 document.addEventListener('DOMContentLoaded', function() {
-  fetch('/api/vendors/stats')
+  fetch('/api/agencies/stats')
     .then(response => response.json())
     .then(data => {
-      document.getElementById('active-vendors-count').textContent = data.active_vendors;
-      document.getElementById('avg-systems-count').textContent = data.avg_systems_per_vendor;
-      
-      if (data.top_vendor) {
-        document.getElementById('top-vendor-count').textContent = data.top_vendor.system_count;
-        document.getElementById('largest-vendor').textContent = data.top_vendor.name;
-      }
+      document.getElementById('active-implementations-count').textContent = data.active_implementations;
+      document.getElementById('avg-implementations-count').textContent = data.avg_implementations_per_agency;
+      document.getElementById('avg-vendors-count').textContent = data.avg_vendors_per_agency;
     });
-});
 
-// Add vendor card hover effects
-document.body.addEventListener('htmx:afterSwap', function(e) {
-  const vendorCards = document.querySelectorAll('.vendor-card');
-  vendorCards.forEach(card => {
-    card.addEventListener('mouseenter', function() {
-      this.style.transform = 'translateY(-4px)';
-      this.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+  // Load agency insights
+  fetch('/api/agencies/insights')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('tech-leader-agency').textContent = data.tech_leader;
+      document.getElementById('common-tech-area').textContent = data.common_area;
+      document.getElementById('top-vendor').textContent = data.top_vendor;
     });
-    card.addEventListener('mouseleave', function() {
-      this.style.transform = 'translateY(0)';
-      this.style.boxShadow = 'none';
-    });
-  });
 });
 
 // Auto-refresh stats every 30 seconds
@@ -2525,594 +2910,15 @@ setInterval(function() {
   const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
   elements.forEach(el => htmx.trigger(el, 'refresh'));
 }, 30000);
-</script>
-{% endblock %}
-# End of app/templates/vendors.html
-
-# Start of app/templates/fragments/vendor_details.html
-<!-- app/templates/fragments/vendor_details.html -->
-<div class="glass-effect rounded-xl overflow-hidden border border-slate-700/50">
-  <!-- Header Image -->
-  {% if vendor.header_url %}
-  <div class="relative aspect-[2/1] bg-gradient-to-r from-slate-800 to-slate-700">
-    <img src="{{ vendor.header_url }}" 
-         alt="{{ vendor.name }} header" 
-         class="w-full h-full object-cover"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-    <!-- Fallback gradient when image doesn't exist -->
-    <div class="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 hidden items-center justify-center">
-      <svg class="w-12 h-12 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-      </svg>
-    </div>
-  </div>
-  {% endif %}
-  
-  <!-- Content with name and buttons -->
-  <div class="p-6">
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center space-x-4">
-        {% if vendor.logo_url %}
-        <div class="w-16 h-16 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
-          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
-               class="w-full h-full object-contain"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
-            <span class="text-2xl font-bold text-white">{{ vendor.name[0].upper() }}</span>
-          </div>
-        </div>
-        {% else %}
-        <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-          <span class="text-2xl font-bold text-white">{{ vendor.name[0].upper() }}</span>
-        </div>
-        {% endif %}
-        
-        <div>
-          <h2 class="text-2xl font-bold text-white">{{ vendor.name }}</h2>
-          <p class="text-slate-400">{{ vendor.description or 'Technology vendor' }}</p>
-        </div>
-      </div>
-      
-      <div class="flex gap-2">
-        <button hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML"
-                class="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors">
-          Edit
-        </button>
-        <button onclick="closeVendorDetails()"
-                class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
-          ✕ Close
-        </button>
-      </div>
-    </div>
-
-    <!-- Stats Overview -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-      <div class="bg-blue-600/20 border border-blue-600/30 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-blue-300">{{ vendor.total_components }}</div>
-        <div class="text-sm text-blue-200">Total Components</div>
-      </div>
-      <div class="bg-green-600/20 border border-green-600/30 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-green-300">{{ vendor.total_components - vendor.components_with_issues }}</div>
-        <div class="text-sm text-green-200">Healthy Components</div>
-      </div>
-      <div class="bg-purple-600/20 border border-purple-600/30 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-purple-300">{{ vendor.recent_deployments }}</div>
-        <div class="text-sm text-purple-200">Recent Deployments</div>
-      </div>
-    </div>
-    
-    <div class="space-y-6">
-      <!-- Contact Information Section -->
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-          </svg>
-          Contact Information
-        </h3>
-        <div class="space-y-3 text-sm">
-          {% if vendor.website %}
-          <div class="flex flex-col">
-            <span class="text-slate-400 mb-1">Website:</span>
-            <a href="{{ vendor.website }}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors flex items-center w-fit">
-              {{ vendor.website }}
-              <svg class="w-3 h-3 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-1a1 1 0 10-2 0v1H5V7h1a1 1 0 000-2H5z"/>
-              </svg>
-            </a>
-          </div>
-          {% endif %}
-          {% if vendor.vendor_email %}
-          <div class="flex flex-col">
-            <span class="text-slate-400 mb-1">General Email:</span>
-            <a href="mailto:{{ vendor.vendor_email }}" class="text-blue-400 hover:text-blue-300 transition-colors break-all">{{ vendor.vendor_email }}</a>
-          </div>
-          {% endif %}
-          {% if vendor.vendor_phone %}
-          <div class="flex flex-col">
-            <span class="text-slate-400 mb-1">General Phone:</span>
-            <a href="tel:{{ vendor.vendor_phone }}" class="text-blue-400 hover:text-blue-300 transition-colors">{{ vendor.vendor_phone }}</a>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-
-      <!-- Component Portfolio -->
-      {% if vendor.components_by_area %}
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-          </svg>
-          Component Portfolio
-        </h3>
-        <div class="space-y-4 max-h-64 overflow-y-auto">
-          {% for area_name, components in vendor.components_by_area.items() %}
-          <div>
-            <h4 class="text-sm font-medium text-blue-400 mb-2">{{ area_name }} ({{ components|length }})</h4>
-            <div class="space-y-2 mb-4">
-              {% for component in components %}
-              <div class="flex items-center justify-between p-2 bg-slate-600/30 rounded">
-                <div class="flex items-center space-x-2">
-                  <div class="w-2 h-2 bg-{% if component.known_issues %}red{% else %}green{% endif %}-500 rounded-full"></div>
-                  <span class="text-sm text-slate-300">{{ component.name }}</span>
-                </div>
-                <span class="text-xs text-slate-500">v{{ component.version or 'Unknown' }}</span>
-              </div>
-              {% endfor %}
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-      {% else %}
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-          </svg>
-          Component Portfolio
-        </h3>
-        <div class="text-center py-8">
-          <svg class="w-12 h-12 text-slate-500 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-          </svg>
-          <p class="text-slate-400 text-sm">No deployed components found for this vendor.</p>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Integration Standards -->
-      {% if vendor.integration_standards %}
-      <div class="bg-slate-700/30 rounded-lg p-4">
-        <h3 class="font-semibold text-white mb-3 flex items-center">
-          <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
-          </svg>
-          Integration Standards
-        </h3>
-        <div class="flex flex-wrap gap-2">
-          {% for standard in vendor.integration_standards %}
-          <span class="px-2 py-1 bg-cyan-600/20 border border-cyan-600/30 rounded text-xs text-cyan-300">{{ standard }}</span>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<script>
-function closeVendorDetails() {
-  document.getElementById('vendor-details').innerHTML = `
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
-      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
-      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, component portfolio, and contact details.</p>
-    </div>`;
-}
-</script>
-# End of app/templates/fragments/vendor_details.html
-
-# Start of app/templates/fragments/vendor_form.html
-<!-- app/templates/fragments/vendor_form.html -->
-<div class="glass-effect rounded-xl p-6 border border-slate-700/50 max-h-[90vh] overflow-y-auto">
-  <div class="flex items-center justify-between mb-6 sticky top-0 bg-slate-800/90 backdrop-blur-sm z-10 py-2 -mt-2">
-    <h2 class="text-xl font-bold text-white">
-      {% if vendor %}Edit Vendor{% else %}Add Vendor{% endif %}
-    </h2>
-    <button onclick="closeVendorForm()"
-            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
-      ✕ Cancel
-    </button>
-  </div>
-
-  <form {% if vendor %}hx-post="/api/vendors/{{ vendor.id }}"{% else %}hx-post="/api/vendors"{% endif %}
-        hx-target="#result-message" hx-swap="innerHTML" class="space-y-8">
-    
-    <!-- Basic Information Section -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-        </svg>
-        Basic Information
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="md:col-span-1">
-          <label for="name" class="block text-sm font-medium text-slate-300 mb-2">
-            Vendor Name <span class="text-red-400">*</span>
-          </label>
-          <input type="text" id="name" name="name" required
-                 value="{{ form.name.data if form.name.data else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
-                 placeholder="e.g., Acme Transportation Systems">
-          {% if form.name.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.name.errors[0] }}</div>
-          {% endif %}
-        </div>
-
-        <div class="md:col-span-1">
-          <label for="short_name" class="block text-sm font-medium text-slate-300 mb-2">Short Name</label>
-          <input type="text" id="short_name" name="short_name"
-                 value="{{ form.short_name.data if form.short_name.data else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors"
-                 placeholder="e.g., acme">
-          <p class="text-xs text-slate-500 mt-1">Used for logo and header image file names</p>
-          {% if form.short_name.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.short_name.errors[0] }}</div>
-          {% endif %}
-        </div>
-
-        <div class="md:col-span-2">
-          <label for="description" class="block text-sm font-medium text-slate-300 mb-2">Description</label>
-          <textarea id="description" name="description" rows="3"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-colors resize-vertical"
-                    placeholder="Brief description of the vendor and their specialties">{{ form.description.data if form.description.data else '' }}</textarea>
-          {% if form.description.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.description.errors[0] }}</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <!-- Contact Information Section -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-        </svg>
-        Contact Information
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="vendor_email" class="block text-sm font-medium text-slate-300 mb-2">General Email</label>
-          <input type="email" id="vendor_email" name="vendor_email"
-                 value="{{ form.vendor_email.data if form.vendor_email.data else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
-                 placeholder="e.g., info@vendor.com">
-          {% if form.vendor_email.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.vendor_email.errors[0] }}</div>
-          {% endif %}
-        </div>
-
-        <div>
-          <label for="vendor_phone" class="block text-sm font-medium text-slate-300 mb-2">General Phone</label>
-          <input type="tel" id="vendor_phone" name="vendor_phone"
-                 value="{{ form.vendor_phone.data if form.vendor_phone.data else '' }}"
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-colors"
-                 placeholder="e.g., (555) 123-4567">
-          {% if form.vendor_phone.errors %}
-            <div class="text-red-400 text-xs mt-1">{{ form.vendor_phone.errors[0] }}</div>
-          {% endif %}
-        </div>
-      </div>
-      <p class="text-xs text-slate-500 mt-2">General contact information for the vendor organization</p>
-    </div>
-
-    <!-- Web Resources Section -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
-        </svg>
-        Web Resources
-      </h3>
-      <div>
-        <label for="website" class="block text-sm font-medium text-slate-300 mb-2">Official Website</label>
-        <input type="url" id="website" name="website"
-               value="{{ form.website.data if form.website.data else '' }}"
-               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 focus:outline-none transition-colors"
-               placeholder="e.g., https://www.vendor.com">
-        <p class="text-xs text-slate-500 mt-1">Company website URL</p>
-        {% if form.website.errors %}
-          <div class="text-red-400 text-xs mt-1">{{ form.website.errors[0] }}</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Form Messages -->
-    <div id="result-message" class="form-section"></div>
-
-    <!-- Form Actions -->
-    <div class="form-section sticky bottom-0 bg-slate-800/95 backdrop-blur-sm border-t border-slate-600 pt-6 mt-8">
-      <div class="flex flex-col sm:flex-row gap-3">
-        <button type="submit" 
-                class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all text-white shadow-lg">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-          </svg>
-          {% if vendor %}Update Vendor{% else %}Create Vendor{% endif %}
-        </button>
-        
-        <button type="button" onclick="closeVendorForm()" 
-                class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">
-          Cancel
-        </button>
-        
-        {% if vendor %}
-        <button type="button" 
-                hx-delete="/api/vendors/{{ vendor.id }}"
-                hx-confirm="Are you sure you want to delete this vendor? This action cannot be undone if the vendor has associated components."
-                hx-target="#result-message"
-                class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
-            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2V3a2 2 0 012 2v8a4 4 0 01-4 4H6a4 4 0 01-4-4V5z" clip-rule="evenodd"/>
-          </svg>
-          Delete Vendor
-        </button>
-        {% endif %}
-      </div>
-    </div>
-  </form>
-</div>
-
-<script>
-function closeVendorForm() {
-  document.getElementById('vendor-details').innerHTML = `
-    <div class="glass-effect rounded-xl p-6 border border-slate-700/50 text-center">
-      <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-        </svg>
-      </div>
-      <h3 class="text-lg font-medium text-slate-400 mb-2">Vendor Details</h3>
-      <p class="text-slate-500 text-sm">Click on a vendor to view detailed information, component portfolio, and contact details.</p>
-    </div>`;
-}
 
 // Success/error handling for forms
 document.body.addEventListener('htmx:afterRequest', function(e) {
   if (e.detail.xhr.status === 200 && e.detail.requestConfig.verb === 'post') {
     // Success: refresh list and show success message
-    htmx.trigger('#vendors-list', 'refresh');
+    htmx.trigger('#agencies-list', 'refresh');
   }
 });
 </script>
-
-<style>
-.form-section {
-  scroll-margin-top: 100px;
-}
-
-/* Custom scrollbar for better UX */
-.glass-effect::-webkit-scrollbar {
-  width: 6px;
-}
-
-.glass-effect::-webkit-scrollbar-track {
-  background: rgba(30, 41, 59, 0.5);
-  border-radius: 3px;
-}
-
-.glass-effect::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.5);
-  border-radius: 3px;
-}
-
-.glass-effect::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.7);
-}
-</style>
-# End of app/templates/fragments/vendor_form.html
-
-# Start of app/templates/fragments/vendor_list.html
-<!-- app/templates/fragments/vendor_list.html -->
-{% if vendors_with_counts %}
-  {% for vendor, component_count in vendors_with_counts %}
-  <div class="vendor-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
-       hx-get="/api/vendors/{{ vendor.id }}/details" hx-target="#vendor-details" hx-swap="innerHTML">
-    
-    <div class="flex items-start justify-between mb-4">
-      <div class="flex items-start space-x-4 flex-1">
-        <!-- Vendor Logo -->
-        {% if vendor.logo_url %}
-        <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
-          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
-               class="w-full h-full object-contain"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
-            <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
-          </div>
-        </div>
-        {% else %}
-        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
-        </div>
-        {% endif %}
-        
-        <!-- Vendor Info -->
-        <div class="flex-1">
-          <div class="flex items-center space-x-3 mb-2">
-            <h3 class="font-semibold text-white text-lg">{{ vendor.name }}</h3>
-            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-          </div>
-          
-          {% if vendor.description %}
-          <p class="text-slate-400 text-sm mb-3">{{ vendor.description[:120] }}{% if vendor.description|length > 120 %}...{% endif %}</p>
-          {% endif %}
-          
-          <div class="flex items-center space-x-4 text-xs text-slate-400">
-            <span>🏢 {{ component_count }} components</span>
-            {% if vendor.website %}
-            <span>🌐 Website</span>
-            {% endif %}
-            {% if vendor.vendor_email %}
-            <span>📧 {{ vendor.vendor_email }}</span>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-      
-      <!-- Stats Badge -->
-      <div class="text-center">
-        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-1">
-          <span class="text-lg font-bold text-white">{{ component_count }}</span>
-        </div>
-        <div class="text-xs text-slate-500">Components</div>
-      </div>
-    </div>
-    
-    <!-- Footer with Quick Actions -->
-    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-      <div class="flex items-center space-x-3">
-        {% if vendor.website %}
-        <a href="{{ vendor.website }}" target="_blank" 
-           class="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center"
-           onclick="event.stopPropagation()" title="Visit Website">
-          🌐 {{ vendor.website.replace('https://', '').replace('http://', '').split('/')[0] }}
-        </a>
-        {% endif %}
-        
-        {% if vendor.vendor_email %}
-        <a href="mailto:{{ vendor.vendor_email }}" 
-           class="text-xs text-green-400 hover:text-green-300 transition-colors"
-           onclick="event.stopPropagation()" title="Email">
-          📧 Contact
-        </a>
-        {% endif %}
-        
-        {% if vendor.vendor_phone %}
-        <a href="tel:{{ vendor.vendor_phone }}" 
-           class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-           onclick="event.stopPropagation()" title="Phone">
-          📞 Call
-        </a>
-        {% endif %}
-      </div>
-      
-      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML"
-              onclick="event.stopPropagation()">
-        Edit →
-      </button>
-    </div>
-  </div>
-  {% endfor %}
-{% else %}
-<div class="text-center py-12">
-  <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-    </svg>
-  </div>
-  <h3 class="text-lg font-medium text-slate-400 mb-2">No Vendors Found</h3>
-  <p class="text-slate-500">Try adjusting your search or add a new vendor.</p>
-</div>
-{% endif %}
-# End of app/templates/fragments/vendor_list.html
-
-# Start of scripts/load_vendors.py
-#!/usr/bin/env python3
-"""
-Vendors Data Loader
-
-Usage:
-    python load_vendors.py vendors.json
-"""
-
-import json
-import os
-import sys
-import argparse
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app import create_app, db
-from app.models.tran import Vendor
-
-def load_vendors_from_file(filename):
-    """Load vendors from JSON file"""
-    
-    app = create_app()
-    
-    with app.app_context():
-        print(f"🏢 Loading vendors from {filename}...")
-        
-        # Load JSON data
-        with open(filename, 'r') as f:
-            data = json.load(f)
-        
-        stats = {'added': 0, 'skipped': 0}
-        
-        for vendor_data in data.get('vendors', []):
-            # Check if vendor already exists
-            existing = Vendor.query.filter_by(name=vendor_data['name']).first()
-            if existing:
-                print(f"  ⚠️  Vendor '{vendor_data['name']}' already exists, skipping")
-                stats['skipped'] += 1
-                continue
-            
-            # Create vendor
-            vendor = Vendor(
-                name=vendor_data['name'],
-                description=vendor_data.get('description'),
-                website=vendor_data.get('website'),
-                vendor_email=vendor_data.get('vendor_email'),
-                vendor_phone=vendor_data.get('vendor_phone'),
-                contact_name=vendor_data.get('contact_name'),
-                contact_email=vendor_data.get('contact_email'),
-                contact_phone=vendor_data.get('contact_phone')
-            )
-            
-            db.session.add(vendor)
-            stats['added'] += 1
-            print(f"  ➕ Added vendor: {vendor.name}")
-        
-        try:
-            db.session.commit()
-            print(f"\n✅ Vendors loaded successfully!")
-            print(f"📊 Summary:")
-            print(f"   Added: {stats['added']}")
-            print(f"   Skipped: {stats['skipped']}")
-            print(f"   Total Vendors: {Vendor.query.count()}")
-            return True
-        except Exception as e:
-            db.session.rollback()
-            print(f"\n❌ Error committing changes: {e}")
-            return False
-
-def main():
-    parser = argparse.ArgumentParser(description="Load vendors into the database.")
-    parser.add_argument('file', help='JSON file to load')
-    
-    args = parser.parse_args()
-    
-    if not os.path.exists(args.file):
-        print(f"❌ File not found: {args.file}")
-        return
-    
-    success = load_vendors_from_file(args.file)
-    if not success:
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
-# End of scripts/load_vendors.py
+{% endblock %}
+# End of app/templates/agencies.html
 

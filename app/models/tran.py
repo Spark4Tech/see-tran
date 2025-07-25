@@ -45,6 +45,8 @@ class Criticality(enum.Enum):
 class Agency(db.Model):
     __tablename__ = 'agencies'
 
+    # TODO: Enhance sizing metrics for agencies: routes, riders, budget; currently stored in additional metadata json
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     location = db.Column(db.String(100))
@@ -54,7 +56,7 @@ class Agency(db.Model):
     address_hq = db.Column(db.String(256))
     phone_number = db.Column(db.String(64))
     transit_map_link = db.Column(db.String(256))
-    contact_email = db.Column(db.String(255))
+    contact_email = db.Column(db.String(255)) #TODO: Create field to store agency email domain
     contact_phone = db.Column(db.String(50))
     contact_name = db.Column(db.String(100))
     short_name = db.Column(db.String(50)) # TODO: use short name for constructing agency specific URLs for images, etc.
@@ -67,6 +69,22 @@ class Agency(db.Model):
     
     def __repr__(self):
         return f"<Agency(name={self.name}, location={self.location})>"
+    
+    #@property
+    #def logo_url(self):
+    #    """Generate agency logo URL"""
+    #    from flask import url_for
+    #    if self.short_name:
+    #        return url_for('static', filename=f'images/agency_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
+    #    return None
+    
+    #@property
+    #def header_url(self):
+    #    """Generate agency header URL"""
+    #    from flask import url_for
+    #    if self.short_name:
+    #        return url_for('static', filename=f'images/agency_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
+    #    return None
 
 class FunctionalArea(db.Model):
     __tablename__ = 'functional_areas'
@@ -107,7 +125,7 @@ class Vendor(db.Model):
     name = db.Column(db.String(100), nullable=False)
     short_name = db.Column(db.String(50))
     website = db.Column(db.String(255))
-    vendor_email = db.Column(db.String(255))
+    vendor_email = db.Column(db.String(255)) #TODO: Create field to store vendor email domain 
     vendor_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 

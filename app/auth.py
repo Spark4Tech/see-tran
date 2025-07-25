@@ -2,6 +2,19 @@
 from functools import wraps
 from flask import request, jsonify, flash
 
+# TODO: Add Microsoft login
+# TODO: Add Google login
+# TODO: Validate user email at registration, must be domain associated with a transit agency in the system
+
+def login():
+    pass
+
+def register():
+    pass
+
+def validate_email():
+    pass
+
 def login_required(f):
     """
     Authentication decorator - currently a no-op stub for development
@@ -21,7 +34,8 @@ def get_current_user():
     return {
         'id': 1,
         'username': 'Steve',
-        'display_name': '1_Steve'
+        'display_name': 'Steve',
+        'email': 'steve.smith@c-tran.org'
     }
 
 def get_updated_by():

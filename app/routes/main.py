@@ -1,4 +1,4 @@
-# app/routes/main.py - Enhanced version
+# app/routes/main.py
 from flask import Blueprint, render_template, jsonify, request, url_for
 from app import db
 from app.models.tran import (
@@ -82,7 +82,7 @@ def count_vendors():
     except Exception as e:
         return "0"
 
-# Components endpoints (keeping existing functionality)
+# Components endpoints
 @main.route("/api/components/list")
 def components_list():
     """Get all components with filtering"""
@@ -242,7 +242,7 @@ def component_details(component_id):
         else:
             agency_usage_html = "<p class='text-slate-400 text-sm'>No agency usage tracked for this component.</p>"
         
-        # User roles (keep this here as it's component-specific info)
+        # User roles (component-specific info)
         roles = ""
         if component.user_roles:
             roles = "<h4 class='font-medium text-white mb-2 mt-4'>User Roles:</h4><ul class='space-y-1'>"
@@ -373,17 +373,16 @@ def vendors_list():
         if search:
             query = query.filter(Vendor.name.ilike(f'%{search}%'))
         
-        # Apply agency filter - Fixed SQLAlchemy warning
+        # Apply agency filter
         if agency_filter:
             agency_component_ids = db.session.query(Component.id)\
                 .join(AgencyFunctionImplementation)\
                 .join(Agency)\
                 .filter(Agency.name == agency_filter)
             
-            # Convert subquery to select() explicitly
             query = query.filter(Component.id.in_(agency_component_ids.scalar_subquery()))
         
-        # Apply functional area filter - Fixed SQLAlchemy warning
+        # Apply functional area filter
         if functional_area_filter:
             fa_component_ids = db.session.query(Component.id)\
                 .join(AgencyFunctionImplementation)\
@@ -391,7 +390,6 @@ def vendors_list():
                 .join(FunctionalArea)\
                 .filter(FunctionalArea.name == functional_area_filter)
             
-            # Convert subquery to select() explicitly
             query = query.filter(Component.id.in_(fa_component_ids.scalar_subquery()))
         
         # Apply sorting
@@ -411,7 +409,6 @@ def vendors_list():
         
         vendors_with_counts = query.all()
         
-        # Add component count to vendors for template
         for vendor, component_count in vendors_with_counts:
             vendor.component_count = component_count
         
@@ -429,7 +426,6 @@ def vendor_details(vendor_id):
         # Get components grouped by functional area
         components_by_area = {}
         
-        # Fixed query - proper joins through the relationship chain
         components_query = db.session.query(Component, FunctionalArea.name.label('area_name'))\
             .filter(Component.vendor_id == vendor_id)\
             .join(AgencyFunctionImplementation, Component.agency_usages)\
@@ -450,7 +446,7 @@ def vendor_details(vendor_id):
         recent_deployments = Component.query.filter_by(vendor_id=vendor_id)\
             .filter(Component.deployment_date >= datetime.now().date() - timedelta(days=365)).count()
         
-        # Get integration standards - simplified approach
+        # Get integration standards
         vendor_components = Component.query.filter_by(vendor_id=vendor_id).all()
         integration_standards = set()
         for component in vendor_components:
@@ -515,7 +511,6 @@ def create_vendor():
             
             return json_success_response(f"Vendor '{vendor.name}' created successfully")
         else:
-            # Form validation failed - return validation error response
             return json_form_error_response(form)
         
     except Exception as e:
@@ -546,7 +541,6 @@ def update_vendor(vendor_id):
             
             return json_success_response(f"Vendor '{vendor.name}' updated successfully")
         else:
-            # Form validation failed - return validation error response
             return json_form_error_response(form)
         
     except Exception as e:
@@ -762,7 +756,6 @@ def vendor_performance():
     except Exception as e:
         return json_error_response(f"Error getting vendor performance: {str(e)}")
 
-# Keep remaining existing endpoints
 @main.route("/api/components/overview")
 def components_overview():
     try:
@@ -1032,7 +1025,6 @@ def create_agency():
 @main.route("/api/agencies/<int:agency_id>", methods=['POST'])  # Note: Using POST with _method=PUT for HTMX
 @login_required
 def update_agency(agency_id):
-    """Update an existing agency"""
     try:
         agency = Agency.query.get_or_404(agency_id)
         form = AgencyForm()
@@ -1075,7 +1067,6 @@ def update_agency(agency_id):
 @main.route("/api/agencies/<int:agency_id>", methods=['DELETE'])
 @login_required
 def delete_agency(agency_id):
-    """Delete an agency"""
     try:
         agency = Agency.query.get_or_404(agency_id)
         name = agency.name
@@ -1147,7 +1138,6 @@ def agencies_stats():
 
 @main.route("/api/count/active-implementations")
 def count_active_implementations():
-    """Get count of active implementations"""
     try:
         count = AgencyFunctionImplementation.query.filter_by(status='Active').count()
         return str(count)
@@ -1199,12 +1189,10 @@ def agency_insights():
 # Functional Areas Management Routes
 @main.route("/functional-areas")
 def functional_areas_page():
-    """Functional areas management page"""
     return render_template("functional_areas.html")
 
 @main.route("/api/functional-areas/list")
 def functional_areas_list():
-    """Get all functional areas with filtering"""
     try:
         search = request.args.get('search', '').lower()
         
@@ -1225,7 +1213,6 @@ def functional_areas_list():
 
 @main.route("/api/functional-areas/<int:functional_area_id>/details")
 def functional_area_details(functional_area_id):
-    """Get detailed information about a specific functional area"""
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         
@@ -1236,7 +1223,6 @@ def functional_area_details(functional_area_id):
 
 @main.route("/api/functional-areas/form")
 def functional_area_form():
-    """Return new functional area form"""
     try:
         # Get all agencys for the dropdown
         agencies = Agency.query.order_by(Agency.name).all()
@@ -1249,7 +1235,6 @@ def functional_area_form():
 
 @main.route("/api/functional-areas/<int:functional_area_id>/form")
 def functional_area_edit_form(functional_area_id):
-    """Return edit functional area form"""
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         agencies = Agency.query.order_by(Agency.name).all()
@@ -1263,7 +1248,6 @@ def functional_area_edit_form(functional_area_id):
 @main.route("/api/functional-areas", methods=['POST'])
 @login_required
 def create_functional_area():
-    """Create a new functional area"""
     try:
         data = request.form
         
@@ -1311,7 +1295,6 @@ def create_functional_area():
 @main.route("/api/functional-areas/<int:functional_area_id>", methods=['PUT'])
 @login_required
 def update_functional_area(functional_area_id):
-    """Update an existing functional area"""
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         data = request.form
@@ -1358,7 +1341,6 @@ def update_functional_area(functional_area_id):
 @main.route("/api/functional-areas/<int:functional_area_id>", methods=['DELETE'])
 @login_required
 def delete_functional_area(functional_area_id):
-    """Delete a functional area"""
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         name = functional_area.name

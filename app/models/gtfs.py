@@ -211,14 +211,15 @@ class GTFSTimeframe(db.Model):
     end_time: Mapped[time] = mapped_column(Time, primary_key=True)
     service_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_calendar.service_id"), nullable=False)
     
-    # Relationships
     fare_leg_rules_from: Mapped[list["GTFSFareLegRule"]] = relationship(
-        foreign_keys="GTFSFareLegRule.from_timeframe_group_id",
-        back_populates="from_timeframe"
+        back_populates="from_timeframe",
+        cascade="all, delete-orphan",
+        foreign_keys="GTFSFareLegRule.from_timeframe_group_id"
     )
     fare_leg_rules_to: Mapped[list["GTFSFareLegRule"]] = relationship(
-        foreign_keys="GTFSFareLegRule.to_timeframe_group_id", 
-        back_populates="to_timeframe"
+        back_populates="to_timeframe",
+        cascade="all, delete-orphan",
+        foreign_keys="GTFSFareLegRule.to_timeframe_group_id"
     )
 
 
@@ -228,18 +229,26 @@ class GTFSFareLegRule(db.Model):
     leg_group_id: Mapped[str] = mapped_column(String(50), primary_key=True)
     network_id: Mapped[Optional[str]] = mapped_column(String(50))
     fare_product_id: Mapped[str] = mapped_column(String(50), ForeignKey("gtfs_fare_products.fare_product_id"), primary_key=True)
-    from_timeframe_group_id: Mapped[Optional[str]] = mapped_column(String(50), primary_key=True)
-    to_timeframe_group_id: Mapped[Optional[str]] = mapped_column(String(50))
+    from_timeframe_group_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        ForeignKey("gtfs_timeframes.timeframe_group_id"),
+        primary_key=True
+    )
+    to_timeframe_group_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        ForeignKey("gtfs_timeframes.timeframe_group_id")
+    )
     
     # Relationships
     fare_product: Mapped["GTFSFareProduct"] = relationship(back_populates="fare_leg_rules")
+
     from_timeframe: Mapped[Optional["GTFSTimeframe"]] = relationship(
-        foreign_keys=[from_timeframe_group_id],
-        back_populates="fare_leg_rules_from"
+        back_populates="fare_leg_rules_from",
+        foreign_keys=[from_timeframe_group_id]
     )
     to_timeframe: Mapped[Optional["GTFSTimeframe"]] = relationship(
-        foreign_keys=[to_timeframe_group_id],
-        back_populates="fare_leg_rules_to"
+        back_populates="fare_leg_rules_to",
+        foreign_keys=[to_timeframe_group_id]
     )
 
 

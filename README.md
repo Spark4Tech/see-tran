@@ -1,77 +1,46 @@
-# see-tran
+**See Transit** 
+A web app that brings together technical data from all public transit agencies in the US and worldwide.
 
-Bootstrapped with `new_flask.sh`.
+**Data**
+Transit agencies, industry vendors, and the technologies used to power public transportation.
 
-## Development Setup
+**Key Entities**
+Agencies, technology components, vendors, functional areas, functions, and integration.
 
-```bash
-# Activate virtual environment
-pyenv activate see-tran
+**Access**
+The landing page is publically available, as is the Agency list page; all other pages are auth protected.
+Auth is provided via Microsoft or Google OAuth from application login page.
+Registration is restricted to email addresses that are associated with an existing transit agency.
 
-# Install dependencies (if you deleted requirements.txt)
-# pip install -r requirements.txt
+**Agencies**
+Agencies have two user types: readers and admins; admins can update all Agency information (i.e. Agency Component relationships).
+Agency data can be sourced via LLM or via community input (data source is indicated in app).
 
-# Start frontend watcher (in a separate terminal)
-npm run dev
+**Vendors**
+Vendor registration is restricted to email addresses that are associated wtih an existing vendor.
+Vendors have two user types: readers and admins; admins can update all Vendor information (i.e. Vendor Components Functional relationships).
+Vendor data can be sourced via LLM or via community input (data source is indicated in app).
+Vendors must have a paid subscription to use the hosted system (yearly subscription or included with sponsorship).
 
-# Run development server
-flask run
-```
+**Agents**
+The application utilizes agents to find and update data in the hosted version (see-tran.org).
+- Agency agent - gets agency information, vets it, creates or upscales
+- Vendor agent - gets vendor information, vets it, creates or upscales
+- Component agent - get component (and subcomponent) informration, vets it, creates or upscales
 
-## Database Setup
+**Components**
+Components are discrete products/solutions, provided by an internal IT team or third party vendor
+that deliver technology in support of a discrete transit business function.
+Components can be "nested" in order to handle sub components; a composite component is made up of
+more than one nested sub-components.
 
-This project supports both SQLite (default) and PostgreSQL.
+**Roadmap:**
+- Agency news
+- Vendor news
+- Transit technology news
+- Forum
+- SMS alerts
 
-### Using SQLite (default)
-No additional setup required. The database will be created at `instance/app.db` when you run:
-```bash
-flask db init
-flask db migrate -m "Initial migration"
-flask db upgrade
-```
-
-### Using PostgreSQL
-1. Install and start PostgreSQL on your system
-2. Create a database: `createdb see-tran`
-3. Update the `.env` file:
-   ```
-   DB_TYPE=postgres
-   DB_USER=your_username
-   DB_PASSWORD=your_password
-   DB_NAME=see-tran
-   ```
-4. Run migrations:
-   ```bash
-   flask db init
-   flask db migrate -m "Initial migration"
-   flask db upgrade
-   ```
-
-## Frontend Development
-
-### Tailwind CSS
-- **Development**: `npm run dev` - Watches for changes and rebuilds CSS
-- **Production**: `npm run build` - Builds minified CSS and copies HTMX
-
-### HTMX
-HTMX is managed via npm and copied to static files during build. The library is available at `/static/js/htmx.min.js`.
-
-## Testing
-```bash
-pytest
-```
-
-## Production Deployment
-For production, remember to:
-1. Set a strong `SECRET_KEY` in the `.env` file
-2. Set `FLASK_DEBUG=0` in the `.env` file
-3. Use a proper database (PostgreSQL recommended)
-4. Build assets for production: `npm run build`
-5. Use a production WSGI server like gunicorn
-
-## Node.js Version
-This project targets Node.js 20+. Use nvm/fnm for version management:
-```bash
-nvm use  # or fnm use
-```
-
+**See Transit is an open source project, created by industry enthusiasts.**
+Contributions are welcomed from public transit teams.
+See-Tran.org provides a hosted version with a growing set of community sourced up-to-date data, upscaled with AI.

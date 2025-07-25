@@ -53,7 +53,7 @@ class Config:
     S3_BUCKET = os.environ.get('S3_BUCKET', 'well-app')
     
     # Application URLs
-    SMS_BASE_URL = os.environ.get('SMS_BASE_URL', 'https://well.voice4equity.com/app')
+    SMS_BASE_URL = os.environ.get('SMS_BASE_URL', 'https://see-tran.com')
     
     @staticmethod
     def get_s3_prefix(tenant_id):

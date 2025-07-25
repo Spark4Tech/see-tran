@@ -1,7 +1,7 @@
 # Technical Data Model Documentation
 
 ## Overview
-This document provides a comprehensive overview and technical details for the transit system data model implemented using SQLAlchemy with Flask. The data model is structured to manage multiple transit systems, their related functional areas, vendors, operational systems, integration points, user roles, and update logs. The primary objective of the model is to facilitate effective data management, maintain integrity, and provide clear insights for system interactions and dependencies.
+This document provides a comprehensive overview and technical details for the transit system data model implemented using SQLAlchemy ORM most recent version and taxonomy with Flask. The data model is structured to manage multiple transit systems, their related functional areas, functions, vendors, operational systems, integration points, user roles, update logs, and comprehensive GTFS data (all files). The primary objective of the model is to facilitate effective data management, maintain data integrity, and provide clear insights for system interactions and dependencies. It is also designed to be readily accessible for AI-analysis.
 
 ---
 

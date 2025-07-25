@@ -11,50 +11,34 @@ class MetadataField(FlaskForm):
 
 class AgencyForm(FlaskForm):
     """Form for creating and editing transit agencies"""
-    
     # Basic Information
     name = StringField('Agency Name', 
                       validators=[DataRequired(message="Agency name is required"), 
                                 Length(max=100, message="Name must be less than 100 characters")])
-    
     location = StringField('Location', 
                           validators=[Optional(), Length(max=100)])
-    
     description = TextAreaField('Description', 
                                validators=[Optional(), Length(max=500)],
                                widget=TextArea())
-    
-    # Address & Location
     address_hq = TextAreaField('Headquarters Address', 
                               validators=[Optional(), Length(max=256)],
                               widget=TextArea())
-    
-    # Leadership
     ceo = StringField('Chief Executive Officer', 
                      validators=[Optional(), Length(max=128)])
-    
-    # Contact Information
     contact_name = StringField('Primary Contact Name', 
                               validators=[Optional(), Length(max=100)])
-    
     contact_email = EmailField('Primary Contact Email', 
                               validators=[Optional(), Email(message="Please enter a valid email address")])
-    
     contact_phone = TelField('Primary Contact Phone', 
                             validators=[Optional(), Length(max=50)])
-    
     phone_number = TelField('Main Phone Number', 
                            validators=[Optional(), Length(max=64)])
-    
-    # Web & Resources
     website = URLField('Official Website', 
                       validators=[Optional(), URL(message="Please enter a valid URL")])
-    
     transit_map_link = URLField('Transit Map URL', 
                               validators=[Optional(), URL(message="Please enter a valid URL")])
     
     # Dynamic metadata fields will be handled separately in the template and route
-    
     def populate_from_agency(self, agency):
         """Populate form with data from agency model"""
         self.name.data = agency.name
