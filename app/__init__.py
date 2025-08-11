@@ -41,5 +41,10 @@ def create_app(test_config=None):
     # register blueprints
     from app.routes.main import main as main_bp
     app.register_blueprint(main_bp)
+
+    from app.routes.agency import agency_bp
+    app.register_blueprint(agency_bp)
+    from app.routes.integrations import integration_bp
+    app.register_blueprint(integration_bp)
     
     return app

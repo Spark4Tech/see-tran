@@ -1,1 +1,21 @@
-<!-- app/templates/integrations.html -->
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Integrations</h1>
+  
+  {% if integrations %}
+    <ul>
+      {% for integration in integrations %}
+        <li>
+          <strong>{{ integration.name }}</strong> - {{ integration.description }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No integrations found.</p>
+  {% endif %}
+  
+  <p>
+    <a href="{{ url_for('integrations.new_integration') }}">Create New Integration</a>
+  </p>
+{% endblock %}

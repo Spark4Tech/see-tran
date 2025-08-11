@@ -1216,6 +1216,20 @@ def functional_area_details(functional_area_id):
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         
+        # Sort functions by criticality (high -> medium -> low) then by name
+        criticality_order = {'high': 1, 'medium': 2, 'low': 3}
+        sorted_functions = sorted(
+            functional_area.functions,
+            key=lambda f: (criticality_order.get(f.criticality.value, 4), f.name.lower())
+        )
+        
+        # Add component count for each function
+        for function in sorted_functions:
+            function.component_count = len(function.components)
+            function.agency_count = len(set(impl.agency for impl in function.agency_implementations))
+        
+        functional_area.sorted_functions = sorted_functions
+        
         return render_template('fragments/functional_area_details.html', 
                              functional_area=functional_area)
     except Exception as e:
