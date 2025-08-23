@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="max-w-3xl mx-auto px-4 py-16">
+  <div class="glass-effect rounded-2xl p-8 md:p-10">
+    <h2 class="text-2xl md:text-3xl font-bold mb-6">Sign in to See-Tran</h2>
+    <p class="text-slate-400 mb-8">Choose your organization provider. Email-only login is not available.</p>
+
+    <div class="space-y-4">
+      <a href="{{ url_for('auth.login_google') }}" class="w-full inline-flex items-center justify-center space-x-3 px-4 py-3 rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition shadow">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-5 h-5">
+        <span class="font-medium">Continue with Google</span>
+      </a>
+
+      <a href="{{ url_for('auth.login_microsoft') }}" class="w-full inline-flex items-center justify-center space-x-3 px-4 py-3 rounded-lg bg-[#2F2F2F] text-white hover:bg-black transition">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" class="w-5 h-5" aria-hidden="true"><path fill="#f35022" d="M1 1h10v10H1z"/><path fill="#80bb03" d="M12 1h10v10H12z"/><path fill="#02a4ef" d="M1 12h10v10H1z"/><path fill="#ffb903" d="M12 12h10v10H12z"/></svg>
+        <span class="font-medium">Continue with Microsoft</span>
+      </a>
+    </div>
+
+    <p class="text-xs text-slate-500 mt-6">By continuing, you agree to our Terms and acknowledge the Privacy Policy.</p>
+  </div>
+</section>
+{% endblock %}

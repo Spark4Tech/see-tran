@@ -16,6 +16,9 @@ def add_agency():
             return render_template('fragments/agency_form.html', form=form)
         agency = Agency()
         form.populate_agency(agency)
+        # Persist additional plain inputs not on the Flask-WTF form
+        agency.short_name = request.form.get('short_name') or None
+        agency.email_domain = form.email_domain.data or None
         db.session.add(agency)
         try:
             db.session.commit()

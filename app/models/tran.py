@@ -52,11 +52,12 @@ class Agency(db.Model):
     location = db.Column(db.String(100))
     description = db.Column(db.String(500))
     website = db.Column(db.String(255))
+    email_domain = db.Column(db.String(255))
     ceo = db.Column(db.String(128))
     address_hq = db.Column(db.String(256))
     phone_number = db.Column(db.String(64))
     transit_map_link = db.Column(db.String(256))
-    contact_email = db.Column(db.String(255)) #TODO: Create field to store agency email domain
+    contact_email = db.Column(db.String(255))
     contact_phone = db.Column(db.String(50))
     contact_name = db.Column(db.String(100))
     short_name = db.Column(db.String(50)) # TODO: use short name for constructing agency specific URLs for images, etc.

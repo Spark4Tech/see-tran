@@ -79,17 +79,19 @@
           <a href="/vendors" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Vendors</a>
           <a href="/integrations" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Integrations</a>
           <a href="/reports" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Reports</a>
+          {% if session.get('user') and session['user'].get('is_super_admin') %}
+            <a href="/admin" class="nav-link text-amber-300 hover:text-amber-200 text-sm font-medium">Admin</a>
+          {% endif %}
         </div>
 
         <!-- User Menu -->
         <div class="flex items-center space-x-4 ml-8">
-          <button class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
-            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </button>
-          <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+          {% if session.get('user') %}
+            <span class="text-sm text-slate-300 hidden sm:inline">{{ session['user']['email'] }}</span>
+            <a href="{{ url_for('auth.logout') }}" class="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 rounded">Logout</a>
+          {% else %}
+            <a href="{{ url_for('auth.login_page') }}" class="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 rounded">Login</a>
+          {% endif %}
         </div>
       </div>
     </div>

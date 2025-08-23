@@ -2,7 +2,7 @@
 <div class="glass-effect rounded-xl p-6 border border-slate-700/50 max-h-[90vh] overflow-y-auto">
   <div class="flex items-center justify-between mb-6 sticky top-0 bg-slate-800/90 backdrop-blur-sm z-10 py-2 -mt-2">
     <h2 class="text-xl font-bold text-white">
-      Add Agency
+      {{ 'Edit Agency' if agency else 'Add Agency' }}
     </h2>
     <button onclick="closeForm()"
             class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
@@ -10,7 +10,7 @@
     </button>
   </div>
 
-  <form action="{{ url_for('agency.add_agency') }}" method="POST" class="space-y-8">
+  <form action="{{ url_for('main.update_agency', agency_id=agency.id) if agency else url_for('agency.add_agency') }}" method="POST" class="space-y-8">
     {{ form.hidden_tag() }}
 
     <!-- Basic Information Section -->
@@ -24,7 +24,7 @@
           {{ form.name(class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors", placeholder="e.g., Metro Transit") }}
           <div class="mt-4">
             <label for="short_name" class="block text-sm font-medium text-slate-300 mb-2">Short Name</label>
-            <input type="text" id="short_name" name="short_name" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors">
+            <input type="text" id="short_name" name="short_name" value="{{ agency.short_name if agency else '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors">
           </div>
           {% for error in form.name.errors %}
             <span class="text-red-400 text-xs">{{ error }}</span>
@@ -37,6 +37,11 @@
         <div class="md:col-span-2">
           {{ form.description.label(class="block text-sm font-medium text-slate-300 mb-2") }}
           {{ form.description(class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors resize-vertical", placeholder="Brief description of the agency and its services") }}
+        </div>
+        <div class="md:col-span-1">
+          {{ form.email_domain.label(class="block text-sm font-medium text-slate-300 mb-2") }}
+          {{ form.email_domain(class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors", placeholder="e.g., agency.gov or transit.org") }}
+          <p class="text-xs text-slate-500 mt-1">Unvalidated text. Use for domain-based access rules.</p>
         </div>
       </div>
     </div>
@@ -118,7 +123,7 @@
           <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
           </svg>
-          Create Agency
+          {{ 'Update Agency' if agency else 'Create Agency' }}
         </button>
         <button type="button" onclick="closeForm()" 
                 class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">

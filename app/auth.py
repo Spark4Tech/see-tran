@@ -1,46 +1,193 @@
 # app/auth.py
 from functools import wraps
-from flask import request, jsonify, flash
+from flask import request, jsonify, flash, Blueprint, redirect, url_for, session, render_template, current_app, abort
+from authlib.integrations.flask_client import OAuth
+import os
+import secrets
 
-# TODO: Add Microsoft login
-# TODO: Add Google login
-# TODO: Validate user email at registration, must be domain associated with a transit agency in the system
+auth_bp = Blueprint('auth', __name__)
+_oauth = OAuth()
 
-def login():
-    pass
+# Initialize providers lazily to allow app context config
+@auth_bp.record_once
+def setup_oauth(state):
+    app = state.app
+    _oauth.init_app(app)
 
-def register():
-    pass
+    # Google OpenID Connect
+    _oauth.register(
+        name='google',
+        server_metadata_url=app.config.get('OAUTH_GOOGLE_DISCOVERY_URL'),
+        client_id=app.config.get('OAUTH_GOOGLE_CLIENT_ID'),
+        client_secret=app.config.get('OAUTH_GOOGLE_CLIENT_SECRET'),
+        client_kwargs={'scope': 'openid email profile'}
+    )
 
-def validate_email():
-    pass
+    # Microsoft (Azure AD common)
+    _oauth.register(
+        name='microsoft',
+        server_metadata_url=app.config.get('OAUTH_MS_DISCOVERY_URL'),
+        client_id=app.config.get('OAUTH_MS_CLIENT_ID'),
+        client_secret=app.config.get('OAUTH_MS_CLIENT_SECRET'),
+        client_kwargs={'scope': 'openid email profile'}
+    )
+
+
+def _get_next_url():
+    nxt = request.args.get('next') or request.cookies.get('next_url')
+    # Basic allowlist: only internal relative paths
+    if nxt and nxt.startswith('/') and not nxt.startswith('//'):
+        return nxt
+    return url_for('main.index')
+
+
+@auth_bp.route('/login')
+def login_page():
+    return render_template('login.html')
+
+
+@auth_bp.route('/login/google')
+def login_google():
+    state_token = secrets.token_urlsafe(16)
+    session['oauth_state'] = state_token
+    nonce = secrets.token_urlsafe(16)
+    session['oauth_nonce'] = nonce
+    redirect_uri = url_for('auth.auth_google_callback', _external=True)
+    return _oauth.google.authorize_redirect(redirect_uri, state=state_token, nonce=nonce)
+
+
+@auth_bp.route('/auth/google/callback')
+def auth_google_callback():
+    # Verify state
+    expected = session.pop('oauth_state', None)
+    received_state = request.args.get('state')
+    if not expected or expected != received_state:
+        flash('Invalid state parameter', 'error')
+        return redirect(url_for('auth.login_page'))
+    token = _oauth.google.authorize_access_token()
+    nonce = session.pop('oauth_nonce', None)
+    if not nonce:
+        flash('Invalid login session', 'error')
+        return redirect(url_for('auth.login_page'))
+    userinfo = _oauth.google.parse_id_token(token, nonce=nonce)
+    if not userinfo:
+        flash('Google login failed', 'error')
+        return redirect(url_for('auth.login_page'))
+
+    email = userinfo.get('email')
+    sub = userinfo.get('sub')
+    name = userinfo.get('name') or email
+
+    if not _email_allowed(email):
+        # Store for registration flow later
+        session['pending_email'] = email
+        return redirect(url_for('auth.registration_required'))
+
+    _establish_session(email=email, name=name, provider='google', sub=sub)
+    return redirect(_get_next_url())
+
+
+@auth_bp.route('/login/microsoft')
+def login_microsoft():
+    state_token = secrets.token_urlsafe(16)
+    session['oauth_state'] = state_token
+    redirect_uri = url_for('auth.auth_ms_callback', _external=True)
+    return _oauth.microsoft.authorize_redirect(redirect_uri, state=state_token)
+
+
+@auth_bp.route('/auth/microsoft/callback')
+def auth_ms_callback():
+    expected = session.pop('oauth_state', None)
+    token = _oauth.microsoft.authorize_access_token()
+    # Microsoft returns id_token inside token
+    userinfo = _oauth.microsoft.parse_id_token(token)
+    if not userinfo:
+        flash('Microsoft login failed', 'error')
+        return redirect(url_for('auth.login_page'))
+
+    # Emails may be in preferred_username or email claim
+    email = userinfo.get('email') or userinfo.get('preferred_username')
+    sub = userinfo.get('sub')
+    name = userinfo.get('name') or email
+
+    if not _email_allowed(email):
+        session['pending_email'] = email
+        return redirect(url_for('auth.registration_required'))
+
+    _establish_session(email=email, name=name, provider='microsoft', sub=sub)
+    return redirect(_get_next_url())
+
+
+@auth_bp.route('/registration-required')
+def registration_required():
+    email = session.get('pending_email')
+    return render_template('registration_required.html', email=email)
+
+
+@auth_bp.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out', 'success')
+    return redirect(url_for('main.index'))
+
+
+# Helpers
+
+def _email_allowed(email: str) -> bool:
+    if not email or '@' not in email:
+        return False
+    # Super admin bypass
+    super_admin = (email.lower() == (current_app.config.get('SUPER_ADMIN_EMAIL') or '').lower())
+    if super_admin:
+        return True
+    domain = email.split('@')[-1].lower()
+    # TODO: check against verified_agency_domains table when implemented
+    # For MVP allow everything from public transit-like domains and your sample agencies
+    allowed_domains = {
+        'c-tran.com', 'trimet.org', 'spokanetransit.com', 'kingcounty.gov',
+        'godurhamtransit.org', 'townofchapelhill.org', 'islandtransit.org', 'cota.com'
+    }
+    return domain in allowed_domains
+
+
+def _establish_session(*, email: str, name: str, provider: str, sub: str):
+    # Persist minimal identity in session for now
+    is_super_admin = (email.lower() == (current_app.config.get('SUPER_ADMIN_EMAIL') or '').lower())
+    session['user'] = {
+        'email': email,
+        'name': name,
+        'provider': provider,
+        'sub': sub,
+        'is_super_admin': is_super_admin,
+    }
+    session.permanent = True
+
 
 def login_required(f):
-    """
-    Authentication decorator - currently a no-op stub for development
-    Will be enhanced later with actual authentication logic
-    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # For now, just pass through - no authentication required
-        # TODO: Add actual authentication logic here
+        if not session.get('user'):
+            return redirect(url_for('auth.login_page', next=request.path))
         return f(*args, **kwargs)
     return decorated_function
 
+
+def super_admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        user = session.get('user')
+        if not user:
+            return redirect(url_for('auth.login_page', next=request.path))
+        if not user.get('is_super_admin'):
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper
+
+
 def get_current_user():
-    """
-    Get current user context - currently returns stub user
-    """
-    return {
-        'id': 1,
-        'username': 'Steve',
-        'display_name': 'Steve',
-        'email': 'steve.smith@c-tran.org'
-    }
+    return session.get('user')
+
 
 def get_updated_by():
-    """
-    Get the updated_by string for audit logging
-    """
     user = get_current_user()
-    return user['display_name']
+    return (user.get('name') if user else 'Anonymous')

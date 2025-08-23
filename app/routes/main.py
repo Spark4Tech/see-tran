@@ -1007,6 +1007,9 @@ def create_agency():
             agency = Agency()
             form.populate_agency(agency)
             agency.additional_metadata = additional_metadata if additional_metadata else None
+            # Handle plain inputs
+            agency.short_name = request.form.get('short_name') or None
+            agency.email_domain = form.email_domain.data or None
             
             db.session.add(agency)
             db.session.commit()
@@ -1050,6 +1053,9 @@ def update_agency(agency_id):
             # Update agency
             form.populate_agency(agency)
             agency.additional_metadata = additional_metadata if additional_metadata else None
+            # Handle plain inputs
+            agency.short_name = request.form.get('short_name') or agency.short_name
+            agency.email_domain = form.email_domain.data or None
             
             db.session.commit()
             

@@ -42,6 +42,8 @@ class Config:
     POSTMARK_SENDER_EMAIL = os.getenv('POSTMARK_SENDER_EMAIL')
     POSTMARK_NOTIFY_EMAIL = os.getenv('POSTMARK_NOTIFY_EMAIL')
 
+    SUPER_ADMIN_EMAIL = os.getenv('SUPER_ADMIN_EMAIL')
+
     CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
     CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
     CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-3-5-haiku-20241022')
@@ -66,6 +68,15 @@ class Config:
     TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER')
 
     SMS_TEST_PHONE_NUMBER = os.environ.get('SMS_TEST_PHONE_NUMBER', '+18084649192')
+
+    # OAuth settings
+    OAUTH_GOOGLE_CLIENT_ID = os.environ.get('OAUTH_GOOGLE_CLIENT_ID')
+    OAUTH_GOOGLE_CLIENT_SECRET = os.environ.get('OAUTH_GOOGLE_CLIENT_SECRET')
+    OAUTH_GOOGLE_DISCOVERY_URL = os.environ.get('OAUTH_GOOGLE_DISCOVERY_URL')
+
+    OAUTH_MS_CLIENT_ID = os.environ.get('OAUTH_MS_CLIENT_ID')
+    OAUTH_MS_CLIENT_SECRET = os.environ.get('OAUTH_MS_CLIENT_SECRET')
+    OAUTH_MS_DISCOVERY_URL = 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration'
 
 class DevelopmentConfig(Config):
     """Development configuration."""

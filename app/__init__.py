@@ -46,5 +46,13 @@ def create_app(test_config=None):
     app.register_blueprint(agency_bp)
     from app.routes.integrations import integration_bp
     app.register_blueprint(integration_bp)
+
+    # Register auth routes
+    from app.auth import auth_bp
+    app.register_blueprint(auth_bp)
+
+    # Register admin routes
+    from app.routes import admin as admin_bp
+    app.register_blueprint(admin_bp)
     
     return app

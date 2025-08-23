@@ -37,6 +37,7 @@ class AgencyForm(FlaskForm):
                       validators=[Optional(), URL(message="Please enter a valid URL")])
     transit_map_link = URLField('Transit Map URL', 
                               validators=[Optional(), URL(message="Please enter a valid URL")])
+    email_domain = StringField('Agency Email Domain', validators=[Optional(), Length(max=255)])
     
     # Dynamic metadata fields will be handled separately in the template and route
     def populate_from_agency(self, agency):
@@ -52,6 +53,7 @@ class AgencyForm(FlaskForm):
         self.phone_number.data = agency.phone_number
         self.website.data = agency.website
         self.transit_map_link.data = agency.transit_map_link
+        self.email_domain.data = agency.email_domain
     
     def populate_agency(self, agency):
         """Populate agency model with form data"""
@@ -66,6 +68,7 @@ class AgencyForm(FlaskForm):
         agency.phone_number = self.phone_number.data or None
         agency.website = self.website.data or None
         agency.transit_map_link = self.transit_map_link.data or None
+        agency.email_domain = (self.email_domain.data or None)
 
 class VendorForm(FlaskForm):
     name = StringField('Vendor Name', validators=[DataRequired(), Length(min=2, max=100)])
