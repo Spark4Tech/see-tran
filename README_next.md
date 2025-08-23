@@ -1,15 +1,73 @@
 TODO:
 
-1. Fix Function display from Functional Areas - when a user clicks on a functional area, they should see the list of functions under that area in a clean and aligned manner
-2. Fix Add Agency functionality - fix the error with adding an agency, only require required data, make sure all data can be included
-3. Add Integrations page - agency users can create and maintain integrations at their agency, and can add new integration standards
-4. Add Reports page - build initial Agency summary report; user can click a button can get a summary report with lots of good details in a web view, and can also click a button to download a CSV file
-5. Add Auth - for Office365 Microsoft, and Google Workspace; only email addresses that match an agency or a vendor can log into the account using the OAuth function with Microsoft and Google. User model needs to capture the user type [agency, vendor (others types in the future)]
-6. Add Edit controls - agency users should only be allowed to edit their own agency, based on the domain on their email account. vendor users should only be allowed to edit their own vendor record.
-7. Create Add Agency agent (search data, build json, get logo and header)
-- Configure agent to loop through a json agency list, with agency name and/or city
-- See data/agency_template for data structure created by agent
-- User can run agent manually, with a static json file of agencies
+See Tran - Transit Intelligence Platform
+Top 10 Enhancement Priorities
+1. Authentication & Authorization System 🔐
+Priority: CRITICAL - Foundation for everything else
+Currently you have auth stubs but no real implementation. This is essential for your business model.
+# Implement in app/auth.py
+- Microsoft/Google OAuth integration
+- Email domain validation against transit agencies
+- Role-based access (Reader/Admin per agency)
+- Vendor subscription validation
+- Public vs. authenticated content routing
+
+Impact: Enables your core business model and user segmentation Effort: Medium (OAuth libraries exist, domain validation needs agency database)
+2. Agency Registration & Validation Pipeline 🏛️
+Priority: HIGH - Enables user onboarding
+You need a way to validate that user email domains actually belong to legitimate transit agencies.
+# New models/tables needed:
+- VerifiedAgencyDomains (domain, agency_id, verification_status)
+- UserRegistrationRequests (email, agency_claim, status, verification_notes)
+- Add email_domain field to Agency model
+
+Implementation:
+Domain verification workflow for new agencies
+Manual approval process for edge cases
+Email validation during registration
+3. Component-Agency Relationship Management 🔧
+Priority: HIGH - Core functionality gap
+Your AgencyFunctionImplementation model exists but the UI doesn't support managing these relationships effectively.
+# Missing UI components:
+- Agency-specific component management interface
+- Component deployment wizard
+- Version tracking and update notifications
+- Status management (Active/Planned/Retired)
+- Bulk import from spreadsheets/GTFS
+
+Impact: This is the core value proposition - tracking what tech each agency uses Effort: Medium (models exist, need comprehensive UI)
+6. Enhanced Search & Discovery 🔍
+Priority: MEDIUM-HIGH - User experience
+Your current filtering is basic. Transit professionals need sophisticated discovery tools.
+# Enhanced search features:
+- Full-text search across components, vendors, functions
+- Advanced filtering (by agency size, geography, deployment date)
+- "Similar agencies" recommendations
+- Technology stack comparison tools
+- Integration compatibility matrix
+
+Impact: Makes the platform actually useful for research and decision-making Effort: Medium (leverage existing filter infrastructure)
+8. Agency Dashboard & Analytics 📈
+Priority: MEDIUM - Value-add for agencies
+Agencies need insights into their technology stack and industry trends.
+# Dashboard features:
+- Technology stack overview and gaps analysis
+- Vendor relationship summary
+- Peer comparison (anonymized)
+- Upgrade/replacement recommendations
+- Integration complexity scoring
+- Budget planning tools
+Data Model Enhancements Needed:
+User Management: Extend auth to include user profiles, agency affiliations, roles
+Data Provenance: Track who added/modified what data and when
+Vendor Products: More detailed product/service catalog structure
+Integration Standards: Better modeling of how systems connect
+Quick Wins to Start With:
+Implement basic OAuth - Gets you real users immediately
+Add CSV import for components - Enables rapid data population
+Create agency domain validation - Enables controlled user growth
+Build component-agency relationship UI - Delivers core value
+
 
 Goals: keep a consistent and clean user interface, easy to read, nicely styled with Tailwinds classes;
 use HTMX when it makes sense, avoid excessive javascript; this app is designed to appeal to operational and technology employees who work in the transit industry, and vendors who serve that industry
