@@ -1,0 +1,40 @@
+<!-- Step 4: Review & Confirm -->
+<div class="p-4">
+  <h3 class="text-white font-semibold mb-3">Review & Confirm</h3>
+  <div class="text-sm text-slate-300 mb-3">
+    <div><strong>Agency:</strong> {{ agency.name }}</div>
+    <div><strong>Function:</strong> {{ function.name }}</div>
+    <div><strong>Component:</strong> {{ component.name }}</div>
+    {% if selected_children %}
+      <div class="mt-2"><strong>Subcomponents:</strong>
+        <ul class="list-disc list-inside">
+          {% for child in selected_children %}
+            <li>{{ child.name }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    <div class="mt-2"><strong>Status:</strong> {{ status }}</div>
+    {% if deployment_date %}<div><strong>Deployment Date:</strong> {{ deployment_date }}</div>{% endif %}
+    {% if version %}<div><strong>Version:</strong> {{ version }}</div>{% endif %}
+    {% if deployment_notes %}<div><strong>Deployment Notes:</strong> {{ deployment_notes }}</div>{% endif %}
+    {% if implementation_notes %}<div><strong>Implementation Notes:</strong> {{ implementation_notes }}</div>{% endif %}
+  </div>
+
+  <form hx-post="/api/agencies/{{ agency.id }}/implementations" hx-target="#agency-details" hx-swap="innerHTML">
+    <input type="hidden" name="function_id" value="{{ function.id }}" />
+    <input type="hidden" name="component_id" value="{{ component.id }}" />
+    {% for child in selected_children %}
+      <input type="hidden" name="selected_child_ids" value="{{ child.id }}" />
+    {% endfor %}
+    <input type="hidden" name="status" value="{{ status }}" />
+    <input type="hidden" name="deployment_date" value="{{ deployment_date }}" />
+    <input type="hidden" name="version" value="{{ version }}" />
+    <input type="hidden" name="deployment_notes" value="{{ deployment_notes }}" />
+    <input type="hidden" name="implementation_notes" value="{{ implementation_notes }}" />
+
+    <div class="flex justify-end gap-2">
+      <button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm">Confirm & Create</button>
+    </div>
+  </form>
+</div>

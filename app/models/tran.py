@@ -194,16 +194,30 @@ class AgencyFunctionImplementation(db.Model):
     status = db.Column(db.String(50), default='Active')  # Active, Planned, Retired
     implementation_notes = db.Column(db.String(1000))
     additional_metadata = db.Column(db.JSON)
-    
+
+    # Composite deployment linkage (optional parent AFI for composite umbrella)
+    parent_afi_id = db.Column(
+        db.Integer,
+        db.ForeignKey('agency_function_implementations.id', ondelete='SET NULL'),
+        nullable=True
+    )
+
     # Relationships
     agency = db.relationship('Agency', back_populates='function_implementations')
     function = db.relationship('Function', back_populates='agency_implementations')  
     component = db.relationship('Component', back_populates='agency_usages')
+    parent_afi = db.relationship(
+        'AgencyFunctionImplementation',
+        remote_side=[id],
+        backref=db.backref('child_afis', cascade='all, delete-orphan')
+    )
     
-    # Unique constraint
+    # Unique constraint and helpful indexes
     __table_args__ = (
         db.UniqueConstraint('agency_id', 'function_id', 'component_id', 
                           name='uq_agency_function_component'),
+        db.Index('idx_afi_agency_function', 'agency_id', 'function_id'),
+        db.Index('ix_afi_parent_afi_id', 'parent_afi_id'),
     )
     
     def __repr__(self):
@@ -293,3 +307,27 @@ class UpdateLog(db.Model):
 
     def __repr__(self):
         return f"<UpdateLog(component_id={self.component_id}, updated_by={self.updated_by})>"
+
+class AgencyFunctionImplementationHistory(db.Model):
+    __tablename__ = 'agency_function_implementation_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    afi_id = db.Column(
+        db.Integer,
+        db.ForeignKey('agency_function_implementations.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    action = db.Column(db.String(50), nullable=False)  # created, updated, status_change, function_changed, deleted
+    changed_by = db.Column(db.String(100))
+    old_values = db.Column(db.JSON)
+    new_values = db.Column(db.JSON)
+
+    afi = db.relationship(
+        'AgencyFunctionImplementation',
+        backref=db.backref('history_entries', cascade='all, delete-orphan')
+    )
+
+    def __repr__(self):
+        return f"<AFIHistory(afi_id={self.afi_id}, action={self.action}, timestamp={self.timestamp})>"

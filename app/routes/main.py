@@ -13,7 +13,14 @@ from app.utils.errors import (
     html_error_fragment, html_success_fragment,
     json_form_error_response
 )
+from app.utils.afi import (
+    create_afi_with_optional_children,
+    component_supports_function,
+    get_children_supporting_function,
+    record_afi_history,
+)
 from sqlalchemy import func, case, distinct
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 
 main = Blueprint("main", __name__)
@@ -1535,3 +1542,388 @@ def component_integration_details(component_id):
         return html
     except Exception as e:
         return f'<div class="text-center py-4"><span class="text-red-400 text-sm">Error loading integrations</span></div>'
+
+@main.route("/api/agencies/<int:agency_id>/implementations", methods=["POST"])  # Create AFI (parent + optional children)
+@login_required
+def create_agency_implementation(agency_id: int):
+    try:
+        agency = Agency.query.get_or_404(agency_id)
+        function_id = int(request.form.get('function_id'))
+        component_id = int(request.form.get('component_id'))
+        selected_child_ids = request.form.getlist('selected_child_ids[]') or request.form.getlist('selected_child_ids')
+        selected_child_ids = [int(cid) for cid in selected_child_ids] if selected_child_ids else None
+
+        function = Function.query.get_or_404(function_id)
+        component = Component.query.get_or_404(component_id)
+
+        # Collect details
+        details = {
+            'status': request.form.get('status') or 'Active',
+            'deployment_date': (datetime.strptime(request.form.get('deployment_date'), '%Y-%m-%d').date()
+                                if request.form.get('deployment_date') else None),
+            'version': request.form.get('version') or None,
+            'deployment_notes': request.form.get('deployment_notes') or None,
+            'implementation_notes': request.form.get('implementation_notes') or None,
+            'additional_metadata': None,
+        }
+
+        # If non-composite or a child is chosen, ensure compatibility
+        if not component.is_composite:
+            if not component_supports_function(component, function):
+                return html_error_fragment("Selected component does not implement the chosen function.")
+        # For composite parent, children will be validated per-child in util
+
+        # Create AFI(s)
+        create_afi_with_optional_children(
+            agency=agency,
+            function=function,
+            component=component,
+            details=details,
+            selected_child_ids=selected_child_ids
+        )
+        db.session.commit()
+
+        # Return refreshed agency details into the right panel
+        agency.header_url = url_for('static', filename=f'images/transit_headers/{agency.short_name.lower().replace(" ", "_")}_header.png') if agency.short_name else None
+        return render_template('fragments/agency_details.html', agency=agency)
+
+    except IntegrityError as ie:
+        db.session.rollback()
+        return html_error_fragment("This implementation already exists for the agency/function/component.")
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error creating implementation: {str(e)}")
+
+
+@main.route("/api/wizard/afi/step1")
+@login_required
+def wizard_afi_step1():
+    try:
+        agency_id = int(request.args.get('agency_id'))
+        component_id = request.args.get('component_id')
+        agency = Agency.query.get_or_404(agency_id)
+        functional_areas = FunctionalArea.query.order_by(FunctionalArea.name).all()
+        preselected_component = Component.query.get(int(component_id)) if component_id else None
+        return render_template('fragments/wizard_afi_step1.html',
+                               agency=agency,
+                               functional_areas=functional_areas,
+                               preselected_component=preselected_component)
+    except Exception as e:
+        return html_error_fragment(f"Error loading wizard: {str(e)}")
+
+
+@main.route("/api/wizard/afi/step2")
+@login_required
+def wizard_afi_step2():
+    try:
+        agency_id = int(request.args.get('agency_id'))
+        function_id = int(request.args.get('function_id'))
+        search = (request.args.get('component_search') or '').strip()
+        vendor_id = request.args.get('vendor_id')
+        preselected_component_id = request.args.get('component_id')
+
+        agency = Agency.query.get_or_404(agency_id)
+        function = Function.query.get_or_404(function_id)
+
+        # Components that directly implement the function
+        direct_components = db.session.query(Component).join(Component.functions)\
+            .filter(Function.id == function_id)
+        
+        # Optional filters
+        if vendor_id:
+            try:
+                vid = int(vendor_id)
+                direct_components = direct_components.filter(Component.vendor_id == vid)
+            except ValueError:
+                pass
+        if search:
+            direct_components = direct_components.filter(Component.name.ilike(f"%{search}%"))
+        direct_components = direct_components.distinct().order_by(Component.name).all()
+
+        # Composite parents with children that implement the function
+        # Strategy: find children implementing the function, collect their parents
+        children_q = db.session.query(Component).join(Component.functions)\
+            .filter(Function.id == function_id, Component.parent_component_id.isnot(None))
+        if vendor_id:
+            try:
+                vid = int(vendor_id)
+                children_q = children_q.filter(Component.vendor_id == vid)
+            except ValueError:
+                pass
+        if search:
+            children_q = children_q.filter(Component.name.ilike(f"%{search}%"))
+        child_components = children_q.all()
+        parents_map = {}
+        for child in child_components:
+            parent = child.parent_component
+            if not parent:
+                continue
+            parents_map.setdefault(parent.id, {'parent': parent, 'children': []})
+            if child not in parents_map[parent.id]['children']:
+                parents_map[parent.id]['children'].append(child)
+        composite_parents = list(parents_map.values())
+
+        preselected_component = Component.query.get(int(preselected_component_id)) if preselected_component_id else None
+
+        return render_template('fragments/wizard_afi_step2_components.html',
+                               agency=agency,
+                               function=function,
+                               direct_components=direct_components,
+                               composite_parents=composite_parents,
+                               preselected_component=preselected_component)
+    except Exception as e:
+        return html_error_fragment(f"Error loading components: {str(e)}")
+
+
+@main.route("/api/wizard/afi/step3")
+@login_required
+def wizard_afi_step3():
+    try:
+        agency_id = int(request.args.get('agency_id'))
+        function_id = int(request.args.get('function_id'))
+        component_id = int(request.args.get('component_id'))
+        selected_child_ids = request.args.getlist('selected_child_ids') or request.args.getlist('selected_child_ids[]')
+        
+        agency = Agency.query.get_or_404(agency_id)
+        function = Function.query.get_or_404(function_id)
+        component = Component.query.get_or_404(component_id)
+        selected_children = []
+        if selected_child_ids:
+            child_ids_int = [int(cid) for cid in selected_child_ids]
+            selected_children = Component.query.filter(Component.id.in_(child_ids_int)).all()
+        return render_template('fragments/wizard_afi_step3_details.html',
+                               agency=agency,
+                               function=function,
+                               component=component,
+                               selected_children=selected_children)
+    except Exception as e:
+        return html_error_fragment(f"Error loading details: {str(e)}")
+
+
+@main.route("/api/wizard/afi/step4")
+@login_required
+def wizard_afi_step4():
+    try:
+        # Pass-through all params to final review
+        agency_id = int(request.args.get('agency_id'))
+        function_id = int(request.args.get('function_id'))
+        component_id = int(request.args.get('component_id'))
+        selected_child_ids = request.args.getlist('selected_child_ids') or request.args.getlist('selected_child_ids[]')
+        status = request.args.get('status') or 'Active'
+        deployment_date = request.args.get('deployment_date') or ''
+        version = request.args.get('version') or ''
+        deployment_notes = request.args.get('deployment_notes') or ''
+        implementation_notes = request.args.get('implementation_notes') or ''
+
+        agency = Agency.query.get_or_404(agency_id)
+        function = Function.query.get_or_404(function_id)
+        component = Component.query.get_or_404(component_id)
+        selected_children = []
+        if selected_child_ids:
+            child_ids_int = [int(cid) for cid in selected_child_ids]
+            selected_children = Component.query.filter(Component.id.in_(child_ids_int)).all()
+
+        return render_template('fragments/wizard_afi_step4_review.html',
+                               agency=agency,
+                               function=function,
+                               component=component,
+                               selected_children=selected_children,
+                               status=status,
+                               deployment_date=deployment_date,
+                               version=version,
+                               deployment_notes=deployment_notes,
+                               implementation_notes=implementation_notes)
+    except Exception as e:
+        return html_error_fragment(f"Error loading review: {str(e)}")
+
+
+@main.route("/api/components/<int:component_id>/children")
+@login_required
+def component_children_for_function(component_id):
+    try:
+        function_id = int(request.args.get('function_id'))
+        function = Function.query.get_or_404(function_id)
+        component = Component.query.get_or_404(component_id)
+        children = component.child_components or []
+        html = ''
+        for child in children:
+            supports = component_supports_function(child, function)
+            disabled_attr = '' if supports else 'disabled'
+            note = '' if supports else '<span class="text-xs text-slate-500 ml-1">(does not implement)</span>'
+            html += f'<label class="flex items-center space-x-2 py-1"><input type="checkbox" name="selected_child_ids" value="{child.id}" {disabled_attr} class="accent-blue-500"/><span class="text-sm text-slate-200">{child.name}</span>{note}</label>'
+        if not html:
+            html = '<div class="text-sm text-slate-400">No subcomponents</div>'
+        return html
+    except Exception as e:
+        return html_error_fragment(f"Error loading children: {str(e)}")
+
+@main.route('/api/options/functions')
+@login_required
+def options_functions():
+    try:
+        fa_id = request.args.get('functional_area_id') or request.args.get('fa_id')
+        if not fa_id:
+            return '<option value="">Select a function</option>'
+        fid = int(fa_id)
+        functions = Function.query.filter_by(functional_area_id=fid).order_by(Function.name).all()
+        html = '<option value="">Select a function</option>'
+        for f in functions:
+            html += f'<option value="{f.id}">{f.name}</option>'
+        return html
+    except Exception:
+        return '<option value="">Select a function</option>'
+
+@main.route('/api/implementations/<int:impl_id>/edit')
+@login_required
+def afi_edit_form(impl_id: int):
+    try:
+        impl = AgencyFunctionImplementation.query.get_or_404(impl_id)
+        # Load functions list for select (by FA of current function to keep concise)
+        functional_areas = FunctionalArea.query.order_by(FunctionalArea.name).all()
+        functions = Function.query.order_by(Function.name).all()
+        return render_template('fragments/afi_edit_form.html', impl=impl, functions=functions, functional_areas=functional_areas)
+    except Exception as e:
+        return html_error_fragment(f"Error loading edit form: {str(e)}")
+
+
+@main.route('/api/implementations/<int:impl_id>', methods=['POST'])
+@login_required
+def afi_update(impl_id: int):
+    try:
+        impl = AgencyFunctionImplementation.query.get_or_404(impl_id)
+        old = {
+                       'function_id': impl.function_id,
+            'status': impl.status,
+            'version': impl.version,
+            'deployment_date': impl.deployment_date.isoformat() if impl.deployment_date else None,
+            'deployment_notes': impl.deployment_notes,
+            'implementation_notes': impl.implementation_notes,
+        }
+        # Optional function change
+        function_id = request.form.get('function_id')
+        if function_id:
+            new_function = Function.query.get(int(function_id))
+            if not new_function:
+                return html_error_fragment('Invalid function selected')
+            # Validate compatibility for non-parent, non-composite component
+            is_parent = bool(impl.child_afis)
+            if (not is_parent) and (not impl.component.is_composite) and (not component_supports_function(impl.component, new_function)):
+                return html_error_fragment('Component does not implement the selected function')
+            impl.function_id = new_function.id
+        # Other fields
+        impl.status = request.form.get('status') or impl.status
+        dd = request.form.get('deployment_date')
+        impl.deployment_date = datetime.strptime(dd, '%Y-%m-%d').date() if dd else None
+        impl.version = request.form.get('version') or None
+        impl.deployment_notes = request.form.get('deployment_notes') or None
+        impl.implementation_notes = request.form.get('implementation_notes') or None
+
+        db.session.flush()
+        new = {
+            'function_id': impl.function_id,
+            'status': impl.status,
+            'version': impl.version,
+            'deployment_date': impl.deployment_date.isoformat() if impl.deployment_date else None,
+            'deployment_notes': impl.deployment_notes,
+            'implementation_notes': impl.implementation_notes,
+        }
+        action = 'function_changed' if old['function_id'] != new['function_id'] else 'updated'
+        record_afi_history(impl, action, old_values=old, new_values=new)
+        db.session.commit()
+        # Return updated row
+        return render_template('fragments/afi_row.html', impl=impl)
+    except IntegrityError:
+        db.session.rollback()
+        return html_error_fragment('Update violates uniqueness or constraints')
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error updating implementation: {str(e)}")
+
+
+@main.route('/api/implementations/<int:impl_id>/status', methods=['POST'])
+@login_required
+def afi_update_status(impl_id: int):
+    try:
+        impl = AgencyFunctionImplementation.query.get_or_404(impl_id)
+        old_status = impl.status
+        new_status = request.form.get('status')
+        if new_status not in ('Active', 'Planned', 'Retired'):
+            return html_error_fragment('Invalid status')
+        impl.status = new_status
+        db.session.flush()
+        record_afi_history(impl, 'status_change', old_values={'status': old_status}, new_values={'status': new_status})
+        db.session.commit()
+        return render_template('fragments/afi_row.html', impl=impl)
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error updating status: {str(e)}")
+
+
+@main.route('/api/implementations/<int:impl_id>', methods=['DELETE'])
+@login_required
+def afi_delete(impl_id: int):
+    try:
+        impl = AgencyFunctionImplementation.query.get_or_404(impl_id)
+        old = {
+            'agency_id': impl.agency_id,
+            'function_id': impl.function_id,
+            'component_id': impl.component_id,
+            'status': impl.status,
+            'version': impl.version,
+        }
+        afi_id_for_history = impl.id
+        db.session.delete(impl)
+        db.session.flush()
+        # Create a manual history row after delete
+        from app.models.tran import AgencyFunctionImplementationHistory
+        hist = AgencyFunctionImplementationHistory(
+            afi_id=afi_id_for_history,
+            action='deleted',
+            changed_by=get_updated_by(),
+            old_values=old,
+            new_values=None,
+        )
+        db.session.add(hist)
+        db.session.commit()
+        return ''  # Let HTMX remove the row via hx-swap=outerHTML
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error deleting implementation: {str(e)}")
+
+
+@main.route('/api/implementations/<int:parent_id>/child/<int:child_id>', methods=['DELETE'])
+@login_required
+def afi_remove_child(parent_id: int, child_id: int):
+    try:
+        # Ensure parent exists
+        parent = AgencyFunctionImplementation.query.get_or_404(parent_id)
+        # Ensure child belongs to parent
+        child = AgencyFunctionImplementation.query.get_or_404(child_id)
+        if child.parent_afi_id != parent.id:
+            return html_error_fragment('Child does not belong to this composite')
+        # Remove child
+        from app.utils.afi import remove_child_afi
+        ok = remove_child_afi(child_id)
+        if not ok:
+            db.session.rollback()
+            return html_error_fragment('Unable to remove child implementation')
+        db.session.commit()
+        # Return refreshed parent row or agency details; choose parent row refresh
+        parent = AgencyFunctionImplementation.query.get(parent_id)
+        return render_template('fragments/afi_row.html', impl=parent)
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error removing subcomponent: {str(e)}")
+
+
+@main.route('/api/implementations/<int:impl_id>/history')
+@login_required
+def afi_history(impl_id: int):
+    try:
+        impl = AgencyFunctionImplementation.query.get_or_404(impl_id)
+        entries = impl.history_entries
+        # Sort newest first
+        entries = sorted(entries, key=lambda h: h.timestamp or datetime.min, reverse=True)
+        return render_template('fragments/afi_history.html', impl=impl, entries=entries)
+    except Exception as e:
+        return html_error_fragment(f"Error loading history: {str(e)}")

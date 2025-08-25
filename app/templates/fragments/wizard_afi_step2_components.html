@@ -1,0 +1,64 @@
+<!-- Step 2: Pick Component (with composites) -->
+<div class="p-4">
+  <h3 class="text-white font-semibold mb-3">Select Component for {{ function.name }}</h3>
+  <form hx-get="/api/wizard/afi/step3" hx-target="#wizard-body" hx-swap="innerHTML">
+    <input type="hidden" name="agency_id" value="{{ agency.id }}" />
+    <input type="hidden" name="function_id" value="{{ function.id }}" />
+
+    <div class="flex gap-2 mb-3">
+      <input type="text" name="component_search" class="flex-1 bg-slate-800 border border-slate-700 rounded p-2 text-slate-200" placeholder="Search components"/>
+    </div>
+
+    {% if preselected_component %}
+      <input type="hidden" name="component_id" value="{{ preselected_component.id }}" />
+      <div class="mb-3 text-sm text-slate-300">Preselected: {{ preselected_component.name }}</div>
+    {% else %}
+      <div class="mb-3">
+        <h4 class="text-slate-300 text-sm mb-2">Directly Implementing Components</h4>
+        <div class="space-y-1">
+          {% for c in direct_components %}
+            <label class="flex items-center gap-2">
+              <input type="radio" name="component_id" value="{{ c.id }}" class="accent-blue-500"/>
+              <span class="text-sm text-slate-200">{{ c.name }}</span>
+            </label>
+          {% endfor %}
+          {% if not direct_components %}
+            <div class="text-sm text-slate-500">None found</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <h4 class="text-slate-300 text-sm mb-2">Composite Components with Eligible Children</h4>
+        <div class="space-y-2">
+          {% for item in composite_parents %}
+            <div class="p-2 border border-slate-700 rounded">
+              <label class="flex items-center gap-2 mb-2">
+                <input type="radio" name="component_id" value="{{ item.parent.id }}" class="accent-blue-500"/>
+                <span class="text-sm text-slate-200">{{ item.parent.name }} <span class="text-xs text-blue-400">(composite)</span></span>
+              </label>
+              <div class="ml-5">
+                <div class="text-xs text-slate-400 mb-1">Select subcomponents to install</div>
+                <div class="space-y-1">
+                  {% for child in item.children %}
+                    <label class="flex items-center gap-2">
+                      <input type="checkbox" name="selected_child_ids" value="{{ child.id }}" class="accent-blue-500" checked/>
+                      <span class="text-xs text-slate-200">{{ child.name }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+          {% if not composite_parents %}
+            <div class="text-sm text-slate-500">No composite options</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="flex justify-end gap-2">
+      <button type="submit" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">Next</button>
+    </div>
+  </form>
+</div>

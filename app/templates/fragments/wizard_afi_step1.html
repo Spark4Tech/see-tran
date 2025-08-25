@@ -1,0 +1,28 @@
+<!-- Step 1: Choose Functional Area and Function -->
+<div class="p-4">
+  <h3 class="text-white font-semibold mb-3">Attach a Component to an Agency Function</h3>
+  <form hx-get="/api/wizard/afi/step2" hx-target="#wizard-body" hx-swap="innerHTML">
+    <input type="hidden" name="agency_id" value="{{ agency.id }}" />
+    {% if preselected_component %}
+      <input type="hidden" name="component_id" value="{{ preselected_component.id }}" />
+      <div class="mb-2 text-sm text-slate-300">Component: {{ preselected_component.name }}</div>
+    {% endif %}
+    <label class="block text-sm text-slate-300 mb-1">Functional Area</label>
+    <select name="functional_area_id" id="functional_area_id" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200 mb-3"
+            hx-get="/api/options/functions" hx-target="#function-select" hx-swap="innerHTML" hx-include="[name=functional_area_id]">
+      <option value="">Select a Functional Area</option>
+      {% for fa in functional_areas %}
+        <option value="{{ fa.id }}">{{ fa.name }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="block text-sm text-slate-300 mb-1">Function</label>
+    <select name="function_id" id="function-select" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200 mb-4">
+      <option value="">Select a function</option>
+    </select>
+
+    <div class="flex justify-end gap-2">
+      <button type="submit" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">Next</button>
+    </div>
+  </form>
+</div>

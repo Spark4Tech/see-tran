@@ -91,22 +91,43 @@ def auth_google_callback():
 def login_microsoft():
     state_token = secrets.token_urlsafe(16)
     session['oauth_state'] = state_token
+    # Add a nonce for MS as well
+    nonce = secrets.token_urlsafe(16)
+    session['oauth_nonce'] = nonce
     redirect_uri = url_for('auth.auth_ms_callback', _external=True)
-    return _oauth.microsoft.authorize_redirect(redirect_uri, state=state_token)
-
+    # Include the nonce and any optional prompt
+    return _oauth.microsoft.authorize_redirect(
+        redirect_uri,
+        state=state_token,
+        nonce=nonce,
+        # optional but useful:
+        prompt='select_account'  # helps users who have multiple work accounts
+    )
 
 @auth_bp.route('/auth/microsoft/callback')
 def auth_ms_callback():
-    expected = session.pop('oauth_state', None)
+    expected_state = session.pop('oauth_state', None)
+    received_state = request.args.get('state')
+    if not expected_state or expected_state != received_state:
+        flash('Invalid state parameter', 'error')
+        return redirect(url_for('auth.login_page'))
+
     token = _oauth.microsoft.authorize_access_token()
-    # Microsoft returns id_token inside token
-    userinfo = _oauth.microsoft.parse_id_token(token)
+
+    nonce = session.pop('oauth_nonce', None)
+    if not nonce:
+        flash('Invalid login session', 'error')
+        return redirect(url_for('auth.login_page'))
+
+    # Validate the ID token and nonce
+    userinfo = _oauth.microsoft.parse_id_token(token, nonce=nonce)
     if not userinfo:
         flash('Microsoft login failed', 'error')
         return redirect(url_for('auth.login_page'))
 
-    # Emails may be in preferred_username or email claim
-    email = userinfo.get('email') or userinfo.get('preferred_username')
+    email = (userinfo.get('email')
+             or userinfo.get('preferred_username')
+             or userinfo.get('upn'))  # some tenants use upn
     sub = userinfo.get('sub')
     name = userinfo.get('name') or email
 
@@ -145,7 +166,16 @@ def _email_allowed(email: str) -> bool:
     # For MVP allow everything from public transit-like domains and your sample agencies
     allowed_domains = {
         'c-tran.com', 'trimet.org', 'spokanetransit.com', 'kingcounty.gov',
-        'godurhamtransit.org', 'townofchapelhill.org', 'islandtransit.org', 'cota.com'
+        'godurhamtransit.org', 'townofchapelhill.org', 'islandtransit.org', 'cota.com',
+        'voice4equity.com', 'actransit.org', 'sfmta.com', 'bart.gov', 'mtc.ca.gov',
+        'transit.511.org', 'septa.org', 'njtransit.com', 'mbta.com',
+        'soundtransit.org', 'metro.net', 'rtams.org', 'rtd-denver.com',
+        'trimet.org', 'actransit.org', 'wmata.com', 'metrotransit.org',
+        'cityofchicago.org', 'chicagotransit.com', 'psta.net', 'pinellascounty.org',
+        'hillsboroughcounty.org', 'hctransit.com', 'goforwardtampa.org', 'tampa-xway.com',
+        'louisvilleky.gov', 'rtaonline.org', 'ridetarc.org', 'indianatransit.org',
+        'indymetro.com', 'cityofevansville.org', 'go-metro.com', 'transitalliance.org',
+        'cityofmadison.com', 'cityofmilwaukee.com'
     }
     return domain in allowed_domains
 

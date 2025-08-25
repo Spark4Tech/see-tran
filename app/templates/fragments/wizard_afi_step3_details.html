@@ -1,0 +1,43 @@
+<!-- Step 3: Deployment Details -->
+<div class="p-4">
+  <h3 class="text-white font-semibold mb-3">Set Deployment Details</h3>
+  <form hx-get="/api/wizard/afi/step4" hx-target="#wizard-body" hx-swap="innerHTML">
+    <input type="hidden" name="agency_id" value="{{ agency.id }}" />
+    <input type="hidden" name="function_id" value="{{ function.id }}" />
+    <input type="hidden" name="component_id" value="{{ component.id }}" />
+    {% for child in selected_children %}
+      <input type="hidden" name="selected_child_ids" value="{{ child.id }}" />
+    {% endfor %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Status</label>
+        <select name="status" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200">
+          <option value="Active">Active</option>
+          <option value="Planned">Planned</option>
+          <option value="Retired">Retired</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Deployment Date</label>
+        <input type="date" name="deployment_date" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200"/>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Version</label>
+        <input type="text" name="version" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200"/>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Deployment Notes</label>
+        <input type="text" name="deployment_notes" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200"/>
+      </div>
+    </div>
+    <div class="mt-3">
+      <label class="block text-sm text-slate-300 mb-1">Implementation Notes</label>
+      <textarea name="implementation_notes" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-200"></textarea>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button type="submit" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">Review</button>
+    </div>
+  </form>
+</div>

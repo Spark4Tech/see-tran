@@ -23,13 +23,19 @@
               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
         Edit
       </button>
+      <button hx-get="/api/wizard/afi/step1?agency_id={{ agency.id }}" hx-target="#wizard-body" hx-swap="innerHTML"
+              class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 rounded text-sm transition-colors">
+        + Add Implementation
+      </button>
       <button onclick="closeAgencyDetails()"
               class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
         ✕ Close
       </button>
     </div>
   </div>
-  
+
+  <div id="wizard-body"></div>
+
   <div class="space-y-6">
     <!-- Basic Information Section -->
     <div class="bg-slate-700/30 rounded-lg p-4">
