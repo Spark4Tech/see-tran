@@ -1,6 +1,6 @@
 # app/auth.py
 from functools import wraps
-from flask import request, jsonify, flash, Blueprint, redirect, url_for, session, render_template, current_app, abort
+from flask import request, jsonify, flash, Blueprint, redirect, url_for, session, render_template, current_app, abort, make_response
 from authlib.integrations.flask_client import OAuth
 import os
 import secrets
@@ -197,7 +197,13 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('user'):
-            return redirect(url_for('auth.login_page', next=request.path))
+            login_url = url_for('auth.login_page', next=request.path)
+            # If HTMX request, send HX-Redirect header with 401 (so client does a GET to login)
+            if request.headers.get('HX-Request') == 'true':
+                resp = make_response('', 401)
+                resp.headers['HX-Redirect'] = login_url
+                return resp
+            return redirect(login_url)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -207,8 +213,16 @@ def super_admin_required(f):
     def wrapper(*args, **kwargs):
         user = session.get('user')
         if not user:
-            return redirect(url_for('auth.login_page', next=request.path))
+            login_url = url_for('auth.login_page', next=request.path)
+            if request.headers.get('HX-Request') == 'true':
+                resp = make_response('', 401)
+                resp.headers['HX-Redirect'] = login_url
+                return resp
+            return redirect(login_url)
         if not user.get('is_super_admin'):
+            # For HTMX, return 403 so client can handle gracefully
+            if request.headers.get('HX-Request') == 'true':
+                return make_response('Forbidden', 403)
             abort(403)
         return f(*args, **kwargs)
     return wrapper

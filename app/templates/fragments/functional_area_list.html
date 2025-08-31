@@ -1,15 +1,15 @@
 <!-- app/templates/fragments/functional_area_list.html -->
 {% if functional_areas %}
   {% for area in functional_areas %}
-  <div class="functional-area-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
-       hx-get="/api/functional-areas/{{ area.id }}/details" hx-target="#functional-area-details" hx-swap="innerHTML">
-    <div class="flex items-start justify-between mb-4">
+  <div class="functional-area-card bg-slate-800/50 rounded-lg border border-slate-700/30 hover:bg-slate-800/70 transition-all cursor-pointer"
+       hx-get="/api/functional-areas/{{ area.id }}/details" hx-target="#fa-details-{{ area.id }}" hx-swap="innerHTML" hx-trigger="click">
+    <div class="flex items-start justify-between p-6">
       <div class="flex-1">
         <h3 class="font-semibold text-white text-lg mb-2">{{ area.name }}</h3>
         {% if area.description %}
-        <p class="text-slate-300 text-sm mb-3">{{ area.description }}</p>
+        <p class="text-slate-200 text-base mb-3">{{ area.description }}</p>
         {% endif %}
-        <div class="flex items-center space-x-4 text-xs text-slate-400">
+        <div class="flex items-center space-x-4 text-sm text-slate-300">
           <span>🔧 {{ area.functions|length }} functions</span>
           <span>🌍 Global (All Agencies)</span>
         </div>
@@ -18,21 +18,16 @@
         <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-2">
           <span class="text-lg font-bold text-white">{{ area.functions|length }}</span>
         </div>
-        <div class="text-xs text-slate-500 text-center">Functions</div>
+        <div class="text-xs text-slate-500 text-center mb-2">Functions</div>
+        <button class="text-xs text-slate-300 hover:text-white transition-colors px-2 py-1 border border-slate-600 rounded"
+                hx-get="/api/functional-areas/{{ area.id }}/form" hx-target="#functional-area-form-container" hx-swap="innerHTML"
+                onclick="event.stopPropagation()">
+          Edit
+        </button>
       </div>
     </div>
-    
-    <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
-      <div class="flex items-center space-x-2">
-        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-        <span class="text-xs text-slate-400">Active</span>
-      </div>
-      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              hx-get="/api/functional-areas/{{ area.id }}/form" hx-target="#functional-area-details" hx-swap="innerHTML"
-              onclick="event.stopPropagation()">
-        Edit
-      </button>
-    </div>
+    <!-- Inline expandable details container -->
+    <div id="fa-details-{{ area.id }}" class="border-t border-slate-700/30"></div>
   </div>
   {% endfor %}
 {% else %}
