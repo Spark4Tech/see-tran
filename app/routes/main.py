@@ -98,6 +98,7 @@ def components_list():
         vendor = request.args.get('vendor')
         agency = request.args.get('agency')
         status = request.args.get('status')
+        search = (request.args.get('search') or '').strip()
         
         # Start with components and their implementations
         query = db.session.query(Component).distinct()
@@ -122,6 +123,9 @@ def components_list():
                 query = query.filter(Component.known_issues.isnot(None))
             elif status == 'no_issues':
                 query = query.filter(Component.known_issues.is_(None))
+        
+        if search:
+            query = query.filter(Component.name.ilike(f"%{search}%"))
         
         components = query.all()
         
@@ -151,33 +155,30 @@ def components_list():
                 functions_display += " +more"
 
             html += f'''
-            <div class="component-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-4 hover:bg-slate-800/70 transition-all cursor-pointer"
-                 data-component-id="{component.id}"
-                 hx-get="/api/components/{component.id}/details" hx-target="#component-details" hx-swap="innerHTML">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center space-x-3 mb-2">
-                            <div class="w-3 h-3 bg-{status_indicator}-500 rounded-full"></div>
-                            <h3 class="font-semibold text-white text-lg">{component.name}</h3>
+            <a href="/components/{component.id}" aria-label="View details for {component.name}"
+               class="group block rounded-xl bg-slate-900/60 border border-slate-600/40 hover:bg-slate-900/80 hover:border-slate-300/50 ring-1 ring-slate-900/20 hover:ring-slate-300/20 shadow-sm hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <div class="flex items-start justify-between gap-3 p-4 sm:p-5">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-{status_indicator}-400 ring-2 ring-{status_indicator}-400/30"></span>
+                            <h3 class="truncate text-white text-lg sm:text-xl font-semibold tracking-tight">{component.name}</h3>
+                            {f'<span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">Composite</span>' if getattr(component, 'is_composite', False) else ''}
                         </div>
-                        <p class="text-slate-300 text-sm mb-2">{functions_display or 'No functions assigned'}</p>
-                        <div class="flex items-center space-x-4 text-xs text-slate-400">
-                            <span>🏢 {vendor_name}</span>
-                            <span>🏛️ {agencies_display or 'No agencies'}</span>
-                            <span>📅 {component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else 'No Date'}</span>
+                        <p class="text-slate-300 text-sm sm:text-base leading-snug">{functions_display or 'No functions assigned'}</p>
+                        <div class="mt-3 h-px bg-slate-700/60"></div>
+                        <div class="mt-3 flex flex-wrap gap-2 text-xs sm:text-sm text-slate-200">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-600/40"><span>🏢</span><span class="text-slate-300">{vendor_name}</span></span>
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-600/40"><span>🏛️</span><span class="text-slate-300">{agencies_display or 'No agencies'}</span></span>
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-600/40"><span>📅</span><span class="text-slate-300">{component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else 'No Date'}</span></span>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="bg-slate-700 px-2 py-1 rounded text-xs text-slate-300 mb-2">
-                            v{component.version or 'Unknown'}
-                        </div>
-                        <div class="text-xs text-slate-500">
-                            {component.update_frequency or 'Unknown'}
-                        </div>
+                    <div class="text-right shrink-0">
+                        <div class="inline-flex items-center px-2 py-1 rounded-md bg-slate-700/80 border border-slate-500/40 text-[11px] font-medium text-slate-100 mb-2">v{component.version or 'Unknown'}</div>
+                        <div class="text-[11px] text-slate-400">{component.update_frequency or 'Unknown'}</div>
                     </div>
                 </div>
-                {f'<div class="mt-3 p-2 bg-red-900/20 border border-red-700/30 rounded text-xs text-red-300"><strong>Issues:</strong> {component.known_issues}</div>' if component.known_issues else ''}
-            </div>
+                {f'<div class="mx-4 sm:mx-5 mb-4 -mt-1 rounded-md bg-red-900/30 border border-red-600/40 p-2.5 text-xs sm:text-sm text-red-200"><strong class="text-red-300">Issues:</strong> {component.known_issues}</div>' if component.known_issues else ''}
+            </a>
             '''
         
         if not html:
@@ -304,7 +305,32 @@ def component_details(component_id):
         return html
     except Exception as e:
         return html_error_fragment(f"Error loading component details: {str(e)}")
-    
+
+# New full-page component details view
+@main.route("/components/<int:component_id>")
+def component_detail_page(component_id: int):
+    try:
+        component = Component.query.get_or_404(component_id)
+        # Implementations grouped by agency
+        implementations = AgencyFunctionImplementation.query\
+            .filter_by(component_id=component_id)\
+            .join(Agency).join(Function).join(FunctionalArea)\
+            .order_by(Agency.name, FunctionalArea.name, Function.name)\
+            .all()
+        by_agency = {}
+        for impl in implementations:
+            by_agency.setdefault(impl.agency.name, []).append(impl)
+        # Integration points
+        integrations = component.integration_points or []
+        return render_template(
+            'component_detail.html',
+            component=component,
+            implementations_by_agency=by_agency,
+            integrations=integrations
+        )
+    except Exception as e:
+        return html_error_fragment(f"Error loading component page: {str(e)}")
+
 @main.route("/api/agencies/options")
 def agencies_filter_options():
     """Get agency options for filter dropdowns"""
@@ -709,8 +735,6 @@ def vendor_performance():
                     .filter(Agency.name == agency_filter)
             
             if functional_area_filter:
-                if not agency_filter:
-                    component_query = component_query.join(AgencyFunctionImplementation)
                 component_query = component_query\
                     .join(Function)\
                     .join(FunctionalArea)\
@@ -1543,6 +1567,50 @@ def component_integration_details(component_id):
     except Exception as e:
         return f'<div class="text-center py-4"><span class="text-red-400 text-sm">Error loading integrations</span></div>'
 
+@main.route("/api/agencies/<int:agency_id>/implementations")
+@login_required
+def agency_implementations_page(agency_id: int):
+    try:
+        agency = Agency.query.get_or_404(agency_id)
+        agency.header_url = url_for('static', filename=f'images/transit_headers/{agency.short_name.lower().replace(" ", "_")}_header.png') if agency.short_name else None
+        implementations = AgencyFunctionImplementation.query\
+            .filter_by(agency_id=agency_id)\
+            .join(Function).join(FunctionalArea)\
+            .order_by(FunctionalArea.name, Function.name)\
+            .all()
+        return render_template('agency_implementations.html', agency=agency, implementations=implementations)
+    except Exception as e:
+        return html_error_fragment(f"Error loading implementations page: {str(e)}")
+
+@main.route("/agencies/<int:agency_id>/implementations")
+@login_required
+def agency_implementations_full_page(agency_id: int):
+    try:
+        agency = Agency.query.get_or_404(agency_id)
+        agency.header_url = url_for('static', filename=f'images/transit_headers/{agency.short_name.lower().replace(" ", "_")}_header.png') if agency.short_name else None
+        implementations = AgencyFunctionImplementation.query\
+            .filter_by(agency_id=agency_id)\
+            .join(Function).join(FunctionalArea)\
+            .order_by(FunctionalArea.name, Function.name)\
+            .all()
+        return render_template('agency_implementations.html', agency=agency, implementations=implementations)
+    except Exception as e:
+        return html_error_fragment(f"Error loading implementations page: {str(e)}")
+
+
+@main.route("/api/agencies/<int:agency_id>/implementations/list")
+@login_required
+def agency_implementations_list(agency_id: int):
+    try:
+        status = request.args.get('status')
+        q = AgencyFunctionImplementation.query.filter_by(agency_id=agency_id)
+        if status in ('Active', 'Planned', 'Retired'):
+            q = q.filter(AgencyFunctionImplementation.status == status)
+        implementations = q.join(Function).join(FunctionalArea).order_by(FunctionalArea.name, Function.name).all()
+        return render_template('fragments/afi_list.html', implementations=implementations)
+    except Exception as e:
+        return html_error_fragment(f"Error loading implementations list: {str(e)}")
+
 @main.route("/api/agencies/<int:agency_id>/implementations", methods=["POST"])  # Create AFI (parent + optional children)
 @login_required
 def create_agency_implementation(agency_id: int):
@@ -1583,7 +1651,17 @@ def create_agency_implementation(agency_id: int):
         )
         db.session.commit()
 
-        # Return refreshed agency details into the right panel
+        # Decide response target based on HX-Current-URL (full page vs sidebar)
+        current_url = request.headers.get('HX-Current-URL', '')
+        if f"/agencies/{agency.id}/implementations" in current_url:
+            implementations = AgencyFunctionImplementation.query\
+                .filter_by(agency_id=agency.id)\
+                .join(Function).join(FunctionalArea)\
+                .order_by(FunctionalArea.name, Function.name)\
+                .all()
+            return render_template('fragments/afi_list.html', implementations=implementations)
+
+        # Return refreshed agency details into the right panel (legacy sidebar flow)
         agency.header_url = url_for('static', filename=f'images/transit_headers/{agency.short_name.lower().replace(" ", "_")}_header.png') if agency.short_name else None
         return render_template('fragments/agency_details.html', agency=agency)
 
@@ -1732,7 +1810,7 @@ def wizard_afi_step4():
                                deployment_date=deployment_date,
                                version=version,
                                deployment_notes=deployment_notes,
-                               implementation_notes=implementation_notes)
+                               implementation_notes= implementation_notes)
     except Exception as e:
         return html_error_fragment(f"Error loading review: {str(e)}")
 

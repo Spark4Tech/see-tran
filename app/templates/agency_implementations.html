@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Full-page AFI management -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-white">{{ agency.name }} • Technology Implementations</h1>
+      <p class="text-slate-400 text-sm">Manage functions and components deployed at this agency.</p>
+    </div>
+    <div class="space-x-2">
+      <a href="/agencies" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm">Back to Agencies</a>
+      <button hx-get="/api/wizard/afi/step1?agency_id={{ agency.id }}" hx-target="#wizard-body" hx-swap="innerHTML"
+              class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 rounded text-sm">
+        + Add Implementation
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="glass-effect rounded-xl p-4 border border-slate-700/50">
+    <form hx-get="/api/agencies/{{ agency.id }}/implementations/list" hx-target="#afi-list" hx-swap="innerHTML">
+      <div class="flex items-center gap-3">
+        <label class="text-xs text-slate-400" for="status-filter">Status</label>
+        <select id="status-filter" name="status" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-white" hx-trigger="change">
+          <option value="">All</option>
+          <option value="Active">Active</option>
+          <option value="Planned">Planned</option>
+          <option value="Retired">Retired</option>
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <!-- Wizard body -->
+  <div id="wizard-body"></div>
+
+  <!-- AFI list -->
+  <div id="afi-list" hx-get="/api/agencies/{{ agency.id }}/implementations/list" hx-trigger="load" hx-swap="innerHTML">
+    <div class="text-slate-400 text-sm">Loading...</div>
+  </div>
+</div>
+{% endblock %}

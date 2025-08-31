@@ -23,18 +23,16 @@
               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
         Edit
       </button>
-      <button hx-get="/api/wizard/afi/step1?agency_id={{ agency.id }}" hx-target="#wizard-body" hx-swap="innerHTML"
-              class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 rounded text-sm transition-colors">
-        + Add Implementation
-      </button>
+      <a href="/agencies/{{ agency.id }}/implementations"
+         class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 rounded text-sm transition-colors">
+        Manage Implementations
+      </a>
       <button onclick="closeAgencyDetails()"
               class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
         ✕ Close
       </button>
     </div>
   </div>
-
-  <div id="wizard-body"></div>
 
   <div class="space-y-6">
     <!-- Basic Information Section -->
@@ -197,31 +195,8 @@
         </svg>
         Technology Implementations ({{ agency.function_implementations|length }})
       </h3>
-      <div class="space-y-3 max-h-64 overflow-y-auto">
-        {% for impl in agency.function_implementations %}
-        <div class="bg-slate-600/30 rounded-lg p-3">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-            <span class="text-sm font-medium text-white mb-1 sm:mb-0">{{ impl.function.name }}</span>
-            <div class="flex items-center space-x-2">
-              <span class="text-xs text-slate-400 bg-slate-700 px-2 py-1 rounded">
-                {{ impl.function.functional_area.name }}
-              </span>
-              <span class="text-xs px-2 py-1 rounded 
-                {% if impl.status == 'Active' %}bg-green-600/20 text-green-300
-                {% elif impl.status == 'Planned' %}bg-yellow-600/20 text-yellow-300
-                {% else %}bg-slate-600/20 text-slate-300{% endif %}">
-                {{ impl.status }}
-              </span>
-            </div>
-          </div>
-          <div class="text-xs text-slate-400 flex items-center justify-between">
-            <span>Component: {{ impl.component.name }}</span>
-            {% if impl.deployment_date %}
-            <span>Deployed: {{ impl.deployment_date.strftime('%Y-%m-%d') }}</span>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
+      <div class="text-slate-400 text-sm">
+        View and manage on the implementations page.
       </div>
     </div>
     {% endif %}

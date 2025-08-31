@@ -1,6 +1,6 @@
 <!-- AFI Edit Form -->
-<div class="bg-slate-700/40 rounded p-3" id="afi-{{ impl.id }}">
-  <form hx-post="/api/implementations/{{ impl.id }}" hx-target="#afi-{{ impl.id }}" hx-swap="outerHTML">
+<div class="bg-slate-700/40 rounded p-3">
+  <form hx-post="/api/implementations/{{ impl.id }}" hx-target="#afi-row-{{ impl.id }}" hx-swap="outerHTML">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
       <div>
         <label class="block text-xs text-slate-400 mb-1">Function</label>
@@ -37,8 +37,7 @@
     </div>
     <div class="flex justify-end gap-2">
       <button type="submit" class="text-xs px-2 py-1 bg-green-600/70 hover:bg-green-600 rounded">Save</button>
-      <button type="button" hx-get="/api/implementations/{{ impl.id }}/history" hx-target="#afi-{{ impl.id }}-history" hx-swap="innerHTML" class="text-xs px-2 py-1 bg-slate-700/70 hover:bg-slate-700 rounded">History</button>
+      <button type="button" hx-get="/api/implementations/{{ impl.id }}/history" hx-target="#afi-history-{{ impl.id }}" hx-swap="innerHTML" class="text-xs px-2 py-1 bg-slate-700/70 hover:bg-slate-700 rounded">History</button>
     </div>
   </form>
-  <div id="afi-{{ impl.id }}-history" class="mt-2"></div>
 </div>

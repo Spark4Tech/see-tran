@@ -1,0 +1,10 @@
+<!-- AFI list fragment -->
+<div class="space-y-3">
+  {% if implementations %}
+    {% for impl in implementations %}
+      {% include 'fragments/afi_row.html' %}
+    {% endfor %}
+  {% else %}
+    <div class="text-slate-400 text-sm">No implementations yet. Use "+ Add Implementation" to create one.</div>
+  {% endif %}
+</div>

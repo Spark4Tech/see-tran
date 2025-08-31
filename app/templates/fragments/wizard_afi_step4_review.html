@@ -21,7 +21,7 @@
     {% if implementation_notes %}<div><strong>Implementation Notes:</strong> {{ implementation_notes }}</div>{% endif %}
   </div>
 
-  <form hx-post="/api/agencies/{{ agency.id }}/implementations" hx-target="#agency-details" hx-swap="innerHTML">
+  <form hx-post="/api/agencies/{{ agency.id }}/implementations" hx-target="#afi-list" hx-swap="innerHTML">
     <input type="hidden" name="function_id" value="{{ function.id }}" />
     <input type="hidden" name="component_id" value="{{ component.id }}" />
     {% for child in selected_children %}
