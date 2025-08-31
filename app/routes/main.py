@@ -1306,32 +1306,15 @@ def create_functional_area():
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('agency_id'):
-            return html_error_fragment("Agency is required")
-        
-        try:
-            agency_id = int(data['agency_id'])
-        except ValueError:
-            return html_error_fragment("Invalid agency selected")
-        
-        # Verify agency exists
-        agency = Agency.query.get(agency_id)
-        if not agency:
-            return html_error_fragment("Selected agency does not exist")
-        
-        # Check for duplicate names within the same agency
-        existing = FunctionalArea.query.filter_by(
-            name=data['name'], 
-            agency_id=agency_id
-        ).first()
+        # Global duplicate check (functional areas are no longer agency-specific)
+        existing = FunctionalArea.query.filter_by(name=data['name']).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists")
         
-        # Create new functional area
+        # Create new functional area (no agency linkage)
         functional_area = FunctionalArea(
             name=data['name'],
-            description=data.get('description') or None,
-            agency_id=agency_id
+            description=data.get('description') or None
         )
         
         db.session.add(functional_area)
@@ -1354,32 +1337,17 @@ def update_functional_area(functional_area_id):
         if not data.get('name'):
             return html_error_fragment("Functional area name is required")
         
-        if not data.get('agency_id'):
-            return html_error_fragment("Agency is required")
-        
-        try:
-            agency_id = int(data['agency_id'])
-        except ValueError:
-            return html_error_fragment("Invalid agency selected")
-        
-        # Verify agency exists
-        agency = Agency.query.get(agency_id)
-        if not agency:
-            return html_error_fragment("Selected agency does not exist")
-        
-        # Check for duplicate names within the same agency (excluding current area)
+        # Global duplicate check excluding current record
         existing = FunctionalArea.query.filter(
             FunctionalArea.name == data['name'],
-            FunctionalArea.agency_id == agency_id,
             FunctionalArea.id != functional_area_id
         ).first()
         if existing:
-            return html_error_fragment(f"Functional area '{data['name']}' already exists in {agency.name}")
+            return html_error_fragment(f"Functional area '{data['name']}' already exists")
         
-        # Update functional area
+        # Update fields (no agency linkage)
         functional_area.name = data['name']
         functional_area.description = data.get('description') or None
-        functional_area.agency_id = agency_id
         
         db.session.commit()
         
@@ -1395,13 +1363,12 @@ def delete_functional_area(functional_area_id):
     try:
         functional_area = FunctionalArea.query.get_or_404(functional_area_id)
         name = functional_area.name
-        agency_name = functional_area.agency.name
         
         # Delete the functional area (cascade will handle related records)
         db.session.delete(functional_area)
         db.session.commit()
         
-        return html_success_fragment(f"Functional area '{name}' from {agency_name} deleted successfully")
+        return html_success_fragment(f"Functional area '{name}' deleted successfully")
         
     except Exception as e:
         db.session.rollback()
