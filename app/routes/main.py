@@ -1972,3 +1972,12 @@ def afi_history(impl_id: int):
         return render_template('fragments/afi_history.html', impl=impl, entries=entries)
     except Exception as e:
         return html_error_fragment(f"Error loading history: {str(e)}")
+
+@main.route('/api/implementations/<int:impl_id>/row')
+@login_required
+def afi_row(impl_id: int):
+    try:
+        impl = AgencyFunctionImplementation.query.get_or_404(impl_id)
+        return render_template('fragments/afi_row.html', impl=impl)
+    except Exception as e:
+        return html_error_fragment(f"Error loading implementation row: {str(e)}")
