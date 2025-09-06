@@ -16,8 +16,8 @@
   
   <!-- Content with name and buttons -->
   <div class="p-6">
+    <h2 class="text-2xl font-bold text-white">{{ agency.name }}</h2>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-white">{{ agency.name }}</h2>
       <div class="flex gap-2">
       <button hx-get="/api/agencies/{{ agency.id }}/form" hx-target="#agency-details" hx-swap="innerHTML"
               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">

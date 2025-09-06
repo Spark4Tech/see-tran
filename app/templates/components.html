@@ -1,100 +1,116 @@
-<!-- app/templates/components.html -->
-<!-- TODO: fix formatting looks ugly -->
-
 {% extends "base.html" %}
 {% block content %}
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  
+
   <!-- Page Header -->
-  <div class="mb-8">
-    <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-2">Components</h1>
-    <p class="text-slate-400 text-base sm:text-lg">Browse all transit technology components. Filter and tap a card to view full details.</p>
-  </div>
-
-  <!-- Filters and Search -->
-  <div class="glass-effect rounded-xl p-4 sm:p-6 border border-slate-700/50 mb-8">
-    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-      
-      <!-- Search and Filters -->
-      <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
-        
-        <!-- Search -->
-        <div class="relative flex-1 min-w-[220px]">
-          <input id="component-search" type="text" placeholder="Search components..." 
-                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-                 hx-get="/api/components/list" hx-target="#components-list" hx-trigger="keyup changed delay:300ms" hx-include="[id='functional-area-filter'],[id='vendor-filter'],[id='agency-filter'],[id='status-filter']" hx-vals='js:{"search": event.target.value}'>
-          <svg class="absolute right-3 top-3 w-5 h-5 text-slate-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-          </svg>
-        </div>
-
-        <!-- Functional Area Filter -->
-        <select id="functional-area-filter" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/components/list" hx-target="#components-list" hx-include="[id='vendor-filter'],[id='agency-filter'],[id='status-filter'],[id='component-search']" hx-vals='js:{"functional_area": event.target.value}'
-                hx-trigger="change" hx-swap="innerHTML">
-          <option value="">All Functional Areas</option>
-        </select>
-
-        <!-- Vendor Filter -->
-        <select id="vendor-filter" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/components/list" hx-target="#components-list" hx-include="[id='functional-area-filter'],[id='agency-filter'],[id='status-filter'],[id='component-search']" hx-vals='js:{"vendor": event.target.value}'
-                hx-trigger="change" hx-swap="innerHTML">
-          <option value="">All Vendors</option>
-        </select>
-
-        <!-- Agency Filter -->
-        <select id="agency-filter" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/components/list" hx-target="#components-list" hx-include="[id='functional-area-filter'],[id='vendor-filter'],[id='status-filter'],[id='component-search']" hx-vals='js:{"agency": event.target.value}'
-                hx-trigger="change" hx-swap="innerHTML">
-          <option value="">All Agencies</option>
-        </select>
-
-        <!-- Status Filter -->
-        <select id="status-filter" 
-                class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:outline-none"
-                hx-get="/api/components/list" hx-target="#components-list" hx-include="[id='functional-area-filter'],[id='vendor-filter'],[id='agency-filter'],[id='component-search']" hx-vals='js:{"status": event.target.value}'
-                hx-trigger="change">
-          <option value="">All Components</option>
-          <option value="no_issues">No Issues</option>
-          <option value="issues">Has Issues</option>
-        </select>
+  <div class="mb-6 sm:mb-8">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Components</h1>
+        <p class="text-slate-400 text-sm sm:text-base mt-1">Browse all transit technology components. Filter and tap a card to view full details.</p>
       </div>
-
-      <!-- Actions -->
-      <div class="flex gap-2 w-full lg:w-auto">
-        <button class="flex-1 lg:flex-none px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all text-white">
-          <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-          </svg>
-          Add Component
-        </button>
-        <button class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors text-white">
-          Export
-        </button>
+      <div class="hidden sm:flex items-center gap-2">
+        <a href="/vendors" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-white border border-slate-700/60 transition-colors">Vendors</a>
+        <a href="/functional-areas" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-white border border-slate-700/60 transition-colors">Functional Areas</a>
       </div>
     </div>
   </div>
 
-  <!-- Components Grid (no sidebar) -->
+  <!-- Filters -->
+  <div class="glass-effect rounded-xl p-4 sm:p-5 border border-slate-700/50 mb-6 sm:mb-8">
+    <!-- One form that drives all filtering -->
+    <form id="component-filters"
+          class="flex flex-col gap-3 lg:gap-4"
+          hx-get="/api/components/list"
+          hx-target="#components-list"
+          hx-trigger="change, keyup delay:250ms from:#component-search"
+          hx-swap="innerHTML transition:true"
+          hx-push-url="true">
+      
+      <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 lg:gap-4">
+
+        <!-- Left: search + dropdowns -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 w-full">
+
+          <!-- Search -->
+          <div class="relative col-span-1 sm:col-span-2 lg:col-span-2">
+            <input id="component-search" name="search" type="text"
+                   placeholder="Search components, vendors, or functions…"
+                   class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-3 py-2.5 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+                   value="{{ request.args.get('search','') }}">
+            <svg class="absolute left-3 top-2.5 w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+
+          <!-- Agency -->
+          <select id="agency-filter" name="agency"
+                  class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 focus:outline-none">
+            <option value="">All Agencies</option>
+          </select>
+
+          <!-- Functional Area -->
+          <select id="functional-area-filter" name="functional_area"
+                  class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 focus:outline-none">
+            <option value="">All Functional Areas</option>
+          </select>
+
+          <!-- Vendor -->
+          <select id="vendor-filter" name="vendor"
+                  class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 focus:outline-none">
+            <option value="">All Vendors</option>
+          </select>
+
+          <!-- Status -->
+          <select id="status-filter" name="status"
+                  class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white focus:border-blue-500 focus:outline-none">
+            <option value="">All Components</option>
+            <option value="no_issues">No Issues</option>
+            <option value="issues">Has Issues</option>
+          </select>
+        </div>
+      </div>
+
+        <!-- Right: actions -->
+      <div class="flex items-center gap-2 w-full lg:w-auto">
+          <button type="button" id="filters-reset"
+                  class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-white border border-slate-700/60 transition-colors">
+            Reset
+          </button>
+          <button type="button"
+                  class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-white border border-slate-700/60 transition-colors"
+                  hx-get="/api/components/list" hx-target="#components-list" hx-swap="innerHTML">
+            Refresh
+          </button>
+          <button type="button"
+                  class="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all text-white">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            Add Component
+          </button>
+          <button type="button" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors text-white">
+            Export
+          </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Components Grid -->
   <div class="glass-effect rounded-xl p-4 sm:p-6 border border-slate-700/50">
     <div class="flex items-center justify-between mb-4 sm:mb-6">
       <h2 class="text-xl sm:text-2xl font-bold text-white">Components</h2>
-      <button hx-get="/api/components/list" hx-target="#components-list" 
-              class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-sm transition-colors text-white">
-        <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-        </svg>
-        Refresh
-      </button>
+      <span id="result-count" class="text-xs sm:text-sm text-slate-400"></span>
     </div>
 
-    <div id="components-list" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4" hx-get="/api/components/list" hx-trigger="load">
-      <!-- Cards will load here -->
-      <div class="animate-pulse space-y-3">
+    <div id="components-list"
+         class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4"
+         hx-get="/api/components/list"
+         hx-trigger="load"
+         hx-include="#component-filters">
+      <!-- Skeleton -->
+      <div class="animate-pulse space-y-3 col-span-full">
         <div class="h-24 bg-slate-800 rounded-lg"></div>
         <div class="h-24 bg-slate-800 rounded-lg"></div>
         <div class="h-24 bg-slate-800 rounded-lg"></div>
@@ -107,17 +123,42 @@
 
 {% block scripts %}
 <script>
-// Load filter options on page load
-document.addEventListener('DOMContentLoaded', function() {
-  htmx.ajax('GET', '/api/filter-options/functional-areas', { target: '#functional-area-filter', swap: 'innerHTML' });
-  htmx.ajax('GET', '/api/filter-options/vendors', { target: '#vendor-filter', swap: 'innerHTML' });
-  htmx.ajax('GET', '/api/agencies/options', { target: '#agency-filter', swap: 'innerHTML' });
-});
+document.addEventListener('DOMContentLoaded', function () {
+  // Populate dropdowns
+  htmx.ajax('GET', '/api/filter-options/functional-areas', { target: '#functional-area-filter', swap: 'innerHTML' })
+  htmx.ajax('GET', '/api/filter-options/vendors', { target: '#vendor-filter', swap: 'innerHTML' })
+  htmx.ajax('GET', '/api/agencies/options', { target: '#agency-filter', swap: 'innerHTML' })
 
-// Auto-refresh counts if any present
+  // Restore selected values from query string (supports deep-linking)
+  const params = new URLSearchParams(window.location.search)
+  for (const [k, v] of params.entries()) {
+    const el = document.querySelector(`[name="${CSS.escape(k)}"]`)
+    if (el) el.value = v
+  }
+
+  // Reset filters
+  document.getElementById('filters-reset').addEventListener('click', () => {
+    const form = document.getElementById('component-filters')
+    form.reset()
+    // Also clear query string
+    history.replaceState({}, '', window.location.pathname)
+    htmx.trigger(form, 'change')
+  })
+})
+
+// Optional: update visible count after each swap
+document.body.addEventListener('htmx:afterSwap', function (evt) {
+  if (evt.detail.target && evt.detail.target.id === 'components-list') {
+    const count = evt.detail.target.querySelectorAll('[data-component-card="1"]').length
+    const el = document.getElementById('result-count')
+    if (el) el.textContent = count ? `${count} result${count === 1 ? '' : 's'}` : ''
+  }
+})
+
+// Auto-refresh count metrics if present
 setInterval(function() {
-  const elements = document.querySelectorAll('[hx-get*="/api/count/"]');
-  elements.forEach(el => htmx.trigger(el, 'refresh'));
-}, 30000);
+  const elements = document.querySelectorAll('[hx-get*="/api/count/"]')
+  elements.forEach(el => htmx.trigger(el, 'refresh'))
+}, 30000)
 </script>
 {% endblock %}
