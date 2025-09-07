@@ -4,77 +4,77 @@ from gitignore_parser import parse_gitignore
 files_to_concatenate = [
     # Core application files
     'app/__init__.py',           # Flask app initialization
-    'run.py',                    # Application entry point
+    #'run.py',                    # Application entry point
     'config.py',                 # Main configuration
-    '.flaskenv',                 # Flask environment variables
+    #'.flaskenv',                 # Flask environment variables
     
     # Routes and Views
-    'app/routes/__init__.py',    # Routes initialization
+    #'app/routes/__init__.py',    # Routes initialization
     'app/routes/main.py',        # Main route handlers
-    'app/routes/vendor.py',      # Vendor routes
+    #'app/routes/vendor.py',      # Vendor routes
     'app/routes/agency.py',      # Agency routes
-    'app/routes/standard.py',    # Standards routes
-    'app/routes/integration.py', # Integration routes
-    'app/routes/component.py',   # Component routes
-    'app/routes/function.py',    # Function routes
+    #'app/routes/standard.py',    # Standards routes
+    #'app/routes/integration.py', # Integration routes
+    #'app/routes/component.py',   # Component routes
+    #'app/routes/function.py',    # Function routes
     
     # Models and Data
-    'app/models/__init__.py',    # Models initialization
+    #'app/models/__init__.py',    # Models initialization
     'app/models/tran.py',        # Core data model
-    'app/models/gtfs.py',        # GTFS data models
+    #'app/models/gtfs.py',        # GTFS data models
     
     # Forms and Auth
-    'app/forms/__init__.py',     # Forms initialization
+    #'app/forms/__init__.py',     # Forms initialization
     'app/forms/forms.py',        # Form definitions
-    'app/auth.py',               # Authentication logic
+    #'app/auth.py',               # Authentication logic
     
     # Agents
-    'app/agents/__init__.py',    # Agents initialization
-    'app/agents/agency_agent.py',# Agency business logic
-    'app/agents/component_agent.py', # Component business logic
+    #'app/agents/__init__.py',    # Agents initialization
+    #'app/agents/agency_agent.py',# Agency business logic
+    #'app/agents/component_agent.py', # Component business logic
     
     # Utils
-    'app/utils/__init__.py',     # Utils initialization
-    'app/utils/errors.py',       # Error handling
-    'app/utils/logging.py',      # Standard logging functions
+    #'app/utils/__init__.py',     # Utils initialization
+    #'app/utils/errors.py',       # Error handling
+    #'app/utils/logging.py',      # Standard logging functions
     
     # Frontend Assets
     #'tailwind/input.css',        # Tailwind source CSS
     #'tailwind.config.js',        # Tailwind configuration
-    'postcss.config.js',         # PostCSS configuration
-    'app/static/css/style.css',  # Custom styles
-    'app/static/js/main.js',     # Main JavaScript file
+    #'postcss.config.js',         # PostCSS configuration
+    #'app/static/css/style.css',  # Custom styles
+    #'app/static/js/main.js',     # Main JavaScript file
     #'app/static/js/htmx.min.js',   # Vendor JavaScript file
     
     # Templates
     'app/templates/base.html',    # Base template
     'app/templates/index.html',   # Main page
-    'app/templates/systems.html', # Systems page
+    #'app/templates/systems.html', # Systems page
     'app/templates/vendors.html', # Vendors page
     'app/templates/components.html', # Components page
-    'app/templates/standards.html',  # Standards page
-    'app/templates/integrations.html', # Integrations page
+    #'app/templates/standards.html',  # Standards page
+    #'app/templates/integrations.html', # Integrations page
     'app/templates/functional_areas.html', # Functional areas page
     'app/templates/agencies.html',   # Agencies page
-    'app/templates/contribute.html', # Contribute page
+    #'app/templates/contribute.html', # Contribute page
     
     # Template Fragments
-    'app/templates/fragments/vendor_details.html',
-    'app/templates/fragments/vendor_form.html',
-    'app/templates/fragments/vendor_list.html',
-    'app/templates/fragments/agency_details.html',
-    'app/templates/fragments/agency_list.html',
-    'app/templates/fragments/agency_form.html',
-    'app/templates/fragments/functional_area_details.html',
-    'app/templates/fragments/functional_area_form.html',
-    'app/templates/fragments/functional_area_list.html',
+    #'app/templates/fragments/vendor_details.html',
+    #'app/templates/fragments/vendor_form.html',
+    #'app/templates/fragments/vendor_list.html',
+    #'app/templates/fragments/agency_details.html',
+    #'app/templates/fragments/agency_list.html',
+    #'app/templates/fragments/agency_form.html',
+    #'app/templates/fragments/functional_area_details.html',
+    #'app/templates/fragments/functional_area_form.html',
+    #'app/templates/fragments/functional_area_list.html',
     
     # Scripts
-    'scripts/load_functional_areas.py',
-    'scripts/load_tran.py',
-    'scripts/load_transit_systems.py',
-    'scripts/load_vendors.py',
-    'scripts/load_standards.py',
+    #'scripts/load_functional_areas.py',
+    #'scripts/load_tran.py',
+    #'scripts/load_transit_systems.py',
+    #'scripts/load_vendors.py',
+    #'scripts/load_standards.py',
     
     # Tests
     #'tests/__init__.py',
@@ -92,12 +92,12 @@ files_to_concatenate = [
     'README.md',
 
     # Data
-    'data/ctran/agency.csv',
-    'data/ctran/components.csv',
-    'data/ctran/functional_areas.csv',
-    'data/ctran/function_implementations.csv',
-    'data/ctran/functions.csv',
-    'data/ctran/vendors.csv',
+    #'data/ctran/agency.csv',
+    #'data/ctran/components.csv',
+    #'data/ctran/functional_areas.csv',
+    #'data/ctran/function_implementations.csv',
+    #'data/ctran/functions.csv',
+    #'data/ctran/vendors.csv',
 ]
 
 # Define the output file

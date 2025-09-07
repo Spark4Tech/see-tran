@@ -11,6 +11,7 @@ Agencies, technology components, vendors, functional areas, functions, and integ
 The landing page is publically available, as is the Agency list page; all other pages are auth protected.
 Auth is provided via Microsoft or Google OAuth from application login page.
 Registration is restricted to email addresses that are associated with an existing transit agency.
+There is one super admin set in the config (will be added later as a role); super admin can do everything.
 
 **Agencies**
 Agencies have two user types: readers and admins; admins can update all Agency information (i.e. Agency Component relationships).
