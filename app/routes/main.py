@@ -6,7 +6,7 @@ from app.models.tran import (
     UpdateLog, Function, Standard, Tag, TagGroup, UserRole, AgencyFunctionImplementation,
     integration_standard, component_integration
 )
-from app.forms.forms import AgencyForm, VendorForm
+from app.forms.forms import AgencyForm, VendorForm, ComponentForm
 from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
@@ -1951,3 +1951,82 @@ def afi_row(impl_id: int):
         return render_template('fragments/afi_row.html', impl=impl)
     except Exception as e:
         return html_error_fragment(f"Error loading implementation row: {str(e)}")
+
+# Components CRUD Endpoints
+@main.route("/api/components/form")
+@login_required
+def component_form():
+    try:
+        form = ComponentForm()
+        vendors = Vendor.query.order_by(Vendor.name).all()
+        return render_template('fragments/component_form.html', form=form, component=None, vendors=vendors)
+    except Exception as e:
+        return html_error_fragment(f"Error loading component form: {str(e)}")
+
+@main.route("/api/components/<int:component_id>/form")
+@login_required
+def component_edit_form(component_id):
+    try:
+        component = Component.query.get_or_404(component_id)
+        form = ComponentForm()
+        form.populate_from_component(component)
+        vendors = Vendor.query.order_by(Vendor.name).all()
+        return render_template('fragments/component_form.html', form=form, component=component, vendors=vendors)
+    except Exception as e:
+        return html_error_fragment(f"Error loading component edit form: {str(e)}")
+
+@main.route('/api/components', methods=['POST'])
+@login_required
+def create_component():
+    try:
+        form = ComponentForm()
+        if form.validate_on_submit():
+            existing = Component.query.filter_by(name=form.name.data).first()
+            if existing:
+                return json_error_response(f"Component '{form.name.data}' already exists")
+            component = Component()
+            form.populate_component(component)
+            db.session.add(component)
+            db.session.commit()
+            return json_success_response(f"Component '{component.name}' created successfully")
+        else:
+            return json_form_error_response(form)
+    except Exception as e:
+        db.session.rollback()
+        return json_error_response(f"Error creating component: {str(e)}")
+
+@main.route('/api/components/<int:component_id>', methods=['POST'])
+@login_required
+def update_component(component_id):
+    try:
+        component = Component.query.get_or_404(component_id)
+        form = ComponentForm()
+        if form.validate_on_submit():
+            existing = Component.query.filter(Component.name == form.name.data, Component.id != component_id).first()
+            if existing:
+                return json_error_response(f"Component '{form.name.data}' already exists")
+            form.populate_component(component)
+            db.session.commit()
+            return json_success_response(f"Component '{component.name}' updated successfully")
+        else:
+            return json_form_error_response(form)
+    except Exception as e:
+        db.session.rollback()
+        return json_error_response(f"Error updating component: {str(e)}")
+
+@main.route('/api/components/<int:component_id>', methods=['DELETE'])
+@login_required
+def delete_component(component_id):
+    try:
+        component = Component.query.get_or_404(component_id)
+        name = component.name
+        # Prevent delete if used in AFIs
+        usage_count = AgencyFunctionImplementation.query.filter_by(component_id=component_id).count()
+        if usage_count > 0:
+            return json_error_response(f"Cannot delete component '{name}' because it is used in {usage_count} implementations.")
+        db.session.delete(component)
+        db.session.commit()
+        return json_success_response(f"Component '{name}' deleted successfully")
+    except Exception as e:
+        db.session.rollback()
+        return json_error_response(f"Error deleting component: {str(e)}")

@@ -1,0 +1,180 @@
+<!-- app/templates/fragments/component_form.html -->
+<div class="glass-effect rounded-xl p-6 border border-slate-700/50 max-h-[90vh] overflow-y-auto">
+  <div class="flex items-center justify-between mb-6 sticky top-0 bg-slate-800/90 backdrop-blur-sm z-10 py-2 -mt-2">
+    <h2 class="text-xl font-bold text-white">
+      {% if component %}Edit Component{% else %}Add Component{% endif %}
+    </h2>
+    <button onclick="closeComponentForm()"
+            class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
+      ✕ Cancel
+    </button>
+  </div>
+
+  <form id="component-form"
+        {% if component %}
+        hx-post="/api/components/{{ component.id }}"
+        {% else %}
+        hx-post="/api/components"
+        {% endif %}
+        hx-trigger="submit"
+        hx-swap="none"
+        class="space-y-8">
+    {{ form.hidden_tag() }}
+
+    <!-- Basic Information -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zM9 8a1 1 0 000 2v4a1 1 0 001 1h1a1 1 0 100-2v-4a1 1 0 00-1-1H9zm1-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"/></svg>
+        Basic Information
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Name <span class="text-red-400">*</span></label>
+          <input type="text" name="name" required value="{{ form.name.data or '' }}" class="component-field w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Component name">
+          <div class="field-error text-red-400 text-xs mt-1 hidden" data-error-for="name"></div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Version</label>
+            <input type="text" name="version" value="{{ form.version.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., 1.0.3">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Deployment Date</label>
+          <input type="date" name="deployment_date" value="{{ form.deployment_date.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Update Frequency</label>
+          <input type="text" name="update_frequency" value="{{ form.update_frequency.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., Quarterly">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Lifecycle Stage</label>
+          <select name="lifecycle_stage" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            <option value="">-- Select --</option>
+            {% for stage in ['planned','pilot','production','deprecated','retired'] %}
+              <option value="{{ stage }}" {% if form.lifecycle_stage.data==stage %}selected{% endif %}>{{ stage|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Support End Date</label>
+          <input type="date" name="support_end_date" value="{{ form.support_end_date.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
+          <textarea name="description" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-vertical" placeholder="Brief description">{{ form.description.data or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Associations -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path d="M13 7H7v6h6V7z"/><path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm8 4a1 1 0 011 1v4a1 1 0 01-1 1H7a1 1 0 01-1-1V8a1 1 0 011-1h6z" clip-rule="evenodd"/></svg>
+        Associations
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-2">Vendor</label>
+          <select name="vendor_id" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+            <option value="">-- None --</option>
+            {% for v in vendors %}
+              <option value="{{ v.id }}" {% if form.vendor_id.data == v.id|string %}selected{% endif %}>{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issues -->
+    <div class="form-section">
+      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
+        <svg class="w-5 h-5 mr-2 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.518 11.602c.75 1.335-.213 2.999-1.742 2.999H3.48c-1.53 0-2.493-1.664-1.743-2.999L8.257 3.1zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v2a1 1 0 01-1 1z" clip-rule="evenodd"/></svg>
+        Known Issues
+      </h3>
+      <textarea name="known_issues" rows="3" class="component-field w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-vertical" placeholder="List any known issues">{{ form.known_issues.data or '' }}</textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="form-section sticky bottom-0 bg-slate-800/95 backdrop-blur-sm border-t border-slate-600 pt-6 mt-8">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button type="submit" id="component-submit" class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all text-white shadow-lg disabled:opacity-50">
+          <span class="submit-text">
+            <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+            {% if component %}Update Component{% else %}Create Component{% endif %}
+          </span>
+          <span class="loading-text hidden">
+            <svg class="w-4 h-4 inline mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            Processing...
+          </span>
+        </button>
+        <button type="button" onclick="closeComponentForm()" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">Cancel</button>
+        {% if component %}
+        <button type="button" id="component-delete" onclick="deleteComponent({{ component.id }})" class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">Delete</button>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+<script>
+function closeComponentForm() {
+  const target = document.getElementById('component-form-container');
+  if (target) {
+    target.innerHTML = '';
+  }
+}
+function showComponentSubmitLoading() {
+  const btn = document.getElementById('component-submit');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.querySelector('.submit-text').classList.add('hidden');
+  btn.querySelector('.loading-text').classList.remove('hidden');
+}
+function hideComponentSubmitLoading() {
+  const btn = document.getElementById('component-submit');
+  if (!btn) return;
+  btn.disabled = false;
+  btn.querySelector('.submit-text').classList.remove('hidden');
+  btn.querySelector('.loading-text').classList.add('hidden');
+}
+function deleteComponent(id) {
+  if (!confirm('Delete this component? This cannot be undone.')) return;
+  const delBtn = document.getElementById('component-delete');
+  if (delBtn) { delBtn.disabled = true; delBtn.textContent = 'Deleting...'; }
+  fetch(`/api/components/${id}`, { method: 'DELETE' })
+    .then(r=>r.json())
+    .then(data=>{
+      showToast(data.message, data.status==='success');
+      if (data.status==='success') {
+        closeComponentForm();
+        htmx.trigger('#components-list','refresh');
+      } else if (delBtn) { delBtn.disabled = false; delBtn.textContent='Delete'; }
+    })
+    .catch(()=>{ showToast('Delete failed', false); if (delBtn){delBtn.disabled=false; delBtn.textContent='Delete';}});
+}
+// HTMX events for form
+document.addEventListener('htmx:beforeRequest', function(e){ if(e.target.id==='component-form'){ showComponentSubmitLoading(); }});
+document.addEventListener('htmx:afterRequest', function(e){ if(e.target.id==='component-form'){ hideComponentSubmitLoading(); try { const resp = JSON.parse(e.detail.xhr.response); showToast(resp.message, resp.status==='success'); if(resp.status==='success'){ closeComponentForm(); htmx.trigger('#components-list','refresh'); } } catch(err){ showToast('Error processing response', false);} }});
+document.addEventListener('htmx:responseError', function(e){ if(e.target.id==='component-form'){ hideComponentSubmitLoading(); showToast('Network error', false); }});
+
+// Enhance validation error display (expects JSON validation_error with errors map)
+document.addEventListener('htmx:afterRequest', function(e){
+  if(e.target.id==='component-form'){
+    try { const resp = JSON.parse(e.detail.xhr.response); console.log('Component form response', resp); if(resp.status==='validation_error' && resp.errors){
+      Object.entries(resp.errors).forEach(([field,msg])=>{
+        const input = document.querySelector(`#component-form [name="${field}"]`);
+        if(input){ input.classList.remove('border-slate-700'); input.classList.add('border-red-500'); }
+        const errDiv = document.querySelector(`#component-form [data-error-for="${field}"]`);
+        if(errDiv){ errDiv.textContent = msg; errDiv.classList.remove('hidden'); }
+      });
+    } } catch(_e){}
+  }
+});
+// Clear error on input
+['input','change'].forEach(ev=>document.getElementById('component-form')?.addEventListener(ev, function(e){
+  const el = e.target; if(el.name){ el.classList.remove('border-red-500'); el.classList.add('border-slate-700'); const errDiv = document.querySelector(`[data-error-for="${el.name}"]`); if(errDiv){ errDiv.classList.add('hidden'); errDiv.textContent=''; } }
+}));
+</script>
+<style>
+.form-section { scroll-margin-top:100px; }
+.glass-effect::-webkit-scrollbar { width:6px; }
+.glass-effect::-webkit-scrollbar-thumb { background:rgba(148,163,184,0.4); border-radius:3px; }
+</style>

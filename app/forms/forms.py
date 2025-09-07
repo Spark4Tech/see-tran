@@ -95,3 +95,50 @@ class VendorForm(FlaskForm):
         vendor.website = self.website.data
         vendor.vendor_email = self.vendor_email.data
         vendor.vendor_phone = self.vendor_phone.data
+
+class ComponentForm(FlaskForm):
+    name = StringField('Component Name', validators=[DataRequired(), Length(min=2, max=100)])
+    description = TextAreaField('Description', validators=[Optional(), Length(max=1000)])
+    version = StringField('Version', validators=[Optional(), Length(max=50)])
+    deployment_date = StringField('Deployment Date', validators=[Optional(), Length(max=10)])  # YYYY-MM-DD
+    update_frequency = StringField('Update Frequency', validators=[Optional(), Length(max=50)])
+    known_issues = TextAreaField('Known Issues', validators=[Optional(), Length(max=500)])
+    lifecycle_stage = StringField('Lifecycle Stage', validators=[Optional(), Length(max=50)])
+    support_end_date = StringField('Support End Date', validators=[Optional(), Length(max=10)])
+    vendor_id = StringField('Vendor', validators=[Optional()])
+
+    def populate_from_component(self, component):
+        self.name.data = component.name
+        self.description.data = component.description
+        self.version.data = component.version
+        self.deployment_date.data = component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else ''
+        self.update_frequency.data = component.update_frequency
+        self.known_issues.data = component.known_issues
+        self.lifecycle_stage.data = component.lifecycle_stage.value if component.lifecycle_stage else ''
+        self.support_end_date.data = component.support_end_date.strftime('%Y-%m-%d') if component.support_end_date else ''
+        self.vendor_id.data = str(component.vendor_id) if component.vendor_id else ''
+
+    def populate_component(self, component):
+        component.name = self.name.data
+        component.description = self.description.data or None
+        component.version = self.version.data or None
+        from datetime import datetime
+        if self.deployment_date.data:
+            try:
+                component.deployment_date = datetime.strptime(self.deployment_date.data, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        component.update_frequency = self.update_frequency.data or None
+        component.known_issues = self.known_issues.data or None
+        from app.models.tran import LifecycleStage
+        if self.lifecycle_stage.data:
+            try:
+                component.lifecycle_stage = LifecycleStage(self.lifecycle_stage.data)
+            except Exception:
+                component.lifecycle_stage = None
+        if self.support_end_date.data:
+            try:
+                component.support_end_date = datetime.strptime(self.support_end_date.data, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        component.vendor_id = int(self.vendor_id.data) if self.vendor_id.data else None

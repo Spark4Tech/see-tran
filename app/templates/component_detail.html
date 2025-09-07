@@ -6,12 +6,31 @@
     Back to Components
   </a>
 
-  <div class="flex items-start justify-between mb-4">
-    <h1 class="text-3xl sm:text-4xl font-extrabold text-white leading-tight">{{ component.name }}</h1>
-    {% if component.is_composite %}
-      <span class="ml-4 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300">Composite</span>
-    {% endif %}
+  <div class="flex items-start justify-between mb-4 gap-4">
+    <div class="flex items-center flex-wrap gap-2">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white leading-tight">{{ component.name }}</h1>
+      {% if component.is_composite %}
+        <span class="px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300">Composite</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button
+        hx-get="/api/components/{{ component.id }}/form"
+        hx-target="#component-form-container"
+        hx-swap="innerHTML"
+        class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs sm:text-sm text-white border border-slate-600/60 transition-colors">
+        Edit
+      </button>
+      <button id="delete-component-btn"
+              data-component-id="{{ component.id }}"
+              class="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-xs sm:text-sm text-white border border-red-600/60 transition-colors">
+        Delete
+      </button>
+    </div>
   </div>
+
+  <!-- Inline form container (appears when editing) -->
+  <div id="component-form-container" class="mb-8"></div>
 
   <div class="grid grid-cols-1 gap-6">
     <!-- Key facts -->
@@ -115,4 +134,29 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Delete component (full detail page)
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'delete-component-btn'){
+    const btn = e.target;
+    const id = btn.dataset.componentId;
+    if(!confirm('Delete this component? This cannot be undone.')) return;
+    btn.disabled = true; const original = btn.textContent; btn.textContent='Deleting...';
+    fetch(`/api/components/${id}`, { method:'DELETE' })
+      .then(r=>r.json())
+      .then(data=>{
+        showToast(data.message, data.status==='success');
+        if(data.status==='success'){
+          window.location = '/components';
+        } else {
+          btn.disabled=false; btn.textContent=original;
+        }
+      })
+      .catch(()=>{ showToast('Delete failed', false); btn.disabled=false; btn.textContent=original; });
+  }
+});
+</script>
 {% endblock %}
