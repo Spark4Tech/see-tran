@@ -41,6 +41,13 @@ class Criticality(enum.Enum):
     medium = "medium"
     low = "low"
 
+class LifecycleStage(enum.Enum):
+    planned = "planned"          # Identified / slated for adoption
+    pilot = "pilot"              # Limited trial
+    production = "production"    # Broad/standard use
+    deprecated = "deprecated"    # Use discouraged; in transition
+    retired = "retired"          # No longer in use/supported
+
 # Core Models
 class Agency(db.Model):
     __tablename__ = 'agencies'
@@ -162,6 +169,9 @@ class Component(db.Model):
     update_frequency = db.Column(db.String(50))
     known_issues = db.Column(db.String(500))
     additional_metadata = db.Column(db.JSON)
+    lifecycle_stage = db.Column(db.Enum(LifecycleStage), nullable=True)
+    support_end_date = db.Column(db.Date, nullable=True)
+
     # Component nesting functionality
     parent_component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
     parent_component = db.relationship('Component', remote_side=[id], backref='child_components')
@@ -186,6 +196,7 @@ class AgencyFunctionImplementation(db.Model):
     agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False)
     function_id = db.Column(db.Integer, db.ForeignKey('functions.id'), nullable=False)
     component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False)
+    security_review_date = db.Column(db.Date, nullable=True)
     
     # Agency-specific deployment details
     deployment_date = db.Column(db.Date)

@@ -92,7 +92,7 @@ def count_vendors():
 # Components endpoints
 @main.route("/api/components/list")
 def components_list():
-    """Get all components with filtering"""
+    """Get all components with filtering (refactored to use Jinja template fragment)."""
     try:
         functional_area = (request.args.get('functional_area') or '').strip()
         vendor = (request.args.get('vendor') or '').strip()
@@ -100,115 +100,68 @@ def components_list():
         status = (request.args.get('status') or '').strip()
         search = (request.args.get('search') or '').strip()
 
-        # Start with components; eager relationships used in per-card queries below
         query = db.session.query(Component).distinct()
 
-        # Filters
         if functional_area:
             query = (query
                      .join(Component.agency_usages)
                      .join(AgencyFunctionImplementation.function)
                      .join(Function.functional_area)
                      .filter(FunctionalArea.name == functional_area))
-
         if vendor:
-            # join via relationship to avoid ambiguous joins
             query = query.join(Component.vendor).filter(Vendor.name == vendor)
-
         if agency:
             query = (query
                      .join(Component.agency_usages)
                      .join(AgencyFunctionImplementation.agency)
                      .filter(Agency.name == agency))
-
         if status == 'issues':
             query = query.filter(Component.known_issues.isnot(None))
         elif status == 'no_issues':
             query = query.filter(Component.known_issues.is_(None))
-
         if search:
-            # Search across component, vendor, and function names
             name_like = f"%{search}%"
             query = (query.outerjoin(Component.vendor)
                          .outerjoin(Component.agency_usages)
                          .outerjoin(AgencyFunctionImplementation.function)
-                         .filter(
-                             db.or_(
-                                 Component.name.ilike(name_like),
-                                 Vendor.name.ilike(name_like),
-                                 Function.name.ilike(name_like)
-                             )
-                         ))
-
+                         .filter(db.or_(Component.name.ilike(name_like),
+                                        Vendor.name.ilike(name_like),
+                                        Function.name.ilike(name_like))))
         query = query.order_by(Component.name.asc())
-
         components = query.all()
 
-        # Precompute agencies and functions per component (small bounded lists)
-        html_parts = []
+        # Build light-weight view models for the template
+        view_components = []
         for component in components:
-            status_indicator = "red" if component.known_issues else "green"
-            vendor_name = component.vendor.name if component.vendor else "No Vendor"
-
+            vendor_name = component.vendor.name if component.vendor else 'No Vendor'
             agencies_using = (db.session.query(Agency.name)
                               .join(AgencyFunctionImplementation)
                               .filter(AgencyFunctionImplementation.component_id == component.id)
                               .distinct().limit(3).all())
             agencies_display = ", ".join([a.name for a in agencies_using]) or 'No agencies'
             if len(agencies_using) == 3:
-                agencies_display += " +more"
-
+                agencies_display += ' +more'
             functions_implemented = (db.session.query(Function.name)
                                      .join(AgencyFunctionImplementation)
                                      .filter(AgencyFunctionImplementation.component_id == component.id)
                                      .distinct().limit(3).all())
             functions_display = ", ".join([f.name for f in functions_implemented]) or 'No functions assigned'
             if len(functions_implemented) == 3:
-                functions_display += " +more"
+                functions_display += ' +more'
+            view_components.append(type('VC', (), {
+                'id': component.id,
+                'name': component.name,
+                'is_composite': getattr(component, 'is_composite', False),
+                'status_indicator': 'red' if component.known_issues else 'green',
+                'functions_display': functions_display,
+                'vendor_name': vendor_name,
+                'agencies_display': agencies_display,
+                'deployment_date_str': component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else '',
+                'version': component.version,
+                'known_issues': component.known_issues,
+            }))
 
-            html_parts.append(f'''
-            <a href="/components/{component.id}" aria-label="View details for {component.name}"
-               data-component-card="1"
-               class="group block rounded-xl bg-slate-900/60 border border-slate-600/40 hover:bg-slate-900/80 hover:border-slate-300/50 ring-1 ring-slate-900/20 hover:ring-slate-300/20 shadow-sm hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <div class="flex items-start justify-between gap-3 p-4 sm:p-5">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1.5">
-                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-{status_indicator}-400 ring-2 ring-{status_indicator}-400/30"></span>
-                            <h3 class="truncate text-white text-lg sm:text-xl font-semibold tracking-tight">{component.name}</h3>
-                            {f'<span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">Composite</span>' if getattr(component, 'is_composite', False) else ''}
-                        </div>
-                        <p class="text-slate-300 text-sm sm:text-base leading-snug">{functions_display}</p>
-                        <div class="mt-3 h-px bg-slate-700/60"></div>
-                        <div class="mt-3 flex flex-wrap gap-2 text-xs sm:text-sm text-slate-200">
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-600/40"><span>🏢</span><span class="text-slate-300">{vendor_name}</span></span>
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-600/40"><span>🏛️</span><span class="text-slate-300">{agencies_display}</span></span>
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-600/40"><span>📅</span><span class="text-slate-300">{component.deployment_date.strftime('%Y-%m-%d') if component.deployment_date else 'No Date'}</span></span>
-                        </div>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <div class="inline-flex items-center px-2 py-1 rounded-md bg-slate-700/80 border border-slate-500/40 text-[11px] font-medium text-slate-100 mb-2">v{component.version or 'Unknown'}</div>
-                        <div class="text-[11px] text-slate-400">{component.update_frequency or 'Unknown'}</div>
-                    </div>
-                </div>
-                {f'<div class="mx-4 sm:mx-5 mb-4 -mt-1 rounded-md bg-red-900/30 border border-red-600/40 p-2.5 text-xs sm:text-sm text-red-200"><strong class="text-red-300">Issues:</strong> {component.known_issues}</div>' if component.known_issues else ''}
-            </a>
-            ''')
-
-        if not html_parts:
-            return '''
-            <div class="col-span-full text-center py-12">
-                <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-medium text-slate-400 mb-2">No Components Found</h3>
-                <p class="text-slate-500">Adjust your filters or add new components.</p>
-            </div>
-            '''
-
-        return ''.join(html_parts)
-
+        return render_template('fragments/component_list.html', components=view_components)
     except Exception as e:
         return html_error_fragment(f"Error loading components: {str(e)}")
 
@@ -320,6 +273,25 @@ def component_details(component_id):
     except Exception as e:
         return html_error_fragment(f"Error loading component details: {str(e)}")
 
+@main.route("/api/agencies/options")
+def agencies_filter_options():
+    """Get agency options for filter dropdowns"""
+    try:
+        # Get agencies that have component implementations
+        agencies = db.session.query(Agency.name)\
+            .join(AgencyFunctionImplementation)\
+            .distinct()\
+            .order_by(Agency.name)\
+            .all()
+        
+        html = '<option value="">All Agencies</option>'
+        for agency in agencies:
+            html += f'<option value="{agency.name}">{agency.name}</option>'
+        
+        return html
+    except Exception as e:
+        return html_error_fragment(f"Error loading component details: {str(e)}")
+
 # New full-page component details view
 @main.route("/components/<int:component_id>")
 def component_detail_page(component_id: int):
@@ -344,25 +316,6 @@ def component_detail_page(component_id: int):
         )
     except Exception as e:
         return html_error_fragment(f"Error loading component page: {str(e)}")
-
-@main.route("/api/agencies/options")
-def agencies_filter_options():
-    """Get agency options for filter dropdowns"""
-    try:
-        # Get agencies that have component implementations
-        agencies = db.session.query(Agency.name)\
-            .join(AgencyFunctionImplementation)\
-            .distinct()\
-            .order_by(Agency.name)\
-            .all()
-        
-        html = '<option value="">All Agencies</option>'
-        for agency in agencies:
-            html += f'<option value="{agency.name}">{agency.name}</option>'
-        
-        return html
-    except Exception as e:
-        return '<option value="">All Agencies</option>'
 
 def clear_component_details_js():
     return '''

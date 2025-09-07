@@ -105,10 +105,10 @@
     </div>
 
     <div id="components-list"
-         class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4"
-         hx-get="/api/components/list"
-         hx-trigger="load"
-         hx-include="#component-filters">
+     class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 auto-rows-fr"
+     hx-get="/api/components/list"
+     hx-trigger="load"
+     hx-include="#component-filters">
       <!-- Skeleton -->
       <div class="animate-pulse space-y-3 col-span-full">
         <div class="h-24 bg-slate-800 rounded-lg"></div>
