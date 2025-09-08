@@ -80,8 +80,7 @@ class Agency(db.Model):
         db.UniqueConstraint('name', name='uq_transit_system_name'),
     )
 
-    function_implementations = db.relationship('AgencyFunctionImplementation', back_populates='agency', cascade='all, delete-orphan')
-    # Phase 1 additive: new relationship for future replacement of AFI
+    # Removed legacy function_implementations relationship
     configurations = db.relationship('Configuration', back_populates='agency', cascade='all, delete-orphan')
     
     def __repr__(self):
@@ -127,8 +126,7 @@ class Function(db.Model):
     functional_area = db.relationship('FunctionalArea', back_populates='functions')
 
     components = db.relationship('Component', secondary='function_component', back_populates='functions')
-    agency_implementations = db.relationship('AgencyFunctionImplementation', back_populates='function', cascade='all, delete-orphan')
-    # Phase 1 additive
+    # Removed legacy agency_implementations relationship
     configurations = db.relationship('Configuration', back_populates='function', cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -178,68 +176,17 @@ class Component(db.Model):
     description = db.Column(db.String(1000))
     additional_metadata = db.Column(db.JSON)
 
-    # Component nesting functionality - REMOVED composite & vendor fields: parent_component_id, is_composite, vendor_id
-    # parent_component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
-    # parent_component = db.relationship('Component', remote_side=[id], backref='child_components')
-    # is_composite = db.Column(db.Boolean, default=False, nullable=False)
-    # vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
-
+    # Removed vendor/composite fields previously
     functions = db.relationship('Function', secondary='function_component', back_populates='components')
     integration_points = db.relationship('IntegrationPoint', secondary='component_integration', back_populates='components')
     tags = db.relationship('Tag', secondary='component_tag', back_populates='components')
     user_roles = db.relationship('UserRole', back_populates='component', cascade='all, delete-orphan')
     update_logs = db.relationship('UpdateLog', back_populates='component', cascade='all, delete-orphan')
-    agency_usages = db.relationship('AgencyFunctionImplementation', back_populates='component', cascade='all, delete-orphan')
-    # Phase 1 additive (future replacement usage)
+    # Removed legacy agency_usages relationship
     configurations = db.relationship('Configuration', back_populates='component', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Component(name={self.name})>" # UPDATED __repr__
-
-class AgencyFunctionImplementation(db.Model):
-    __tablename__ = 'agency_function_implementations'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False)
-    function_id = db.Column(db.Integer, db.ForeignKey('functions.id'), nullable=False)
-    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False)
-    security_review_date = db.Column(db.Date, nullable=True)
-    
-    # Agency-specific deployment details
-    deployment_date = db.Column(db.Date)
-    version = db.Column(db.String(50))
-    deployment_notes = db.Column(db.String(1000))
-    status = db.Column(db.String(50), default='Active')  # Active, Planned, Retired
-    implementation_notes = db.Column(db.String(1000))
-    additional_metadata = db.Column(db.JSON)
-
-    # Composite deployment linkage (optional parent AFI for composite umbrella)
-    parent_afi_id = db.Column(
-        db.Integer,
-        db.ForeignKey('agency_function_implementations.id', ondelete='SET NULL'),
-        nullable=True
-    )
-
-    # Relationships
-    agency = db.relationship('Agency', back_populates='function_implementations')
-    function = db.relationship('Function', back_populates='agency_implementations')  
-    component = db.relationship('Component', back_populates='agency_usages')
-    parent_afi = db.relationship(
-        'AgencyFunctionImplementation',
-        remote_side=[id],
-        backref=db.backref('child_afis', cascade='all, delete-orphan')
-    )
-    
-    # Unique constraint and helpful indexes
-    __table_args__ = (
-        db.UniqueConstraint('agency_id', 'function_id', 'component_id', 
-                          name='uq_agency_function_component'),
-        db.Index('idx_afi_agency_function', 'agency_id', 'function_id'),
-        db.Index('ix_afi_parent_afi_id', 'parent_afi_id'),
-    )
-    
-    def __repr__(self):
-        return f"<AgencyFunctionImplementation(agency={self.agency.name if self.agency else None}, function={self.function.name if self.function else None}, component={self.component.name if self.component else None})>"
 
 class IntegrationPoint(db.Model):
     __tablename__ = 'integration_points'
@@ -328,34 +275,7 @@ class UpdateLog(db.Model):
     def __repr__(self):
         return f"<UpdateLog(component_id={self.component_id}, updated_by={self.updated_by})>"
 
-class AgencyFunctionImplementationHistory(db.Model):
-    __tablename__ = 'agency_function_implementation_history'
-
-    id = db.Column(db.Integer, primary_key=True)
-    afi_id = db.Column(
-        db.Integer,
-        db.ForeignKey('agency_function_implementations.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-    )
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    action = db.Column(db.String(50), nullable=False)  # created, updated, status_change, function_changed, deleted
-    changed_by = db.Column(db.String(100))
-    old_values = db.Column(db.JSON)
-    new_values = db.Column(db.JSON)
-
-    afi = db.relationship(
-        'AgencyFunctionImplementation',
-        backref=db.backref('history_entries', cascade='all, delete-orphan')
-    )
-
-    def __repr__(self):
-        return f"<AFIHistory(afi_id={self.afi_id}, action={self.action}, timestamp={self.timestamp})>"
-
-# =============================
-# Phase 1 ADDITIVE NEW MODELS
-# =============================
-
+# Phase 1 additive models retained
 class Product(db.Model):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
@@ -463,7 +383,3 @@ class ConfigurationHistory(db.Model):
 
     def __repr__(self):
         return f"<ConfigurationHistory(configuration_id={self.configuration_id}, action={self.action}, timestamp={self.timestamp})>"
-
-# =============================
-# End Phase 1 additions
-# =============================

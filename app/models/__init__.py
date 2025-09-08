@@ -6,8 +6,7 @@ from app import db
 # Import existing models
 from .tran import (
     Agency, FunctionalArea, Vendor, Component, Function,
-    IntegrationPoint, UserRole, UpdateLog, Standard, TagGroup, Tag,
-    AgencyFunctionImplementation
+    IntegrationPoint, UserRole, UpdateLog, Standard, TagGroup, Tag
 )
 
 # Import GTFS models
@@ -22,7 +21,6 @@ __all__ = [
     # Base models
     'Agency', 'FunctionalArea', 'Function', 'Vendor', 'Component',
     'IntegrationPoint', 'UserRole', 'UpdateLog', 'Standard', 'TagGroup', 'Tag',
-    'AgencyFunctionImplementation',
     
     # GTFS models  
     'GTFSAgency', 'GTFSStop', 'GTFSRoute', 'GTFSCalendar', 'GTFSCalendarDate',

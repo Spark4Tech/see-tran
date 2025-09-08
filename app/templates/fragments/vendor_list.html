@@ -1,14 +1,13 @@
 <!-- app/templates/fragments/vendor_list.html -->
 {% if vendors_with_counts %}
-  {% for vendor, component_count in vendors_with_counts %}
+<div id="vendor-list-meta" data-count="{{ vendors_with_counts|length }}" class="hidden"></div>
+  {% for vendor, product_count, usage_count in vendors_with_counts %}
   <div class="vendor-card bg-slate-800/50 rounded-lg border border-slate-700/30 p-6 hover:bg-slate-800/70 transition-all cursor-pointer"
        data-vendor-id="{{ vendor.id }}"
-       hx-get="/api/vendors/{{ vendor.id }}/details" 
-       hx-target="#vendor-details" 
+       hx-get="/api/vendors/{{ vendor.id }}/details"
+       hx-target="#vendor-details"
        hx-swap="innerHTML"
        hx-indicator="#vendor-{{ vendor.id }}-loading">
-    
-    <!-- Loading indicator (hidden by default) -->
     <div id="vendor-{{ vendor.id }}-loading" class="htmx-indicator absolute inset-0 bg-slate-800/80 rounded-lg flex items-center justify-center z-10">
       <div class="flex items-center space-x-2 text-slate-300">
         <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -18,147 +17,81 @@
         <span class="text-sm">Loading...</span>
       </div>
     </div>
-    
+
     <div class="flex items-start justify-between mb-4">
       <div class="flex items-start space-x-4 flex-1">
-        <!-- Vendor Logo -->
         {% if vendor.logo_url %}
         <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
-          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" 
-               class="w-full h-full object-contain"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center">
-            <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
-          </div>
+          <img src="{{ vendor.logo_url }}" alt="{{ vendor.name }} logo" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hidden items-center justify-center"><span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span></div>
         </div>
         {% else %}
         <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
           <span class="text-lg font-bold text-white">{{ vendor.name[0].upper() }}</span>
         </div>
         {% endif %}
-        
-        <!-- Vendor Info -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center space-x-3 mb-2">
             <h3 class="font-semibold text-white text-lg truncate">{{ vendor.name }}</h3>
             <div class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" title="Active vendor"></div>
           </div>
-          
           {% if vendor.description %}
-          <p class="text-slate-400 text-sm mb-3 line-clamp-2">
-            {{ vendor.description[:120] }}{% if vendor.description|length > 120 %}...{% endif %}
-          </p>
+          <p class="text-slate-400 text-sm mb-3 line-clamp-2">{{ vendor.description[:120] }}{% if vendor.description|length > 120 %}...{% endif %}</p>
           {% endif %}
-          
-          <div class="flex items-center space-x-4 text-xs text-slate-400">
-            <span class="flex items-center">
-              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-              </svg>
-              {{ component_count }} component{{ 's' if component_count != 1 else '' }}
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
+            <span class="flex items-center" title="Products">
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+              {{ product_count }} product{{ 's' if product_count != 1 else '' }}
+            </span>
+            <span class="flex items-center" title="Active configuration usage">
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M11 17a1 1 0 01-.555-.168l-3-2A1 1 0 017 14V6a1 1 0 01.445-.832l3-2A1 1 0 0112 4v12a1 1 0 01-1 1z"/><path d="M5 15a1 1 0 01-.832-.445l-2-3A1 1 0 012 11V9a1 1 0 01.168-.555l2-3A1 1 0 015 5v10zM13 14a1 1 0 01.553-.894l3-1.5A1 1 0 0017 11V9a1 1 0 00-.447-.832l-3-2A1 1 0 0013 6v8z"/></svg>
+              {{ usage_count }} cfg use{{ 's' if usage_count != 1 else '' }}
             </span>
             {% if vendor.website %}
             <span class="flex items-center">
-              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
-              </svg>
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/></svg>
               Website
             </span>
             {% endif %}
             {% if vendor.vendor_email %}
             <span class="flex items-center">
-              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-              </svg>
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
               Email
             </span>
             {% endif %}
           </div>
         </div>
       </div>
-      
-      <!-- Stats Badge -->
       <div class="text-center flex-shrink-0">
         <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-1">
-          <span class="text-lg font-bold text-white">{{ component_count }}</span>
+          <span class="text-lg font-bold text-white">{{ product_count }}</span>
         </div>
-        <div class="text-xs text-slate-500">Component{{ 's' if component_count != 1 else '' }}</div>
+        <div class="text-xs text-slate-500">Product{{ 's' if product_count != 1 else '' }}</div>
       </div>
     </div>
-    
-    <!-- Footer with Quick Actions -->
     <div class="flex items-center justify-between pt-3 border-t border-slate-700/30">
       <div class="flex items-center space-x-3">
         {% if vendor.website %}
-        <a href="{{ vendor.website }}" target="_blank" 
-           class="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center hover:underline"
-           onclick="event.stopPropagation()" title="Visit Website">
-          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/>
-          </svg>
-          {{ vendor.website.replace('https://', '').replace('http://', '').split('/')[0][:25] }}{% if vendor.website.replace('https://', '').replace('http://', '').split('/')[0]|length > 25 %}...{% endif %}
+        <a href="{{ vendor.website }}" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center hover:underline" onclick="event.stopPropagation()" title="Visit Website">
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.032 11H4.083a6.004 6.004 0 002.783 4.118z" clip-rule="evenodd"/></svg>
+          {% set domain = vendor.website.replace('https://','').replace('http://','').split('/')[0] %}
+          {{ domain[:25] }}{% if domain|length > 25 %}…{% endif %}
         </a>
         {% endif %}
-        
         {% if vendor.vendor_email %}
-        <a href="mailto:{{ vendor.vendor_email }}" 
-           class="text-xs text-green-400 hover:text-green-300 transition-colors hover:underline"
-           onclick="event.stopPropagation()" title="Send Email">
-          <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-          </svg>
-          Contact
-        </a>
-        {% endif %}
-        
-        {% if vendor.vendor_phone %}
-        <a href="tel:{{ vendor.vendor_phone }}" 
-           class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors hover:underline"
-           onclick="event.stopPropagation()" title="Call">
-          <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-          </svg>
-          Call
-        </a>
+        <a href="mailto:{{ vendor.vendor_email }}" class="text-xs text-green-400 hover:text-green-300 transition-colors" onclick="event.stopPropagation()" title="Email Vendor">Contact</a>
         {% endif %}
       </div>
-      
-      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              hx-get="/api/vendors/{{ vendor.id }}/form" 
-              hx-target="#vendor-details" 
-              hx-swap="innerHTML"
-              onclick="event.stopPropagation()"
-              title="Edit Vendor">
-        <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-        </svg>
-        Edit
-      </button>
+      <button class="text-xs text-slate-500 hover:text-slate-300 transition-colors" onclick="event.stopPropagation()" hx-get="/api/vendors/{{ vendor.id }}/form" hx-target="#vendor-details" hx-swap="innerHTML">Edit →</button>
     </div>
   </div>
   {% endfor %}
 {% else %}
 <div class="text-center py-12">
   <div class="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-    </svg>
+    <svg class="w-8 h-8 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
   </div>
   <h3 class="text-lg font-medium text-slate-400 mb-2">No Vendors Found</h3>
-  <p class="text-slate-500 mb-4">Try adjusting your search filters or add a new vendor.</p>
-  <button hx-get="/api/vendors/form" 
-          hx-target="#vendor-details" 
-          hx-swap="innerHTML"
-          class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-medium transition-all text-white shadow-lg">
-    <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-      <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-    </svg>
-    Add First Vendor
-  </button>
+  <p class="text-slate-500">Try adjusting your search or add a new vendor.</p>
 </div>
 {% endif %}
-
-<!-- Vendor count and filter state info (hidden, used by JavaScript) -->
-<div id="vendor-list-meta" class="hidden" data-count="{{ vendors_with_counts|length if vendors_with_counts else 0 }}"></div>

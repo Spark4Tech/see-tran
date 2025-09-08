@@ -1,44 +1,4 @@
 <!-- AFI Edit Form -->
-<div class="bg-slate-700/40 rounded p-3" id="afi-{{ impl.id }}">
-  <form hx-post="/api/implementations/{{ impl.id }}" hx-target="#afi-{{ impl.id }}" hx-swap="outerHTML">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Function</label>
-        <select name="function_id" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200">
-          {% for f in functions %}
-            <option value="{{ f.id }}" {% if f.id == impl.function_id %}selected{% endif %}>{{ f.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Status</label>
-        <select name="status" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200">
-          {% for s in ['Active','Planned','Retired'] %}
-            <option value="{{ s }}" {% if impl.status == s %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Deployment Date</label>
-        <input type="date" name="deployment_date" value="{{ impl.deployment_date.strftime('%Y-%m-%d') if impl.deployment_date }}" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200"/>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Version</label>
-        <input type="text" name="version" value="{{ impl.version or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200"/>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Deployment Notes</label>
-        <input type="text" name="deployment_notes" value="{{ impl.deployment_notes or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200"/>
-      </div>
-      <div>
-        <label class="block text-xs text-slate-400 mb-1">Implementation Notes</label>
-        <input type="text" name="implementation_notes" value="{{ impl.implementation_notes or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200"/>
-      </div>
-    </div>
-    <div class="flex justify-end gap-2">
-      <button type="button" hx-get="/api/implementations/{{ impl.id }}/row" hx-target="#afi-{{ impl.id }}" hx-swap="outerHTML" class="text-xs px-2 py-1 bg-slate-700/70 hover:bg-slate-700 rounded">Cancel</button>
-      <button type="submit" class="text-xs px-2 py-1 bg-green-600/70 hover:bg-green-600 rounded">Save</button>
-      <button type="button" hx-get="/api/implementations/{{ impl.id }}/history" hx-target="#afi-{{ impl.id }}-history" hx-swap="innerHTML" class="text-xs px-2 py-1 bg-slate-700/70 hover:bg-slate-700 rounded">History</button>
-    </div>
-  </form>
+<div class="p-4 bg-slate-800 border border-slate-700 rounded text-sm text-slate-300">
+  AFI edit form deprecated. Use configuration form endpoints instead.
 </div>

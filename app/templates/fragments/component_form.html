@@ -34,52 +34,12 @@
           <div class="field-error text-red-400 text-xs mt-1 hidden" data-error-for="name"></div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Version</label>
-            <input type="text" name="version" value="{{ form.version.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., 1.0.3">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Deployment Date</label>
-          <input type="date" name="deployment_date" value="{{ form.deployment_date.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Update Frequency</label>
-          <input type="text" name="update_frequency" value="{{ form.update_frequency.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., Quarterly">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Lifecycle Stage</label>
-          <select name="lifecycle_stage" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-            <option value="">-- Select --</option>
-            {% for stage in ['planned','pilot','production','deprecated','retired'] %}
-              <option value="{{ stage }}" {% if form.lifecycle_stage.data==stage %}selected{% endif %}>{{ stage|title }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Support End Date</label>
-          <input type="date" name="support_end_date" value="{{ form.support_end_date.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Version Label</label>
+          <input type="text" name="version" value="{{ form.version.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., 1.0.3">
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
           <textarea name="description" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-vertical" placeholder="Brief description">{{ form.description.data or '' }}</textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- Associations -->
-    <div class="form-section">
-      <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path d="M13 7H7v6h6V7z"/><path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm8 4a1 1 0 011 1v4a1 1 0 01-1 1H7a1 1 0 01-1-1V8a1 1 0 011-1h6z" clip-rule="evenodd"/></svg>
-        Associations
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Vendor</label>
-          <select name="vendor_id" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
-            <option value="">-- None --</option>
-            {% for v in vendors %}
-              <option value="{{ v.id }}" {% if form.vendor_id.data == v.id|string %}selected{% endif %}>{{ v.name }}</option>
-            {% endfor %}
-          </select>
         </div>
       </div>
     </div>

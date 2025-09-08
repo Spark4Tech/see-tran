@@ -1,10 +1,12 @@
 {% if components %}
   {% for c in components %}
   <div class="relative group">
-    <a href="/components/{{ c.id }}"
+    <!-- Changed from anchor link to button to avoid 404 on /components/<id>; now loads details via HTMX -->
+    <button type="button"
       data-component-card="1"
       aria-label="View details for {{ c.name }}"
-      class="group relative flex h-full flex-col overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700/40 hover:bg-slate-800/80 hover:border-slate-500/50 transition shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 p-4 sm:p-5">
+      hx-get="/api/components/{{ c.id }}/details" hx-target="#component-details" hx-swap="innerHTML"
+      class="group relative w-full text-left flex h-full flex-col overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700/40 hover:bg-slate-800/80 hover:border-slate-500/50 transition shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 p-4 sm:p-5">
 
       {% if c.is_composite %}
       <span class="absolute top-2 right-2 z-10 text-[10px] px-2 py-0.5 rounded bg-blue-600/25 text-blue-200 font-medium border border-blue-500/30 pointer-events-none">
@@ -14,7 +16,6 @@
 
       <!-- Header -->
         <div class="flex items-start gap-2 min-w-0">
-          <!-- <span class="mt-1 inline-block w-2.5 h-2.5 rounded-full bg-{{ c.status_indicator }}-400 ring-2 ring-{{ c.status_indicator }}-400/30"></span> -->
           <h3 class="min-w-0 text-white font-semibold text-base sm:text-lg leading-snug break-words [hyphens:auto] line-clamp-2"
               title="{{ c.name }}">
             {{ c.name }}
@@ -41,7 +42,7 @@
           <span class="truncate" title="{{ c.agencies_display }}">{{ c.agencies_display }}</span>
         </span>
       </div>
-    </a>
+    </button>
     <div class="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
       <button class="px-1.5 py-1 rounded bg-slate-700/70 hover:bg-slate-600 text-[10px] text-white" title="Edit"
               hx-get="/api/components/{{ c.id }}/form" hx-target="#component-form-container" hx-swap="innerHTML"

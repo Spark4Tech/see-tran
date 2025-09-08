@@ -1,32 +1,3 @@
-<!-- AFI History -->
-<div class="text-slate-200 text-sm">
-  {% if entries and entries|length > 0 %}
-    <ul class="space-y-2">
-      {% for h in entries %}
-        <li class="border border-slate-700 rounded p-2 bg-slate-800/60">
-          <div class="flex justify-between items-center">
-            <div>
-              <span class="text-xs text-slate-400">{{ h.timestamp.strftime('%Y-%m-%d %H:%M') if h.timestamp }}</span>
-              <span class="ml-2 font-medium">{{ h.action }}</span>
-            </div>
-            <div class="text-xs text-slate-400">{{ h.changed_by or 'system' }}</div>
-          </div>
-          {% if h.old_values or h.new_values %}
-            <div class="mt-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div>
-                <div class="text-xs text-slate-400">Old</div>
-                <pre class="text-xs bg-slate-900/50 border border-slate-700 rounded p-2 overflow-x-auto">{{ h.old_values | tojson(indent=2) }}</pre>
-              </div>
-              <div>
-                <div class="text-xs text-slate-400">New</div>
-                <pre class="text-xs bg-slate-900/50 border border-slate-700 rounded p-2 overflow-x-auto">{{ h.new_values | tojson(indent=2) }}</pre>
-              </div>
-            </div>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <div class="text-slate-400">No history yet.</div>
-  {% endif %}
+<div class="text-slate-400 text-sm p-3 bg-slate-800 border border-slate-700 rounded">
+  AFI history deprecated. Use configuration_history.html via /api/configurations/<id>/history.
 </div>

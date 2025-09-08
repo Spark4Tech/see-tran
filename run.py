@@ -4,7 +4,6 @@ from app.models import (
     # Existing models
     Agency, FunctionalArea, Vendor, Component, Function,
     IntegrationPoint, UserRole, UpdateLog, Standard, TagGroup, Tag,
-    AgencyFunctionImplementation,
     # GTFS models
     GTFSAgency, GTFSStop, GTFSRoute, GTFSCalendar, GTFSCalendarDate,
     GTFSTrip, GTFSStopTime, GTFSShape, GTFSFeedInfo,
