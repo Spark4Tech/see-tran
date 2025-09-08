@@ -1,0 +1,26 @@
+<div class="p-4 bg-slate-800 border border-slate-700 rounded">
+  <h3 class="text-white font-semibold mb-3 text-sm">Step 4: Review & Confirm</h3>
+  <div class="text-xs text-slate-300 mb-2">Agency {{ agency_id }} • Function {{ function_id }} • Component {{ component_id }}</div>
+  {% if products %}
+  <ul class="list-disc list-inside text-xs text-slate-400 mb-3">
+    {% for p in products %}<li>{{ p.name }}</li>{% endfor %}
+  </ul>
+  {% else %}
+  <div class="text-slate-500 text-xs mb-3">No products selected.</div>
+  {% endif %}
+  {% if warnings %}
+  <div class="mb-3 bg-red-900/20 border border-red-800 rounded p-2">
+    <h4 class="text-red-300 font-medium text-xs mb-1">Advisory Warnings</h4>
+    <ul class="text-red-200 text-xs list-disc list-inside">
+      {% for w in warnings %}<li>{{ w.message }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  <form hx-post="/api/configurations" hx-target="#config-list" hx-swap="beforebegin" class="space-y-2">
+    <input type="hidden" name="agency_id" value="{{ agency_id }}" />
+    <input type="hidden" name="function_id" value="{{ function_id }}" />
+    <input type="hidden" name="component_id" value="{{ component_id }}" />
+    <input type="hidden" name="status" value="Active" />
+    <button class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs text-white">Create Configuration</button>
+  </form>
+</div>

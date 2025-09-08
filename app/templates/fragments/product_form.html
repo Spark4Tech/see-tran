@@ -1,0 +1,6 @@
+<form hx-post="/api/products" hx-target="#product-list" hx-swap="outerHTML" class="space-y-2 p-3 bg-slate-800 border border-slate-700 rounded">
+  <input type="text" name="name" placeholder="Product Name" class="w-64 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
+  <input type="text" name="vendor_id" placeholder="Vendor ID" class="w-32 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
+  <textarea name="description" placeholder="Description" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" rows="2"></textarea>
+  <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Create</button>
+</form>

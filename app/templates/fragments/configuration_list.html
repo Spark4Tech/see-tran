@@ -1,0 +1,5 @@
+{% for c in configurations %}
+  {% include 'fragments/configuration_row.html' %}
+{% else %}
+  <div class="text-slate-500 text-sm">No configurations found.</div>
+{% endfor %}

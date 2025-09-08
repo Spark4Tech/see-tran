@@ -35,6 +35,13 @@ integration_standard = db.Table(
     db.Column('standard_id', db.Integer, db.ForeignKey('standards.id'), primary_key=True)
 )
 
+# NEW Phase 1 association table (additive)
+product_integration = db.Table(
+    'product_integration',
+    db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True),
+    db.Column('integration_point_id', db.Integer, db.ForeignKey('integration_points.id'), primary_key=True)
+)
+
 # Enums
 class Criticality(enum.Enum):
     high = "high"
@@ -74,6 +81,8 @@ class Agency(db.Model):
     )
 
     function_implementations = db.relationship('AgencyFunctionImplementation', back_populates='agency', cascade='all, delete-orphan')
+    # Phase 1 additive: new relationship for future replacement of AFI
+    configurations = db.relationship('Configuration', back_populates='agency', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f"<Agency(name={self.name}, location={self.location})>"
@@ -119,6 +128,8 @@ class Function(db.Model):
 
     components = db.relationship('Component', secondary='function_component', back_populates='functions')
     agency_implementations = db.relationship('AgencyFunctionImplementation', back_populates='function', cascade='all, delete-orphan')
+    # Phase 1 additive
+    configurations = db.relationship('Configuration', back_populates='function', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Function(name={self.name}, criticality={self.criticality.value})>"
@@ -137,7 +148,8 @@ class Vendor(db.Model):
     vendor_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 
-    components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan')
+    # components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan') # REMOVED: components relationship (Component no longer references vendor)
+    products = db.relationship('Product', back_populates='vendor', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Vendor(name={self.name})>"
@@ -164,31 +176,26 @@ class Component(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(1000))
-    version = db.Column(db.String(50))
-    deployment_date = db.Column(db.Date)
-    update_frequency = db.Column(db.String(50))
-    known_issues = db.Column(db.String(500))
     additional_metadata = db.Column(db.JSON)
-    lifecycle_stage = db.Column(db.Enum(LifecycleStage), nullable=True)
-    support_end_date = db.Column(db.Date, nullable=True)
 
-    # Component nesting functionality
-    parent_component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
-    parent_component = db.relationship('Component', remote_side=[id], backref='child_components')
-    is_composite = db.Column(db.Boolean, default=False, nullable=False)
-    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
+    # Component nesting functionality - REMOVED composite & vendor fields: parent_component_id, is_composite, vendor_id
+    # parent_component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
+    # parent_component = db.relationship('Component', remote_side=[id], backref='child_components')
+    # is_composite = db.Column(db.Boolean, default=False, nullable=False)
+    # vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
 
-    vendor = db.relationship('Vendor', back_populates='components')
     functions = db.relationship('Function', secondary='function_component', back_populates='components')
     integration_points = db.relationship('IntegrationPoint', secondary='component_integration', back_populates='components')
     tags = db.relationship('Tag', secondary='component_tag', back_populates='components')
     user_roles = db.relationship('UserRole', back_populates='component', cascade='all, delete-orphan')
     update_logs = db.relationship('UpdateLog', back_populates='component', cascade='all, delete-orphan')
     agency_usages = db.relationship('AgencyFunctionImplementation', back_populates='component', cascade='all, delete-orphan')
+    # Phase 1 additive (future replacement usage)
+    configurations = db.relationship('Configuration', back_populates='component', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"<Component(name={self.name}, version={self.version})>"
-    
+        return f"<Component(name={self.name})>" # UPDATED __repr__
+
 class AgencyFunctionImplementation(db.Model):
     __tablename__ = 'agency_function_implementations'
     
@@ -245,6 +252,8 @@ class IntegrationPoint(db.Model):
     standards = db.relationship('Standard', secondary=integration_standard, back_populates='integration_points')
     components = db.relationship('Component', secondary='component_integration', back_populates='integration_points')
     tags = db.relationship('Tag', secondary=integration_tag, back_populates='integration_points')
+    # Phase 1 additive: product-level integrations
+    products = db.relationship('Product', secondary='product_integration', back_populates='integration_points')
 
     def __repr__(self):
         return f"<IntegrationPoint(name={self.name})>"
@@ -342,3 +351,119 @@ class AgencyFunctionImplementationHistory(db.Model):
 
     def __repr__(self):
         return f"<AFIHistory(afi_id={self.afi_id}, action={self.action}, timestamp={self.timestamp})>"
+
+# =============================
+# Phase 1 ADDITIVE NEW MODELS
+# =============================
+
+class Product(db.Model):
+    __tablename__ = 'products'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False, unique=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True, index=True)
+    description = db.Column(db.String(1000))
+    parent_product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True, index=True)
+    lifecycle_stage = db.Column(db.Enum(LifecycleStage), nullable=True)
+    additional_metadata = db.Column(db.JSON)
+
+    vendor = db.relationship('Vendor', back_populates='products')
+    parent_product = db.relationship('Product', remote_side=[id], backref=db.backref('child_products', cascade='all, delete-orphan'))
+    versions = db.relationship('ProductVersion', back_populates='product', cascade='all, delete-orphan')
+    integration_points = db.relationship('IntegrationPoint', secondary='product_integration', back_populates='products')
+    configuration_products = db.relationship('ConfigurationProduct', back_populates='product', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f"<Product(name={self.name})>"
+
+class ProductVersion(db.Model):
+    __tablename__ = 'product_versions'
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    version = db.Column(db.String(100), nullable=False)
+    release_date = db.Column(db.Date, nullable=True)
+    support_end_date = db.Column(db.Date, nullable=True)
+    notes = db.Column(db.String(1000))
+
+    product = db.relationship('Product', back_populates='versions')
+    configuration_products = db.relationship('ConfigurationProduct', back_populates='product_version')
+
+    __table_args__ = (
+        db.UniqueConstraint('product_id', 'version', name='uq_product_version'),
+        db.Index('ix_product_version_product_id_version', 'product_id', 'version'),
+    )
+
+    def __repr__(self):
+        return f"<ProductVersion(product_id={self.product_id}, version={self.version})>"
+
+class Configuration(db.Model):
+    __tablename__ = 'configurations'
+    id = db.Column(db.Integer, primary_key=True)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False, index=True)
+    function_id = db.Column(db.Integer, db.ForeignKey('functions.id'), nullable=False, index=True)
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=False, index=True)
+    status = db.Column(db.String(50), default='Active', nullable=False, index=True)
+    deployment_date = db.Column(db.Date, nullable=True)
+    version_label = db.Column(db.String(100))
+    implementation_notes = db.Column(db.String(1000))
+    security_review_date = db.Column(db.Date, nullable=True)
+    additional_metadata = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    agency = db.relationship('Agency', back_populates='configurations')
+    function = db.relationship('Function', back_populates='configurations')
+    component = db.relationship('Component', back_populates='configurations')
+    products = db.relationship('ConfigurationProduct', back_populates='configuration', cascade='all, delete-orphan')
+    history_entries = db.relationship('ConfigurationHistory', back_populates='configuration', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('agency_id', 'function_id', 'component_id', name='uq_configuration_agency_function_component'),
+        db.Index('ix_configuration_agency_function', 'agency_id', 'function_id'),
+        db.Index('ix_configuration_component', 'component_id'),
+    )
+
+    def __repr__(self):
+        return f"<Configuration(agency_id={self.agency_id}, function_id={self.function_id}, component_id={self.component_id})>"
+
+class ConfigurationProduct(db.Model):
+    __tablename__ = 'configuration_products'
+    id = db.Column(db.Integer, primary_key=True)
+    configuration_id = db.Column(db.Integer, db.ForeignKey('configurations.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    product_version_id = db.Column(db.Integer, db.ForeignKey('product_versions.id'), nullable=True, index=True)
+    status = db.Column(db.String(50), default='Active', nullable=False, index=True)
+    deployment_date = db.Column(db.Date, nullable=True)
+    settings = db.Column(db.JSON)  # free-form JSON for product-specific configuration
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    configuration = db.relationship('Configuration', back_populates='products')
+    product = db.relationship('Product', back_populates='configuration_products')
+    product_version = db.relationship('ProductVersion', back_populates='configuration_products')
+
+    __table_args__ = (
+        db.UniqueConstraint('configuration_id', 'product_id', name='uq_configuration_product'),
+        db.Index('ix_configuration_product_product_version', 'product_id', 'product_version_id'),
+    )
+
+    def __repr__(self):
+        return f"<ConfigurationProduct(configuration_id={self.configuration_id}, product_id={self.product_id}, version_id={self.product_version_id})>"
+
+class ConfigurationHistory(db.Model):
+    __tablename__ = 'configuration_history'
+    id = db.Column(db.Integer, primary_key=True)
+    configuration_id = db.Column(db.Integer, db.ForeignKey('configurations.id', ondelete='CASCADE'), nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # created, updated, status_change, product_added, product_removed, advisory_ack, deleted
+    changed_by = db.Column(db.String(100))
+    old_values = db.Column(db.JSON)
+    new_values = db.Column(db.JSON)
+
+    configuration = db.relationship('Configuration', back_populates='history_entries')
+
+    def __repr__(self):
+        return f"<ConfigurationHistory(configuration_id={self.configuration_id}, action={self.action}, timestamp={self.timestamp})>"
+
+# =============================
+# End Phase 1 additions
+# =============================

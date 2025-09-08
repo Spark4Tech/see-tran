@@ -1,0 +1,17 @@
+<div class="p-4 bg-slate-800 border border-slate-700 rounded">
+  <h3 class="text-white font-semibold mb-3 text-sm">Step 3: Select Products</h3>
+  <form hx-get="/api/wizard/config/step4" hx-target="#wizard" class="space-y-2" id="product-select-form">
+    <input type="hidden" name="agency_id" value="{{ agency_id }}" />
+    <input type="hidden" name="function_id" value="{{ function_id }}" />
+    <input type="hidden" name="component_id" value="{{ component_id }}" />
+    <div class="space-y-1 max-h-48 overflow-y-auto border border-slate-700 rounded p-2 bg-slate-900">
+      {% for p in products %}
+      <label class="flex items-center space-x-2 text-xs text-slate-300">
+        <input type="checkbox" name="product_ids" value="{{ p.id }}" class="accent-blue-600" />
+        <span>{{ p.name }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Review</button>
+  </form>
+</div>

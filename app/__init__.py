@@ -55,4 +55,8 @@ def create_app(test_config=None):
     from app.routes import admin as admin_bp
     app.register_blueprint(admin_bp)
     
+    # Phase 4 new blueprint
+    from app.routes.configurations import config_bp
+    app.register_blueprint(config_bp)
+    
     return app

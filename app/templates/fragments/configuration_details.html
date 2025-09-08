@@ -1,0 +1,24 @@
+<div class="p-4 rounded bg-slate-900 border border-slate-700" id="configuration-details-inner">
+  <h3 class="text-white font-semibold mb-2">Configuration {{ c.id }}</h3>
+  <p class="text-sm text-slate-400 mb-2">Agency: {{ c.agency_id }} • Function: {{ c.function_id }} • Component: {{ c.component_id }}</p>
+  <p class="text-sm text-slate-400 mb-4">Status: {{ c.status }}{% if c.version_label %} • Version: {{ c.version_label }}{% endif %}</p>
+  {% if warnings %}
+  <div class="mb-4">
+    <h4 class="text-red-400 font-medium text-sm mb-1">Advisory Warnings</h4>
+    <ul class="list-disc list-inside text-xs text-red-300">
+      {% for w in warnings %}<li>{{ w.message }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  <div id="configuration-products" hx-get="/api/configurations/{{ c.id }}/products/list" hx-trigger="load">
+    <div class="text-slate-600 text-xs">Loading products...</div>
+  </div>
+  <div class="mt-4">
+    <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs" hx-get="/api/configurations/{{ c.id }}/products/form" hx-target="#configuration-product-form" hx-swap="innerHTML">Add Product</button>
+  </div>
+  <div id="configuration-product-form" class="mt-2"></div>
+  <div class="mt-4">
+    <button class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs" hx-get="/api/configurations/{{ c.id }}/history" hx-target="#configuration-history" hx-swap="innerHTML">History</button>
+  </div>
+  <div id="configuration-history" class="mt-2"></div>
+</div>

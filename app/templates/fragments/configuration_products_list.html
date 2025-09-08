@@ -1,0 +1,17 @@
+<div class="p-3 bg-slate-800 rounded border border-slate-700 mt-3">
+  <h4 class="text-slate-200 font-medium mb-2 text-sm">Products</h4>
+  {% if products %}
+  <ul class="space-y-1 text-xs">
+    {% for cp in products %}
+    <li class="flex items-center justify-between bg-slate-700/50 px-2 py-1 rounded" id="configuration-product-{{ cp.id }}">
+      <span class="text-slate-300">{{ cp.product.name }}{% if cp.product_version %} v{{ cp.product_version.version }}{% endif %} ({{ cp.status }})</span>
+      <span>
+        <button class="text-xs bg-slate-600 hover:bg-slate-500 px-2 py-0.5 rounded" hx-delete="/api/configuration-products/{{ cp.id }}" hx-target="#configuration-products" hx-swap="outerHTML">✕</button>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="text-slate-500 text-xs">No products attached.</div>
+  {% endif %}
+</div>

@@ -1,0 +1,9 @@
+<div id="configuration-{{ c.id }}" class="p-3 mb-2 rounded bg-slate-800 border border-slate-700 flex items-center justify-between" hx-get="/api/configurations/{{ c.id }}/details" hx-target="#configuration-details" hx-trigger="click">
+  <div>
+    <div class="text-sm text-white font-medium">Config #{{ c.id }} • Agency {{ c.agency_id }} • Function {{ c.function_id }} • Component {{ c.component_id }}</div>
+    <div class="text-xs text-slate-400">Status: {{ c.status }}{% if c.version_label %} • Version: {{ c.version_label }}{% endif %}</div>
+  </div>
+  <div class="flex space-x-2">
+    <button class="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded" hx-delete="/api/configurations/{{ c.id }}" hx-target="#configuration-{{ c.id }}" hx-swap="outerHTML">Delete</button>
+  </div>
+</div>

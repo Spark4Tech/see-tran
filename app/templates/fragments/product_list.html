@@ -1,0 +1,11 @@
+<div class="space-y-2">
+{% for p in products %}
+  <div id="product-{{ p.id }}" class="p-3 bg-slate-800 border border-slate-700 rounded flex items-center justify-between" hx-get="/api/products/{{ p.id }}/details" hx-target="#product-details" hx-trigger="click">
+    <div class="text-sm text-white font-medium">{{ p.name }}</div>
+    <div class="text-xs text-slate-400">Vendor: {{ p.vendor.name if p.vendor else 'n/a' }}</div>
+  </div>
+{% else %}
+  <div class="text-slate-500 text-sm">No products found.</div>
+{% endfor %}
+</div>
+<div id="product-details" class="mt-4"></div>

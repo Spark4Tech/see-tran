@@ -1,0 +1,12 @@
+<div class="p-3 bg-slate-800 rounded border border-slate-700">
+  <h4 class="text-slate-200 font-medium mb-2 text-sm">History</h4>
+  {% if history %}
+    <ul class="space-y-1 text-xs text-slate-400">
+      {% for h in history %}
+      <li>{{ h.timestamp.strftime('%Y-%m-%d %H:%M') }} • {{ h.action }} • {{ h.changed_by or 'system' }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="text-slate-500 text-xs">No history entries.</div>
+  {% endif %}
+</div>
