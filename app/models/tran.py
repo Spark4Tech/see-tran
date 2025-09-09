@@ -35,7 +35,6 @@ integration_standard = db.Table(
     db.Column('standard_id', db.Integer, db.ForeignKey('standards.id'), primary_key=True)
 )
 
-# NEW Phase 1 association table (additive)
 product_integration = db.Table(
     'product_integration',
     db.Column('product_id', db.Integer, db.ForeignKey('products.id'), primary_key=True),
@@ -59,8 +58,6 @@ class LifecycleStage(enum.Enum):
 class Agency(db.Model):
     __tablename__ = 'agencies'
 
-    # TODO: Enhance sizing metrics for agencies: routes, riders, budget; currently stored in additional metadata json
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     location = db.Column(db.String(100))
@@ -74,33 +71,32 @@ class Agency(db.Model):
     contact_email = db.Column(db.String(255))
     contact_phone = db.Column(db.String(50))
     contact_name = db.Column(db.String(100))
-    short_name = db.Column(db.String(50)) # TODO: use short name for constructing agency specific URLs for images, etc.
+    short_name = db.Column(db.String(50)) # use short name for constructing agency specific URLs for images, etc.
     additional_metadata = db.Column(db.JSON)
     __table_args__ = (
         db.UniqueConstraint('name', name='uq_transit_system_name'),
     )
 
-    # Removed legacy function_implementations relationship
     configurations = db.relationship('Configuration', back_populates='agency', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f"<Agency(name={self.name}, location={self.location})>"
     
-    #@property
-    #def logo_url(self):
-    #    """Generate agency logo URL"""
-    #    from flask import url_for
-    #    if self.short_name:
-    #        return url_for('static', filename=f'images/agency_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
-    #    return None
+    @property
+    def logo_url(self):
+        """Generate agency logo URL"""
+        from flask import url_for
+        if self.short_name:
+            return url_for('static', filename=f'images/agency_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
+        return None
     
-    #@property
-    #def header_url(self):
-    #    """Generate agency header URL"""
-    #    from flask import url_for
-    #    if self.short_name:
-    #        return url_for('static', filename=f'images/agency_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
-    #    return None
+    @property
+    def header_url(self):
+        """Generate agency header URL"""
+        from flask import url_for
+        if self.short_name:
+            return url_for('static', filename=f'images/agency_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
+        return None
 
 class FunctionalArea(db.Model):
     __tablename__ = 'functional_areas'
@@ -126,7 +122,6 @@ class Function(db.Model):
     functional_area = db.relationship('FunctionalArea', back_populates='functions')
 
     components = db.relationship('Component', secondary='function_component', back_populates='functions')
-    # Removed legacy agency_implementations relationship
     configurations = db.relationship('Configuration', back_populates='function', cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -146,7 +141,6 @@ class Vendor(db.Model):
     vendor_phone = db.Column(db.String(50))
     description = db.Column(db.String(500))
 
-    # components = db.relationship('Component', back_populates='vendor', cascade='all, delete-orphan') # REMOVED: components relationship (Component no longer references vendor)
     products = db.relationship('Product', back_populates='vendor', cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -176,13 +170,11 @@ class Component(db.Model):
     description = db.Column(db.String(1000))
     additional_metadata = db.Column(db.JSON)
 
-    # Removed vendor/composite fields previously
     functions = db.relationship('Function', secondary='function_component', back_populates='components')
     integration_points = db.relationship('IntegrationPoint', secondary='component_integration', back_populates='components')
     tags = db.relationship('Tag', secondary='component_tag', back_populates='components')
     user_roles = db.relationship('UserRole', back_populates='component', cascade='all, delete-orphan')
     update_logs = db.relationship('UpdateLog', back_populates='component', cascade='all, delete-orphan')
-    # Removed legacy agency_usages relationship
     configurations = db.relationship('Configuration', back_populates='component', cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -199,7 +191,6 @@ class IntegrationPoint(db.Model):
     standards = db.relationship('Standard', secondary=integration_standard, back_populates='integration_points')
     components = db.relationship('Component', secondary='component_integration', back_populates='integration_points')
     tags = db.relationship('Tag', secondary=integration_tag, back_populates='integration_points')
-    # Phase 1 additive: product-level integrations
     products = db.relationship('Product', secondary='product_integration', back_populates='integration_points')
 
     def __repr__(self):
@@ -275,7 +266,6 @@ class UpdateLog(db.Model):
     def __repr__(self):
         return f"<UpdateLog(component_id={self.component_id}, updated_by={self.updated_by})>"
 
-# Phase 1 additive models retained
 class Product(db.Model):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
