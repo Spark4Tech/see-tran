@@ -16,11 +16,14 @@
     </ul>
   </div>
   {% endif %}
-  <form hx-post="/api/configurations" hx-target="#config-list" hx-swap="beforebegin" class="space-y-2">
+  <form hx-post="/api/wizard/config/confirm" hx-target="#config-list" hx-swap="beforebegin" class="space-y-2">
     <input type="hidden" name="agency_id" value="{{ agency_id }}" />
     <input type="hidden" name="function_id" value="{{ function_id }}" />
     <input type="hidden" name="component_id" value="{{ component_id }}" />
     <input type="hidden" name="status" value="Active" />
+    {% for pid in product_ids %}
+      <input type="hidden" name="product_ids" value="{{ pid }}" />
+    {% endfor %}
     <button class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs text-white">Create Configuration</button>
   </form>
 </div>

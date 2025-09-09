@@ -25,6 +25,16 @@ main = Blueprint("main", __name__)
 def index():
     return render_template("index.html")
 
+# --- Basic pages ---
+@main.route("/functional-areas")
+def functional_areas_page():
+    return render_template('functional_areas.html')
+
+@main.route('/reports')
+def reports_page():
+    # lightweight placeholder page
+    return render_template('reports.html') if False else render_template('index.html')
+
 @main.route("/components")
 def components_page():
     """Components management page"""
@@ -48,6 +58,105 @@ def health_check():
         })
     except Exception as e:
         return json_error_response(f"Health check failed: {str(e)}", 500)
+
+# ========== Functional Areas API (CRUD + fragments) ==========
+
+@main.route('/api/functional-areas/list')
+def functional_areas_list():
+    try:
+        search = (request.args.get('search') or '').strip()
+        q = FunctionalArea.query
+        if search:
+            q = q.filter(FunctionalArea.name.ilike(f"%{search}%"))
+        areas = q.order_by(FunctionalArea.name.asc()).all()
+        return render_template('fragments/functional_area_list.html', functional_areas=areas)
+    except Exception as e:
+        return html_error_fragment(f"Error loading functional areas: {str(e)}")
+
+@main.route('/api/functional-areas/<int:area_id>/details')
+def functional_area_details(area_id):
+    try:
+        area = FunctionalArea.query.get_or_404(area_id)
+        # decorate functions with counts used in template
+        for f in area.functions:
+            # component count from association
+            try:
+                f.component_count = len(f.components)
+            except Exception:
+                f.component_count = 0
+            # agency count via configurations
+            agency_count = db.session.query(func.count(func.distinct(Configuration.agency_id))) \
+                .filter(Configuration.function_id == f.id).scalar() or 0
+            f.agency_count = agency_count
+        # sort functions by criticality severity then name
+        severity_order = {'high': 0, 'medium': 1, 'low': 2}
+        area.sorted_functions = sorted(
+            list(area.functions),
+            key=lambda fx: (severity_order.get(getattr(getattr(fx, 'criticality', None), 'value', 'medium'), 1), fx.name.lower())
+        )
+        return render_template('fragments/functional_area_details.html', functional_area=area)
+    except Exception as e:
+        return html_error_fragment(f"Error loading functional area details: {str(e)}")
+
+@main.route('/api/functional-areas/form')
+def functional_area_form():
+    try:
+        return render_template('fragments/functional_area_form.html', functional_area=None)
+    except Exception as e:
+        return html_error_fragment(f"Error loading form: {str(e)}")
+
+@main.route('/api/functional-areas/<int:area_id>/form')
+def functional_area_edit_form(area_id):
+    try:
+        area = FunctionalArea.query.get_or_404(area_id)
+        return render_template('fragments/functional_area_form.html', functional_area=area)
+    except Exception as e:
+        return html_error_fragment(f"Error loading edit form: {str(e)}")
+
+@main.route('/api/functional-areas', methods=['POST'])
+@login_required
+def functional_area_create():
+    try:
+        name = (request.form.get('name') or '').strip()
+        description = (request.form.get('description') or '').strip() or None
+        if not name:
+            return html_error_fragment('Name is required')
+        area = FunctionalArea(name=name, description=description)
+        db.session.add(area)
+        db.session.commit()
+        return html_success_fragment('Functional area created')
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error creating functional area: {str(e)}")
+
+@main.route('/api/functional-areas/<int:area_id>', methods=['PUT'])
+@login_required
+def functional_area_update(area_id):
+    try:
+        area = FunctionalArea.query.get_or_404(area_id)
+        name = (request.form.get('name') or '').strip()
+        description = (request.form.get('description') or '').strip() or None
+        if not name:
+            return html_error_fragment('Name is required')
+        area.name = name
+        area.description = description
+        db.session.commit()
+        return html_success_fragment('Functional area updated')
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error updating functional area: {str(e)}")
+
+@main.route('/api/functional-areas/<int:area_id>', methods=['DELETE'])
+@login_required
+def functional_area_delete(area_id):
+    try:
+        area = FunctionalArea.query.get_or_404(area_id)
+        db.session.delete(area)
+        db.session.commit()
+        return html_success_fragment('Functional area deleted')
+    except Exception as e:
+        db.session.rollback()
+        return html_error_fragment(f"Error deleting functional area: {str(e)}")
 
 # Count endpoints for dashboard metrics
 @main.route("/api/count/agencies")
@@ -236,6 +345,11 @@ def functional_area_filter_options():
         return html
     except Exception as e:
         return html_error_fragment(f"Error loading functional areas: {str(e)}")
+
+@main.route('/api/vendors/filter-options/functional-areas')
+def vendors_functional_area_filter_options():
+    """Alias for vendors page expecting this endpoint."""
+    return functional_area_filter_options()
 
 @main.route('/api/integration/standards')
 def integration_standards_list():

@@ -22,18 +22,51 @@ def advisory_validate(configuration: Configuration, products):
     # warnings.append({"code": "EOL_VERSION", "message": "One product version near end-of-life."})
     return warnings
 
+# Helper: parse product_ids from args or form (supports repeated params and comma-separated)
+def _parse_product_ids(arg_source) -> list[int]:
+    ids: list[int] = []
+    if hasattr(arg_source, 'getlist'):
+        raw_list = arg_source.getlist('product_ids')
+    else:
+        raw_list = []
+    # Also support comma-separated single value
+    raw_single = arg_source.get('product_ids') if hasattr(arg_source, 'get') else None
+    if raw_single and isinstance(raw_single, str) and ',' in raw_single:
+        raw_list.extend(raw_single.split(','))
+    elif raw_single and not raw_list:
+        raw_list.append(raw_single)
+    # Normalize & dedupe
+    for pid in raw_list:
+        try:
+            pid_int = int(str(pid).strip())
+            ids.append(pid_int)
+        except (TypeError, ValueError):
+            continue
+    # unique preserve order
+    seen = set()
+    result = []
+    for i in ids:
+        if i not in seen:
+            seen.add(i)
+            result.append(i)
+    return result
+
 # --------- Pages ---------
 
 @config_bp.route('/configurations')
 @login_required
 def configurations_page():
-    return render_template('configurations.html')
+    agencies = Agency.query.order_by(Agency.name.asc()).all()
+    functions = Function.query.order_by(Function.name.asc()).all()
+    return render_template('configurations.html', agencies=agencies, functions=functions, selected_agency_id=None)
 
 @config_bp.route('/agencies/<int:agency_id>/configurations')
 @login_required
 def agency_configurations_page(agency_id):
     agency = Agency.query.get_or_404(agency_id)
-    return render_template('configurations.html', agency=agency)
+    agencies = Agency.query.order_by(Agency.name.asc()).all()
+    functions = Function.query.order_by(Function.name.asc()).all()
+    return render_template('configurations.html', agency=agency, agencies=agencies, functions=functions, selected_agency_id=agency.id)
 
 # --------- Configuration API ---------
 
@@ -258,7 +291,13 @@ def wizard_config_step1():
 def wizard_config_step2():
     agency_id = request.args.get('agency_id', type=int)
     function_id = request.args.get('function_id', type=int)
-    components = Component.query.order_by(Component.name.asc()).all()
+    components = []
+    if function_id:
+        func = Function.query.get(function_id)
+        if func:
+            components = sorted(func.components, key=lambda c: c.name.lower())
+    if not components:
+        components = Component.query.order_by(Component.name.asc()).all()
     return render_template('fragments/wizard_config_step2.html', components=components, agency_id=agency_id, function_id=function_id)
 
 @config_bp.route('/api/wizard/config/step3')
@@ -276,12 +315,35 @@ def wizard_config_step4():
     agency_id = request.args.get('agency_id', type=int)
     function_id = request.args.get('function_id', type=int)
     component_id = request.args.get('component_id', type=int)
-    # selected products list (comma separated ids)
-    product_ids = request.args.get('product_ids', '')
-    selected_products = []
-    if product_ids:
-        ids = [int(pid) for pid in product_ids.split(',') if pid.isdigit()]
-        selected_products = Product.query.filter(Product.id.in_(ids)).all()
+    # selected products list (supports repeated params or comma-separated ids)
+    ids = _parse_product_ids(request.args)
+    selected_products = Product.query.filter(Product.id.in_(ids)).all() if ids else []
     fake_config = Configuration(agency_id=agency_id, function_id=function_id, component_id=component_id, status='Draft')
     warnings = advisory_validate(fake_config, selected_products)
-    return render_template('fragments/wizard_config_step4.html', agency_id=agency_id, function_id=function_id, component_id=component_id, products=selected_products, warnings=warnings)
+    return render_template('fragments/wizard_config_step4.html', agency_id=agency_id, function_id=function_id, component_id=component_id, products=selected_products, product_ids=ids, warnings=warnings)
+
+@config_bp.route('/api/wizard/config/confirm', methods=['POST'])
+@login_required
+def wizard_config_confirm():
+    try:
+        # Create configuration
+        form = ConfigurationForm()
+        if not form.validate_on_submit():
+            return jsonify({'error': 'validation', 'messages': form.errors}), 400
+        c = Configuration()
+        form.populate_configuration(c)
+        db.session.add(c)
+        db.session.flush()
+        db.session.add(ConfigurationHistory(configuration_id=c.id, action='created', changed_by=get_updated_by(), new_values={}))
+        # Attach products if provided
+        ids = _parse_product_ids(request.form)
+        for pid in ids:
+            cp = ConfigurationProduct(configuration_id=c.id, product_id=pid, status='Active')
+            db.session.add(cp)
+            db.session.flush()
+            db.session.add(ConfigurationHistory(configuration_id=c.id, action='product_added', changed_by=get_updated_by(), new_values={'configuration_product_id': cp.id}))
+        db.session.commit()
+        return render_template('fragments/configuration_row.html', c=c), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'server', 'message': str(e)}), 500
