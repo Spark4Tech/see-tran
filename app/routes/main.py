@@ -12,7 +12,7 @@ from app.auth import login_required, get_updated_by
 from app.utils.errors import (
     json_error_response, json_success_response, 
     html_error_fragment, html_success_fragment,
-    json_form_error_response
+    json_form_error_response, json_validation_error_response
 )
 # removed import of AFI utility helpers (create_afi_with_optional_children, component_supports_function, etc.)
 from sqlalchemy import func, case, distinct
@@ -350,6 +350,12 @@ def functional_area_filter_options():
 def vendors_functional_area_filter_options():
     """Alias for vendors page expecting this endpoint."""
     return functional_area_filter_options()
+
+@main.route('/api/vendors/filter-options/agencies')
+def vendors_agency_filter_options():
+    """Alias endpoint for vendor page to load agency options."""
+    return agencies_filter_options()
+
 
 @main.route('/api/integration/standards')
 def integration_standards_list():
@@ -736,3 +742,43 @@ def update_agency(agency_id):
             return html_error_fragment(f"Error updating agency: {str(e)}")
     # If validation fails re-render form fragment
     return render_template('fragments/agency_form.html', form=form, agency=agency)
+
+@main.route("/api/vendors", methods=['POST'])
+@login_required
+def create_vendor():
+    """Create a new vendor (JSON response for HTMX form)."""
+    form = VendorForm()
+    if form.validate_on_submit():
+        try:
+            vendor = Vendor()
+            form.populate_vendor(vendor)
+            db.session.add(vendor)
+            db.session.commit()
+            return json_success_response(f"Vendor '{vendor.name}' created", data={"id": vendor.id})
+        except IntegrityError as ie:
+            db.session.rollback()
+            return json_validation_error_response("Duplicate vendor", {"name": "A vendor with this name already exists."})
+        except Exception as e:
+            db.session.rollback()
+            return json_error_response(f"Error creating vendor: {str(e)}")
+    return json_form_error_response(form)
+
+
+@main.route("/api/vendors/<int:vendor_id>", methods=['POST'])
+@login_required
+def update_vendor(vendor_id):
+    """Update an existing vendor (JSON response for HTMX form)."""
+    vendor = Vendor.query.get_or_404(vendor_id)
+    form = VendorForm()
+    if form.validate_on_submit():
+        try:
+            form.populate_vendor(vendor)
+            db.session.commit()
+            return json_success_response(f"Vendor '{vendor.name}' updated", data={"id": vendor.id})
+        except IntegrityError:
+            db.session.rollback()
+            return json_validation_error_response("Duplicate vendor", {"name": "A vendor with this name already exists."})
+        except Exception as e:
+            db.session.rollback()
+            return json_error_response(f"Error updating vendor: {str(e)}")
+    return json_form_error_response(form)

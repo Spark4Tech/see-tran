@@ -1,10 +1,12 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_wtf import CSRFProtect
 import os
 
 db = SQLAlchemy()
 migrate = Migrate()
+csrf = CSRFProtect()
 
 def create_app(test_config=None):
     app = Flask(__name__)
@@ -32,6 +34,7 @@ def create_app(test_config=None):
     
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
     
     # Import models so Flask-Migrate can detect them
     with app.app_context():

@@ -1,16 +1,70 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="px-6 py-6">
-  <h1 class="text-2xl font-bold text-white mb-4">Products</h1>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold text-white">Products</h1>
+    <div class="flex items-center space-x-2">
+      <label for="products-filter-vendor" class="text-sm text-slate-300">Filter by vendor</label>
+      <select id="products-filter-vendor" name="vendor_id"
+              class="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200"
+              hx-get="/api/products/list" hx-target="#product-list" hx-include="#products-filter-vendor">
+        <option value="">All vendors</option>
+        {% for v in vendors %}
+          <option value="{{ v.id }}">{{ v.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
   <div id="product-list" hx-get="/api/products/list" hx-trigger="load">
     <div class="text-slate-500 text-sm">Loading...</div>
   </div>
   <div class="mt-8">
     <h2 class="text-xl text-white font-semibold mb-2">Create Product</h2>
-    <form hx-post="/api/products" hx-target="#product-list" hx-swap="outerHTML" class="space-y-2">
-      <input type="text" name="name" placeholder="Name" class="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 w-64" />
-      <input type="text" name="vendor_id" placeholder="Vendor ID" class="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 w-32" />
-      <button class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm">Create</button>
+    <form hx-post="/api/products" hx-target="#product-list" hx-swap="outerHTML" class="space-y-3 p-4 bg-slate-800 border border-slate-700 rounded">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="sm:col-span-1">
+          <label for="new_name" class="block text-xs text-slate-300 mb-1">Product Name</label>
+          <input id="new_name" type="text" name="name" placeholder="Name" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 w-full" />
+        </div>
+        <div class="sm:col-span-1">
+          <label for="new_vendor" class="block text-xs text-slate-300 mb-1">Vendor</label>
+          <select id="new_vendor" name="vendor_id" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 w-full">
+            <option value="">Select a vendor</option>
+            {% for v in vendors %}
+              <option value="{{ v.id }}">{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex items-end">
+          <button class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm w-full sm:w-auto">Create</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+        <div>
+          <label for="new_parent" class="block text-xs text-slate-300 mb-1">Parent Product ID (optional)</label>
+          <input id="new_parent" type="text" name="parent_product_id" placeholder="Parent Product ID" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 w-full" />
+        </div>
+        <div>
+          <label for="new_lifecycle" class="block text-xs text-slate-300 mb-1">Lifecycle Stage</label>
+          <select id="new_lifecycle" name="lifecycle_stage" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 w-full">
+            <option value="">—</option>
+            <option value="planned">Planned</option>
+            <option value="pilot">Pilot</option>
+            <option value="production">Production</option>
+            <option value="deprecated">Deprecated</option>
+            <option value="retired">Retired</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-3">
+        <label for="new_description" class="block text-xs text-slate-300 mb-1">Description</label>
+        <textarea id="new_description" name="description" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200"></textarea>
+      </div>
+      <div class="mt-3">
+        <label for="new_metadata" class="block text-xs text-slate-300 mb-1">Additional Metadata (JSON)</label>
+        <textarea id="new_metadata" name="additional_metadata" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200" placeholder='{"key":"value"}'></textarea>
+      </div>
     </form>
   </div>
 </div>

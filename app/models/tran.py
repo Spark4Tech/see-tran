@@ -3,6 +3,7 @@
 from datetime import datetime
 from app import db
 import enum
+import os
 
 # Association Tables
 component_integration = db.Table(
@@ -84,18 +85,24 @@ class Agency(db.Model):
     
     @property
     def logo_url(self):
-        """Generate agency logo URL"""
-        from flask import url_for
+        """Generate agency logo URL if file exists"""
+        from flask import url_for, current_app
         if self.short_name:
-            return url_for('static', filename=f'images/agency_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
+            filename = f"{self.short_name.lower().replace(' ', '_')}_logo.png"
+            full_path = os.path.join(current_app.static_folder, 'images', 'agency_logos', filename)
+            if os.path.exists(full_path):
+                return url_for('static', filename=f'images/agency_logos/{filename}')
         return None
     
     @property
     def header_url(self):
-        """Generate agency header URL"""
-        from flask import url_for
+        """Generate agency header URL if file exists"""
+        from flask import url_for, current_app
         if self.short_name:
-            return url_for('static', filename=f'images/agency_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
+            filename = f"{self.short_name.lower().replace(' ', '_')}_header.png"
+            full_path = os.path.join(current_app.static_folder, 'images', 'agency_headers', filename)
+            if os.path.exists(full_path):
+                return url_for('static', filename=f'images/agency_headers/{filename}')
         return None
 
 class FunctionalArea(db.Model):
@@ -148,18 +155,24 @@ class Vendor(db.Model):
     
     @property
     def logo_url(self):
-        """Generate vendor logo URL"""
-        from flask import url_for
+        """Generate vendor logo URL if file exists"""
+        from flask import url_for, current_app
         if self.short_name:
-            return url_for('static', filename=f'images/vendor_logos/{self.short_name.lower().replace(" ", "_")}_logo.png')
+            filename = f"{self.short_name.lower().replace(' ', '_')}_logo.png"
+            full_path = os.path.join(current_app.static_folder, 'images', 'vendor_logos', filename)
+            if os.path.exists(full_path):
+                return url_for('static', filename=f'images/vendor_logos/{filename}')
         return None
     
     @property
     def header_url(self):
-        """Generate vendor header URL"""
-        from flask import url_for
+        """Generate vendor header URL if file exists"""
+        from flask import url_for, current_app
         if self.short_name:
-            return url_for('static', filename=f'images/vendor_headers/{self.short_name.lower().replace(" ", "_")}_header.png')
+            filename = f"{self.short_name.lower().replace(' ', '_')}_header.png"
+            full_path = os.path.join(current_app.static_folder, 'images', 'vendor_headers', filename)
+            if os.path.exists(full_path):
+                return url_for('static', filename=f'images/vendor_headers/{filename}')
         return None
 
 class Component(db.Model):

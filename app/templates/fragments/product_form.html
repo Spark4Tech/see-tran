@@ -1,6 +1,81 @@
-<form hx-post="/api/products" hx-target="#product-list" hx-swap="outerHTML" class="space-y-2 p-3 bg-slate-800 border border-slate-700 rounded">
-  <input type="text" name="name" placeholder="Product Name" class="w-64 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
-  <input type="text" name="vendor_id" placeholder="Vendor ID" class="w-32 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
-  <textarea name="description" placeholder="Description" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" rows="2"></textarea>
-  <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Create</button>
+{% set is_edit = product is defined and product %}
+<form {% if is_edit %}hx-put="/api/products/{{ product.id }}"{% else %}hx-post="/api/products"{% endif %}
+      hx-target="#product-list" hx-swap="outerHTML"
+      class="space-y-4 p-4 bg-slate-800 border border-slate-700 rounded">
+  {{ form.csrf_token }}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Name -->
+    <div>
+      <label for="name" class="block text-xs text-slate-300 mb-1">Product Name</label>
+      <input id="name" type="text" name="name" value="{{ form.name.data if form.name.data else '' }}"
+             placeholder="e.g., Fare Engine"
+             class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200" />
+    </div>
+
+    <!-- Vendor -->
+    <div>
+      <label for="vendor_id" class="block text-xs text-slate-300 mb-1">Vendor</label>
+      {% if vendors %}
+        <select id="vendor_id" name="vendor_id"
+                class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200">
+          <option value="">Select a vendor</option>
+          {% for v in vendors %}
+            <option value="{{ v.id }}"
+              {% if (product and product.vendor_id == v.id) or (form.vendor_id.data and form.vendor_id.data|string == v.id|string) %}selected{% endif %}>
+              {{ v.name }}
+            </option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input type="text" name="vendor_id" value="{{ form.vendor_id.data if is_edit else '' }}" placeholder="Vendor ID"
+               class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200" />
+      {% endif %}
+    </div>
+
+    <!-- Parent Product ID -->
+    <div>
+      <label for="parent_product_id" class="block text-xs text-slate-300 mb-1">Parent Product ID (optional)</label>
+      <input id="parent_product_id" type="text" name="parent_product_id" value="{{ form.parent_product_id.data if form.parent_product_id.data else '' }}"
+             placeholder="Numeric ID"
+             class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200" />
+    </div>
+
+    <!-- Lifecycle Stage -->
+    <div>
+      <label for="lifecycle_stage" class="block text-xs text-slate-300 mb-1">Lifecycle Stage</label>
+      <select id="lifecycle_stage" name="lifecycle_stage"
+              class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200">
+        <option value="">—</option>
+        {% set lc = form.lifecycle_stage.data if form.lifecycle_stage.data else '' %}
+        {% for val,label in [('planned','Planned'),('pilot','Pilot'),('production','Production'),('deprecated','Deprecated'),('retired','Retired')] %}
+          <option value="{{ val }}" {% if lc == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Description -->
+  <div>
+    <label for="description" class="block text-xs text-slate-300 mb-1">Description</label>
+    <textarea id="description" name="description" rows="3"
+              class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200"
+    >{{ form.description.data if form.description.data else '' }}</textarea>
+  </div>
+
+  <!-- Additional Metadata (JSON) -->
+  <div>
+    <label for="additional_metadata" class="block text-xs text-slate-300 mb-1">Additional Metadata (JSON)</label>
+    <textarea id="additional_metadata" name="additional_metadata" rows="4"
+              placeholder='{"key": "value"}'
+              class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200"
+    >{{ form.additional_metadata.data if form.additional_metadata.data else '' }}</textarea>
+  </div>
+
+  <div class="flex items-center space-x-2">
+    <button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">{% if is_edit %}Update{% else %}Create{% endif %}</button>
+    {% if is_edit %}
+      <button type="button" class="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 rounded text-xs text-white" onclick="this.closest('form').remove();">Cancel</button>
+    {% endif %}
+  </div>
 </form>

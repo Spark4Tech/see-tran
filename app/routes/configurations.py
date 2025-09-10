@@ -4,7 +4,7 @@ from app import db
 from app.auth import login_required, get_updated_by
 from app.models.tran import (
     Configuration, ConfigurationHistory, ConfigurationProduct,
-    Product, ProductVersion, Agency, Function, Component
+    Product, ProductVersion, Agency, Function, Component, Vendor
 )
 from app.forms.forms import (
     ConfigurationForm, ConfigurationProductForm, ProductForm, ProductVersionForm
@@ -210,7 +210,8 @@ def configuration_product_delete(cp_id):
 @config_bp.route('/products')
 @login_required
 def products_page():
-    return render_template('products.html')
+    vendors = Vendor.query.order_by(Vendor.name.asc()).all()
+    return render_template('products.html', vendors=vendors)
 
 @config_bp.route('/api/products/list')
 @login_required
@@ -233,12 +234,23 @@ def product_details(product_id):
 @login_required
 def product_form():
     form = ProductForm()
-    return render_template('fragments/product_form.html', form=form)
+    vendors = Vendor.query.order_by(Vendor.name.asc()).all()
+    try:
+        # If vendor_id is a SelectField, set choices for validation/rendering
+        form.vendor_id.choices = [(v.id, v.name) for v in vendors]
+    except Exception:
+        pass
+    return render_template('fragments/product_form.html', form=form, vendors=vendors)
 
 @config_bp.route('/api/products', methods=['POST'])
 @login_required
 def product_create():
     form = ProductForm()
+    vendors = Vendor.query.order_by(Vendor.name.asc()).all()
+    try:
+        form.vendor_id.choices = [(v.id, v.name) for v in vendors]
+    except Exception:
+        pass
     if form.validate_on_submit():
         p = Product()
         form.populate_product(p)
@@ -347,3 +359,46 @@ def wizard_config_confirm():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'server', 'message': str(e)}), 500
+
+@config_bp.route('/api/products/<int:product_id>/form')
+@login_required
+def product_edit_form(product_id):
+    p = Product.query.get_or_404(product_id)
+    form = ProductForm()
+    vendors = Vendor.query.order_by(Vendor.name.asc()).all()
+    try:
+        form.vendor_id.choices = [(v.id, v.name) for v in vendors]
+    except Exception:
+        pass
+    form.populate_from_product(p)
+    return render_template('fragments/product_form.html', form=form, product=p, vendors=vendors)
+
+@config_bp.route('/api/products/<int:product_id>', methods=['PUT'])
+@login_required
+def product_update(product_id):
+    p = Product.query.get_or_404(product_id)
+    form = ProductForm()
+    vendors = Vendor.query.order_by(Vendor.name.asc()).all()
+    try:
+        form.vendor_id.choices = [(v.id, v.name) for v in vendors]
+    except Exception:
+        pass
+    if form.validate_on_submit():
+        form.populate_product(p)
+        db.session.commit()
+        products = Product.query.order_by(Product.name.asc()).limit(250).all()
+        return render_template('fragments/product_list.html', products=products)
+    return jsonify({'error': 'validation', 'messages': form.errors}), 400
+
+@config_bp.route('/api/products/<int:product_id>', methods=['DELETE'])
+@login_required
+def product_delete(product_id):
+    p = Product.query.get_or_404(product_id)
+    # Guard: block deletion if used in any configuration
+    usage = ConfigurationProduct.query.filter_by(product_id=product_id).first()
+    if usage:
+        return jsonify({'error': 'in_use', 'message': 'Cannot delete product; it is used in one or more configurations.'}), 400
+    db.session.delete(p)
+    db.session.commit()
+    products = Product.query.order_by(Product.name.asc()).limit(250).all()
+    return render_template('fragments/product_list.html', products=products)

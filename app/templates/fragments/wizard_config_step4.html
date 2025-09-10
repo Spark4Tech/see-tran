@@ -17,6 +17,7 @@
   </div>
   {% endif %}
   <form hx-post="/api/wizard/config/confirm" hx-target="#config-list" hx-swap="beforebegin" class="space-y-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="agency_id" value="{{ agency_id }}" />
     <input type="hidden" name="function_id" value="{{ function_id }}" />
     <input type="hidden" name="component_id" value="{{ component_id }}" />
