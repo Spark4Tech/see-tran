@@ -1,11 +1,57 @@
-<form hx-post="/api/configurations/{{ configuration.id }}/products" hx-target="#configuration-products" hx-swap="outerHTML" class="space-y-2 p-3 bg-slate-800 border border-slate-700 rounded">
+<form hx-post="/api/configurations/{{ configuration.id }}/products" hx-target="#configuration-products" hx-swap="outerHTML" class="space-y-3 p-3 bg-slate-800 border border-slate-700 rounded" onsubmit="return this.querySelector('[name=product_id]').value.length > 0;">
+  {{ form.hidden_tag() }}
   <input type="hidden" name="configuration_id" value="{{ configuration.id }}" />
-  <input type="text" name="product_id" placeholder="Product ID" class="w-32 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
-  <input type="text" name="product_version_id" placeholder="Version ID" class="w-32 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
-  <input type="text" name="status" placeholder="Status" class="w-28 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
-  <textarea name="settings" placeholder="Settings JSON" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" rows="2"></textarea>
+  <input type="hidden" name="product_id" id="selected-product-id" />
+
+  <!-- Product Search Input & Results -->
+  <div id="product-search-container">
+    <label class="block text-xs text-slate-400 mb-1">Select Product</label>
+    <div class="relative">
+      <input type="search" id="product-search" name="q" placeholder="Search products by name..." 
+             class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200"
+             autocomplete="off"
+             hx-get="/api/products/picker" 
+             hx-trigger="load, keyup changed delay:250ms"
+             hx-target="#product-options" 
+             hx-vals='{"configuration_id": "{{ configuration.id }}"}' />
+      <ul id="product-options" class="absolute z-10 mt-1 w-full max-h-56 overflow-auto bg-slate-900 border border-slate-700 rounded shadow-lg">
+        <!-- options injected here -->
+      </ul>
+    </div>
+    <p class="mt-1 text-[11px] text-slate-500">Type to search, click a result to select, then submit.</p>
+  </div>
+
+  <!-- Selected Product Pill -->
+  <div id="product-selection-pill" class="hidden">
+    <label class="block text-xs text-slate-400 mb-1">Selected Product</label>
+    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-700">
+        <span class="font-medium text-white text-sm"></span>
+        <button type="button" onclick="const form = this.closest('form'); form.querySelector('input[name=\'product_id\']').value = ''; document.getElementById('product-search-container').classList.remove('hidden'); this.parentElement.parentElement.classList.add('hidden'); form.querySelector('#product-search').value = '';" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-2">
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">Product Version ID (optional)</label>
+      <input type="text" name="product_version_id" placeholder="Version ID" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">Status</label>
+      <input type="text" name="status" placeholder="Active" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">Deployment Date</label>
+      <input type="text" name="deployment_date" placeholder="YYYY-MM-DD" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" />
+    </div>
+  </div>
+
+  <div>
+    <label class="block text-xs text-slate-400 mb-1">Settings (JSON)</label>
+    <textarea name="settings" placeholder="{&quot;param&quot;: &quot;value&quot;}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200" rows="3"></textarea>
+  </div>
+
   <div class="flex space-x-2">
     <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Add</button>
-    <button type="button" onclick="this.closest('form').remove();" class="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-white">Cancel</button>
+    <button type="button" onclick="this.closest('form').remove();" class="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-xs text-white">Close</button>
   </div>
 </form>

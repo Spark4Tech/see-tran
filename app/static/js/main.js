@@ -348,6 +348,45 @@ function initializeApp() {
             }
         });
     }
+
+    // Delegated click handler for product picker options (robust across HTMX swaps)
+    document.body.addEventListener('click', (event) => {
+        const li = event.target.closest('#product-options li[data-product-id]');
+        if (!li) return;
+
+        const form = li.closest('form');
+        if (!form) return;
+
+        const productId = li.dataset.productId;
+        const productName = li.dataset.productName;
+        const vendorName = li.dataset.vendorName || '';
+
+        // Set the hidden input value
+        const hiddenInput = form.querySelector('input[name="product_id"]');
+        if (hiddenInput) {
+            hiddenInput.value = productId;
+        }
+
+        // Show the selection pill
+        const selectionPill = form.querySelector('#product-selection-pill');
+        const pillText = selectionPill.querySelector('span');
+        if (selectionPill && pillText) {
+            pillText.textContent = vendorName ? `${productName} • ${vendorName}` : productName;
+            selectionPill.classList.remove('hidden');
+        }
+
+        // Hide the search input and results
+        const searchContainer = form.querySelector('#product-search-container');
+        if (searchContainer) {
+            searchContainer.classList.add('hidden');
+        }
+        
+        // Clear the results list
+        const productOptions = form.querySelector('#product-options');
+        if (productOptions) {
+            productOptions.innerHTML = '';
+        }
+    });
     
     console.log('🚀 Transit Intelligence Platform - Application initialized');
 }

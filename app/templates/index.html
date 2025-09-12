@@ -40,60 +40,68 @@
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
     
     <!-- Transit Agency Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-          </svg>
+    <a href="{{ url_for('agency.index') }}" aria-label="View Agencies" class="block focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-xl">
+      <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold text-white" hx-get="/api/count/agencies" hx-trigger="load">0</span>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/agencies" hx-trigger="load">0</span>
+        <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Agencies</h3>
+        <p class="text-xs text-slate-500">Active transportation networks</p>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Transit Agencies</h3>
-      <p class="text-xs text-slate-500">Active transportation networks</p>
-    </div>
+    </a>
 
-    <!-- Functional Areas Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
+    <!-- Vendors Card (renamed from Functional Areas) -->
+    <a href="{{ url_for('main.vendors_page') }}" aria-label="View Vendors" class="block focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-xl">
+      <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold text-white" hx-get="/api/count/vendors" hx-trigger="load">0</span>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/functional-areas" hx-trigger="load">0</span>
+        <h3 class="text-slate-400 text-sm font-medium mb-1">Vendors</h3>
+        <p class="text-xs text-slate-500">Operational domains</p>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Functional Areas</h3>
-      <p class="text-xs text-slate-500">Operational domains</p>
-    </div>
+    </a>
 
     <!-- Active Components Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
-          </svg>
+    <a href="{{ url_for('main.components_page') }}" aria-label="View Components" class="block focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-xl">
+      <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold text-white" hx-get="/api/count/components" hx-trigger="load">0</span>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/components" hx-trigger="load">0</span>
+        <h3 class="text-slate-400 text-sm font-medium mb-1">Active Components</h3>
+        <p class="text-xs text-slate-500">Deployed technology components</p>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Active Components</h3>
-      <p class="text-xs text-slate-500">Deployed technology components</p>
-    </div>
+    </a>
 
-    <!-- Integration Points Card -->
-    <div class="metric-card rounded-xl p-6 border border-slate-700/50">
-      <div class="flex items-center justify-between mb-4">
-        <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-          </svg>
+    <!-- Products Card (renamed from Integration Points) -->
+    <a href="{{ url_for('configurations.products_page') }}" aria-label="View Products" class="block focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-xl">
+      <div class="metric-card rounded-xl p-6 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-4">
+          <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold text-white" hx-get="/api/count/products" hx-trigger="load">0</span>
         </div>
-        <span class="text-2xl font-bold text-white" hx-get="/api/count/integration-points" hx-trigger="load">0</span>
+        <h3 class="text-slate-400 text-sm font-medium mb-1">Products</h3>
+        <p class="text-xs text-slate-500">System interconnections</p>
       </div>
-      <h3 class="text-slate-400 text-sm font-medium mb-1">Integration Points</h3>
-      <p class="text-xs text-slate-500">System interconnections</p>
-    </div>
+    </a>
   </div>
 
   <!-- Main Content Area -->

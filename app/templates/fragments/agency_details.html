@@ -23,9 +23,10 @@
               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors">
         Edit
       </button>
-      <a href="/agencies/{{ agency.id }}/implementations"
+      <!-- Changed link target and label to Configurations -->
+      <a href="/agencies/{{ agency.id }}/configurations"
          class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 rounded text-sm transition-colors">
-        Manage Implementations
+        Configurations
       </a>
       <button onclick="closeAgencyDetails()"
               class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors">
@@ -196,7 +197,7 @@
         Technology Implementations ({{ agency.function_implementations|length }})
       </h3>
       <div class="text-slate-400 text-sm">
-        View and manage on the implementations page.
+        View and manage on the configurations page.
       </div>
     </div>
     {% endif %}

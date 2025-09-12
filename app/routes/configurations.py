@@ -217,11 +217,29 @@ def products_page():
 @login_required
 def products_list():
     vendor_id = request.args.get('vendor_id', type=int)
+    search = (request.args.get('q') or request.args.get('search') or '').strip()
     q = Product.query
     if vendor_id:
         q = q.filter(Product.vendor_id == vendor_id)
+    if search:
+        q = q.filter(Product.name.ilike(f"%{search}%"))
     products = q.order_by(Product.name.asc()).limit(250).all()
     return render_template('fragments/product_list.html', products=products)
+
+# New: lightweight product picker endpoint for HTMX search suggestions
+@config_bp.route('/api/products/picker')
+@login_required
+def products_picker():
+    search = (request.args.get('q') or '').strip()
+    vendor_id = request.args.get('vendor_id', type=int)
+    configuration_id = request.args.get('configuration_id', type=int)
+    q = Product.query
+    if vendor_id:
+        q = q.filter(Product.vendor_id == vendor_id)
+    if search:
+        q = q.filter(Product.name.ilike(f"%{search}%"))
+    products = q.order_by(Product.name.asc()).limit(50).all()
+    return render_template('fragments/product_picker_options.html', products=products, configuration_id=configuration_id)
 
 @config_bp.route('/api/products/<int:product_id>/details')
 @login_required
@@ -402,3 +420,14 @@ def product_delete(product_id):
     db.session.commit()
     products = Product.query.order_by(Product.name.asc()).limit(250).all()
     return render_template('fragments/product_list.html', products=products)
+
+@config_bp.route('/api/configurations/<int:config_id>/form')
+@login_required
+def configuration_edit_form(config_id):
+    c = Configuration.query.get_or_404(config_id)
+    form = ConfigurationForm()
+    form.populate_from_configuration(c)
+    agencies = Agency.query.order_by(Agency.name.asc()).all()
+    functions = Function.query.order_by(Function.name.asc()).all()
+    components = Component.query.order_by(Component.name.asc()).all()
+    return render_template('fragments/configuration_edit_form.html', form=form, c=c, agencies=agencies, functions=functions, components=components)

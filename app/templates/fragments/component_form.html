@@ -35,7 +35,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-300 mb-2">Version Label</label>
-          <input type="text" name="version" value="{{ form.version.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., 1.0.3">
+          <input type="text" name="version" value="" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., 1.0.3">
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
@@ -50,7 +50,7 @@
         <svg class="w-5 h-5 mr-2 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.518 11.602c.75 1.335-.213 2.999-1.742 2.999H3.48c-1.53 0-2.493-1.664-1.743-2.999L8.257 3.1zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v2a1 1 0 01-1 1z" clip-rule="evenodd"/></svg>
         Known Issues
       </h3>
-      <textarea name="known_issues" rows="3" class="component-field w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-vertical" placeholder="List any known issues">{{ form.known_issues.data or '' }}</textarea>
+      <textarea name="known_issues" rows="3" class="component-field w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-vertical" placeholder="List any known issues"></textarea>
     </div>
 
     <!-- Actions -->

@@ -393,6 +393,57 @@ def component_edit_form(component_id):
     except Exception as e:
         return html_error_fragment(f"Error loading component edit form: {str(e)}")
 
+# NEW: Component create/update/delete endpoints
+@main.route("/api/components", methods=['POST'])
+@login_required
+def component_create():
+    form = ComponentForm()
+    if form.validate_on_submit():
+        try:
+            c = Component()
+            form.populate_component(c)
+            db.session.add(c)
+            db.session.commit()
+            return json_success_response(f"Component '{c.name}' created", data={"id": c.id})
+        except IntegrityError as ie:
+            db.session.rollback()
+            return json_error_response(f"Error creating component: {str(ie)}")
+        except Exception as e:
+            db.session.rollback()
+            return json_error_response(f"Error creating component: {str(e)}")
+    return json_form_error_response(form)
+
+@main.route("/api/components/<int:component_id>", methods=['POST'])
+@login_required
+def component_update(component_id):
+    component = Component.query.get_or_404(component_id)
+    form = ComponentForm()
+    if form.validate_on_submit():
+        try:
+            form.populate_component(component)
+            db.session.commit()
+            return json_success_response(f"Component '{component.name}' updated", data={"id": component.id})
+        except Exception as e:
+            db.session.rollback()
+            return json_error_response(f"Error updating component: {str(e)}")
+    return json_form_error_response(form)
+
+@main.route("/api/components/<int:component_id>", methods=['DELETE'])
+@login_required
+def component_delete(component_id):
+    try:
+        component = Component.query.get_or_404(component_id)
+        # Prevent deletion if used in any configuration
+        in_use = Configuration.query.filter_by(component_id=component_id).first() is not None
+        if in_use:
+            return json_error_response("Cannot delete component – it is referenced by one or more configurations.")
+        db.session.delete(component)
+        db.session.commit()
+        return json_success_response("Component deleted successfully")
+    except Exception as e:
+        db.session.rollback()
+        return json_error_response(f"Error deleting component: {str(e)}")
+
 # -------- VENDORS LIST (repoint to Products & ConfigurationProduct) ----------
 @main.route("/api/vendors/list")
 def vendors_list():

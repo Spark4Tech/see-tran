@@ -1,6 +1,11 @@
 <div class="p-4 rounded bg-slate-900 border border-slate-700" id="configuration-details-inner">
   <h3 class="text-white font-semibold mb-2">Configuration {{ c.id }}</h3>
-  <p class="text-sm text-slate-400 mb-2">Agency: {{ c.agency_id }} • Function: {{ c.function_id }} • Component: {{ c.component_id }}</p>
+  <p class="text-sm text-slate-300 mb-2">
+    Agency: <span class="text-white">{{ c.agency.name if c.agency else ('#' ~ c.agency_id) }}</span>
+    • Functional Area: <span class="text-white">{{ c.function.functional_area.name if c.function and c.function.functional_area else '—' }}</span>
+    • Function: <span class="text-white">{{ c.function.name if c.function else ('#' ~ c.function_id) }}</span>
+    • Component: <span class="text-white">{{ c.component.name if c.component else ('#' ~ c.component_id) }}</span>
+  </p>
   <p class="text-sm text-slate-400 mb-4">Status: {{ c.status }}{% if c.version_label %} • Version: {{ c.version_label }}{% endif %}</p>
   {% if warnings %}
   <div class="mb-4">
