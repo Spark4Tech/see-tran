@@ -1,56 +1,59 @@
 <!-- app/templates/fragments/configuration_edit_form.html -->
-<form id="configuration-edit-form" hx-post="/api/configurations/{{ c.id }}" hx-target="#configuration-{{ c.id }}" hx-swap="outerHTML" class="space-y-3 p-3 rounded bg-slate-800 border border-slate-700">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-    <div>
-      <label class="block text-xs text-slate-400 mb-1">Agency</label>
-      <select name="agency_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
-        {% for a in agencies %}
-          <option value="{{ a.id }}" {% if a.id == c.agency_id %}selected{% endif %}>{{ a.name }}</option>
-        {% endfor %}
-      </select>
+<div id="configuration-{{ c.id }}" class="p-3 rounded bg-slate-800 border border-slate-700">
+  <form id="configuration-edit-form" hx-post="/api/configurations/{{ c.id }}" hx-target="#configuration-{{ c.id }}" hx-swap="outerHTML" hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}' class="space-y-3">
+    {{ form.hidden_tag() }}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Agency</label>
+        <select name="agency_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
+          {% for a in agencies %}
+            <option value="{{ a.id }}" {% if a.id == c.agency_id %}selected{% endif %}>{{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Function</label>
+        <select name="function_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
+          {% for f in functions %}
+            <option value="{{ f.id }}" {% if f.id == c.function_id %}selected{% endif %}>{{ f.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs text-slate-400 mb-1">Component</label>
+        <select name="component_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
+          {% for comp in components %}
+            <option value="{{ comp.id }}" {% if comp.id == c.component_id %}selected{% endif %}>{{ comp.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Status</label>
+        <select name="status" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
+          {% set statuses = ['Active','Planned','Retired','Draft'] %}
+          {% for st in statuses %}
+            <option value="{{ st }}" {% if st == c.status %}selected{% endif %}>{{ st }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Deployment Date</label>
+        <input type="date" name="deployment_date" value="{{ c.deployment_date.strftime('%Y-%m-%d') if c.deployment_date else '' }}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Version Label</label>
+        <input type="text" name="version_label" value="{{ c.version_label or '' }}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white" />
+      </div>
     </div>
     <div>
-      <label class="block text-xs text-slate-400 mb-1">Function</label>
-      <select name="function_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
-        {% for f in functions %}
-          <option value="{{ f.id }}" {% if f.id == c.function_id %}selected{% endif %}>{{ f.name }}</option>
-        {% endfor %}
-      </select>
+      <label class="block text-xs text-slate-400 mb-1">Implementation Notes</label>
+      <textarea name="implementation_notes" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">{{ c.implementation_notes or '' }}</textarea>
     </div>
-    <div class="md:col-span-2">
-      <label class="block text-xs text-slate-400 mb-1">Component</label>
-      <select name="component_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
-        {% for comp in components %}
-          <option value="{{ comp.id }}" {% if comp.id == c.component_id %}selected{% endif %}>{{ comp.name }}</option>
-        {% endfor %}
-      </select>
+    <div class="flex items-center gap-2">
+      <button type="submit" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs">Save</button>
+      <button type="button" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-xs" hx-get="/api/configurations/{{ c.id }}/row" hx-target="#configuration-{{ c.id }}" hx-swap="outerHTML">Cancel</button>
     </div>
-  </div>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-    <div>
-      <label class="block text-xs text-slate-400 mb-1">Status</label>
-      <select name="status" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">
-        {% set statuses = ['Active','Planned','Retired','Draft'] %}
-        {% for st in statuses %}
-          <option value="{{ st }}" {% if st == c.status %}selected{% endif %}>{{ st }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label class="block text-xs text-slate-400 mb-1">Deployment Date</label>
-      <input type="date" name="deployment_date" value="{{ c.deployment_date.strftime('%Y-%m-%d') if c.deployment_date else '' }}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white" />
-    </div>
-    <div>
-      <label class="block text-xs text-slate-400 mb-1">Version Label</label>
-      <input type="text" name="version_label" value="{{ c.version_label or '' }}" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white" />
-    </div>
-  </div>
-  <div>
-    <label class="block text-xs text-slate-400 mb-1">Implementation Notes</label>
-    <textarea name="implementation_notes" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-sm text-white">{{ c.implementation_notes or '' }}</textarea>
-  </div>
-  <div class="flex items-center gap-2">
-    <button type="submit" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs">Save</button>
-    <button type="button" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-xs" hx-get="/api/configurations/{{ c.id }}/row" hx-target="#configuration-{{ c.id }}" hx-swap="outerHTML">Cancel</button>
-  </div>
-</form>
+  </form>
+</div>

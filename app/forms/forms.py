@@ -262,7 +262,7 @@ class ConfigurationProductForm(FlaskForm):
         if self.configuration_id.data:
             cp.configuration_id = int(self.configuration_id.data)
         cp.product_id = int(self.product_id.data)
-        cp.product_version_id = int(self.product_version_id.data) if self.product_version_id.data else None
+        cp.product_version_id = self.product_version_id.data if self.product_version_id.data else None
         cp.status = self.status.data or 'Active'
         from datetime import datetime
         if self.deployment_date.data:

@@ -398,6 +398,16 @@ if (document.readyState === 'loading') {
     initializeApp();
 }
 
+// Attach CSRF token to all HTMX requests
+if (typeof htmx !== 'undefined') {
+    document.body.addEventListener('htmx:configRequest', function (event) {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        if (tokenMeta) {
+            event.detail.headers['X-CSRFToken'] = tokenMeta.getAttribute('content');
+        }
+    });
+}
+
 // =============================================================================
 // GLOBAL UTILITIES
 // =============================================================================

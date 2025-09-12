@@ -1,9 +1,16 @@
-{% for p in products %}
-<li class="px-3 py-2 hover:bg-slate-700 cursor-pointer text-sm text-slate-200 flex items-center justify-between"
-    data-product-id="{{ p.id }}" data-product-name="{{ p.name }}" data-vendor-name="{{ p.vendor.name if p.vendor else '' }}">
-  <span>{{ p.name }}</span>
-  <span class="text-xs text-slate-400">{{ p.vendor.name if p.vendor else '' }}</span>
+{% for product in products %}
+<li class="px-3 py-2 hover:bg-slate-700 cursor-pointer flex justify-between items-center"
+    data-product-id="{{ product.id }}"
+    data-product-name="{{ product.name }}"
+    data-vendor-name="{{ product.vendor.name if product.vendor else '' }}">
+  <div>
+    <div class="text-sm text-white">{{ product.name }}</div>
+    {% if product.vendor %}
+    <div class="text-xs text-slate-400">{{ product.vendor.name }}</div>
+    {% endif %}
+  </div>
 </li>
-{% else %}
-<li class="px-3 py-2 text-sm text-slate-400">No products found.</li>
 {% endfor %}
+{% if not products %}
+<li class="px-3 py-2 text-sm text-slate-400">No products found</li>
+{% endif %}

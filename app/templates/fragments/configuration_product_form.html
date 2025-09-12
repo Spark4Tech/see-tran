@@ -13,7 +13,8 @@
              hx-get="/api/products/picker" 
              hx-trigger="load, keyup changed delay:250ms"
              hx-target="#product-options" 
-             hx-vals='{"configuration_id": "{{ configuration.id }}"}' />
+             hx-include="[name='configuration_id']"
+             hx-swap="innerHTML" />
       <ul id="product-options" class="absolute z-10 mt-1 w-full max-h-56 overflow-auto bg-slate-900 border border-slate-700 rounded shadow-lg">
         <!-- options injected here -->
       </ul>

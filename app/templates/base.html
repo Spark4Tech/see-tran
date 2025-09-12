@@ -5,6 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{{ title|default("See-Tran - Transit System Intelligence") }}</title>
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for("static", filename="css/tailwind.css") }}">
@@ -42,7 +43,7 @@
     }
     .metric-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
     }
   </style>
 </head>
