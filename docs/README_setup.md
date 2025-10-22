@@ -1,4 +1,4 @@
-# see-tran
+# Setup
 
 Bootstrapped with `new_flask.sh`.
 
