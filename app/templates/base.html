@@ -69,32 +69,39 @@
         </a>
       </div>
 
-      <!-- Navigation and User Menu -->
-      <div class="flex items-center space-x-8">
-        <!-- Main Navigation -->
-        <div class="hidden md:flex items-center space-x-8">
-          <a href="/" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Dashboard</a>
-          <a href="/agencies" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Agencies</a>
-          <a href="/functional-areas" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Functions</a>
-          <a href="/components" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Components</a>
-          <a href="/configurations" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Configurations</a>
-          <a href="/products" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Products</a>
-          <a href="/vendors" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Vendors</a>
-          <a href="/integrations" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Integrations</a>
-          <a href="/reports" class="nav-link text-slate-300 hover:text-white text-sm font-medium">Reports</a>
-          {% if session.get('user') and session['user'].get('is_super_admin') %}
-            <a href="/admin" class="nav-link text-amber-300 hover:text-amber-200 text-sm font-medium">Admin</a>
-          {% endif %}
-        </div>
+      <!-- Navigation: Hamburger Menu -->
+      <div class="relative">
+        <button id="menuButton" class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/50 transition-colors" aria-haspopup="true" aria-expanded="false" aria-controls="menuPanel">
+          <svg id="menuIconOpen" class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          <svg id="menuIconClose" class="w-5 h-5 text-slate-200 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
 
-        <!-- User Menu -->
-        <div class="flex items-center space-x-4 ml-8">
-          {% if session.get('user') %}
-            <span class="text-sm text-slate-300 hidden sm:inline">{{ session['user']['email'] }}</span>
-            <a href="{{ url_for('auth.logout') }}" class="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 rounded">Logout</a>
-          {% else %}
-            <a href="{{ url_for('auth.login_page') }}" class="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 rounded">Login</a>
-          {% endif %}
+        <div id="menuPanel" class="hidden absolute right-0 mt-2 w-72 glass-effect rounded-xl border border-slate-700/50 shadow-xl overflow-hidden">
+          <div class="p-2">
+            <nav class="space-y-1">
+              <a href="/" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Dashboard</a>
+              <a href="/agencies" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Agencies</a>
+              <a href="/functional-areas" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Functions</a>
+              <a href="/components" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Components</a>
+              <a href="/configurations" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Configurations</a>
+              <a href="/products" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Products</a>
+              <a href="/vendors" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Vendors</a>
+              <a href="/integrations" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Integrations</a>
+              <a href="/reports" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Reports</a>
+              {% if session.get('user') and session['user'].get('is_super_admin') %}
+              <a href="/admin" class="block px-3 py-2 rounded text-amber-300 hover:text-amber-200 hover:bg-slate-700/40 text-sm">Admin</a>
+              {% endif %}
+
+              <div class="border-t border-slate-700/50 my-2"></div>
+
+              {% if session.get('user') %}
+                <div class="px-3 py-1 text-xs text-slate-400">Signed in as {{ session['user']['email'] }}</div>
+                <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 rounded text-red-300 hover:text-red-200 hover:bg-slate-700/40 text-sm">Logout</a>
+              {% else %}
+                <a href="{{ url_for('auth.login_page') }}" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Login</a>
+              {% endif %}
+            </nav>
+          </div>
         </div>
       </div>
     </div>
@@ -139,6 +146,46 @@
         target.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>';
       }
     });
+
+    // Hamburger menu toggle
+    (function(){
+      const btn = document.getElementById('menuButton');
+      const panel = document.getElementById('menuPanel');
+      const iconOpen = document.getElementById('menuIconOpen');
+      const iconClose = document.getElementById('menuIconClose');
+
+      function closeMenu(){
+        if (!panel) return;
+        panel.classList.add('hidden');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (iconOpen && iconClose){ iconOpen.classList.remove('hidden'); iconClose.classList.add('hidden'); }
+      }
+
+      function openMenu(){
+        if (!panel) return;
+        panel.classList.remove('hidden');
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+        if (iconOpen && iconClose){ iconOpen.classList.add('hidden'); iconClose.classList.remove('hidden'); }
+      }
+
+      function toggleMenu(){
+        if (!panel) return;
+        if (panel.classList.contains('hidden')) openMenu(); else closeMenu();
+      }
+
+      if (btn){
+        btn.addEventListener('click', function(e){ e.stopPropagation(); toggleMenu(); });
+      }
+
+      // Close on outside click
+      document.addEventListener('click', function(e){
+        if (!panel || panel.classList.contains('hidden')) return;
+        if (!panel.contains(e.target) && !btn.contains(e.target)) closeMenu();
+      });
+
+      // Close on Escape
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeMenu(); });
+    })();
   </script>
   {% block scripts %}{% endblock %}
 </body>

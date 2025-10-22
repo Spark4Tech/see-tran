@@ -98,15 +98,33 @@ class VendorForm(FlaskForm):
 
 class ComponentForm(FlaskForm):
     name = StringField('Component Name', validators=[DataRequired(), Length(min=2, max=100)])
+    short_description = StringField('Short Description', validators=[Optional(), Length(max=200)])
     description = TextAreaField('Description', validators=[Optional(), Length(max=1000)])
+    additional_metadata = TextAreaField('Additional Metadata (JSON)', validators=[Optional(), Length(max=5000)])
 
     def populate_from_component(self, component):
         self.name.data = component.name
+        self.short_description.data = component.short_description
         self.description.data = component.description
+        if component.additional_metadata:
+            import json
+            try:
+                self.additional_metadata.data = json.dumps(component.additional_metadata, indent=2)
+            except Exception:
+                self.additional_metadata.data = ''
 
     def populate_component(self, component):
         component.name = self.name.data
+        component.short_description = self.short_description.data or None
         component.description = self.description.data or None
+        if self.additional_metadata.data:
+            import json
+            try:
+                component.additional_metadata = json.loads(self.additional_metadata.data)
+            except Exception:
+                component.additional_metadata = None
+        else:
+            component.additional_metadata = None
 
 # =============================
 # Phase 3 ADDITIVE NEW FORMS

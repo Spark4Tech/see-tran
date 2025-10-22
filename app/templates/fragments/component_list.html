@@ -16,14 +16,24 @@
 
       <!-- Header -->
         <div class="flex items-start gap-2 min-w-0">
-          <h3 class="min-w-0 text-white font-semibold text-base sm:text-lg leading-snug break-words [hyphens:auto] line-clamp-2"
-              title="{{ c.name }}">
-            {{ c.name }}
-          </h3>
-        </div>
-        <div class="text-right shrink-0 text-xs text-slate-400">
-          <span class="text-slate-300 font-medium">{{ c.version or '-' }}</span><br>
-          <span>{{ c.deployment_date_str }}</span>
+          <div class="min-w-0 flex-1">
+            <h3 class="min-w-0 text-white font-semibold text-base sm:text-lg leading-snug break-words [hyphens:auto] line-clamp-2" title="{{ c.name }}">
+              {{ c.name }}
+            </h3>
+            <div class="text-[11px] text-slate-400 mt-0.5">
+              {% if c.version_label %}
+                Version: <span class="text-slate-300">{{ c.version_label }}</span>
+              {% else %}
+                <span class="opacity-60">No version</span>
+              {% endif %}
+            </div>
+            {% if c.short_description %}
+            <p class="text-slate-300 text-xs sm:text-[13px] mt-1 line-clamp-2">{{ c.short_description }}</p>
+            {% endif %}
+          </div>
+          <div class="text-right shrink-0 text-xs text-slate-400">
+            <span>{{ c.deployment_date_str }}</span>
+          </div>
         </div>
 
       <!-- Body -->

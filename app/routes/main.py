@@ -16,6 +16,7 @@ from app.utils.errors import (
 )
 # removed import of AFI utility helpers (create_afi_with_optional_children, component_supports_function, etc.)
 from sqlalchemy import func, case, distinct
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 
@@ -29,6 +30,68 @@ def index():
 @main.route("/functional-areas")
 def functional_areas_page():
     return render_template('functional_areas.html')
+
+# Print-friendly grid of all Functional Areas
+@main.route("/functional-areas/print")
+def functional_areas_print_page():
+    try:
+        areas = FunctionalArea.query.order_by(FunctionalArea.name.asc()).all()
+        return render_template(
+            'functional_areas_print.html',
+            functional_areas=areas,
+            title="Functional Areas – Print"
+        )
+    except Exception as e:
+        # Fallback to empty list with error message embedded in page
+        return render_template(
+            'functional_areas_print.html',
+            functional_areas=[],
+            error=str(e),
+            title="Functional Areas – Print"
+        )
+
+# Print-friendly page listing all functions organized by Functional Area
+@main.route("/functions/print")
+def functions_print_page():
+    try:
+        areas = (FunctionalArea.query
+                 .options(joinedload(FunctionalArea.functions))
+                 .order_by(FunctionalArea.name.asc())
+                 .all())
+
+        # decorate each function with quick counts and sort by criticality then name
+        severity_order = {'high': 0, 'medium': 1, 'low': 2}
+        for area in areas:
+            for f in area.functions:
+                try:
+                    f.component_count = len(f.components)
+                except Exception:
+                    f.component_count = 0
+                # distinct agencies using this function via configurations
+                agency_count = db.session.query(func.count(func.distinct(Configuration.agency_id))) \
+                    .filter(Configuration.function_id == f.id).scalar() or 0
+                f.agency_count = agency_count
+            # sorted list for display
+            area.sorted_functions = sorted(
+                list(area.functions),
+                key=lambda fx: (
+                    severity_order.get(getattr(getattr(fx, 'criticality', None), 'value', 'medium'), 1),
+                    fx.name.lower()
+                )
+            )
+
+        return render_template(
+            'functions_print.html',
+            functional_areas=areas,
+            title="Functions – Print"
+        )
+    except Exception as e:
+        return render_template(
+            'functions_print.html',
+            functional_areas=[],
+            error=str(e),
+            title="Functions – Print"
+        )
 
 @main.route('/reports')
 def reports_page():
@@ -260,6 +323,18 @@ def components_list():
             functions_display = ", ".join([f.name for f in functions_implemented]) or 'No functions'
             if len(functions_implemented) == 3:
                 functions_display += ' +more'
+            # NEW: latest configuration version label & deployment date (for display on card)
+            latest_cfg = (Configuration.query
+                          .filter(Configuration.component_id == component.id)
+                          .order_by(Configuration.deployment_date.desc().nullslast(), Configuration.updated_at.desc())
+                          .first())
+            version_label = getattr(latest_cfg, 'version_label', None) if latest_cfg else None
+            deployment_date_str = ''
+            if latest_cfg and latest_cfg.deployment_date:
+                try:
+                    deployment_date_str = latest_cfg.deployment_date.strftime('%Y-%m-%d')
+                except Exception:
+                    deployment_date_str = ''
             view_components.append(type('VC', (), {
                 'id': component.id,
                 'name': component.name,
@@ -268,9 +343,11 @@ def components_list():
                 'functions_display': functions_display,
                 'vendor_name': '—',
                 'agencies_display': agencies_display,
-                'deployment_date_str': '',
-                'version': None,
+                'deployment_date_str': deployment_date_str,
+                'version': version_label,  # keep legacy usage
+                'version_label': version_label,
                 'known_issues': None,
+                'short_description': component.short_description,
             }))
         return render_template('fragments/component_list.html', components=view_components)
     except Exception as e:
@@ -308,7 +385,10 @@ def component_details(component_id):
         if component.additional_metadata:
             metadata = "<h4 class='font-medium text-white mb-2 mt-4'>Additional Information:</h4><ul class='space-y-1'>" + \
                 "".join([f'<li class="text-sm text-slate-300">• {k.replace("_"," ").title()}: {v}</li>' for k,v in component.additional_metadata.items()]) + "</ul>"
-        html = f'''<div class="glass-effect rounded-xl p-6 border border-slate-700/50"><div class="flex items-center justify-between mb-4"><div class="flex items-center space-x-3"><h2 class="text-2xl font-bold text-white">{component.name}</h2></div><button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors" onclick="clearComponentDetails()">✕ Close</button></div><div class="grid grid-cols-1 gap-6"><div><h3 class="font-medium text-white mb-3">Component Information</h3><div class="space-y-2 text-sm"><p class="text-slate-300"><strong>Template:</strong> Logical component</p></div><div class="mt-6">{agency_usage_html}</div>{roles}{metadata}</div></div></div>'''
+        # NEW: include short_description and description
+        short_desc_html = f"<p class='text-slate-300 mt-1'>{component.short_description}</p>" if getattr(component, 'short_description', None) else ""
+        description_html = f"<div class='mt-4'><h3 class='font-medium text-white mb-2'>Description</h3><p class='text-slate-300 text-sm'>{component.description}</p></div>" if getattr(component, 'description', None) else ""
+        html = f'''<div class="glass-effect rounded-xl p-6 border border-slate-700/50"><div class="flex items-center justify-between mb-4"><div class="flex items-center space-x-3"><h2 class="text-2xl font-bold text-white">{component.name}</h2></div><button class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors" onclick="clearComponentDetails()">✕ Close</button></div><div class="grid grid-cols-1 gap-6"><div><div class="space-y-2 text-sm">{short_desc_html}</div>{description_html}<div class="mt-6">{agency_usage_html}</div>{roles}{metadata}</div></div></div>'''
         return html
     except Exception as e:
         return html_error_fragment(f"Error loading component details: {str(e)}")

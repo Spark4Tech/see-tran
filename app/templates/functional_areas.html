@@ -41,6 +41,12 @@
         <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
           Export
         </button>
+        <a href="{{ url_for('main.functional_areas_print_page') }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors" title="Open print-friendly Functional Areas view">
+          Print Areas
+        </a>
+        <a href="{{ url_for('main.functions_print_page') }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors" title="Open print-friendly Functions view grouped by area">
+          Print Functions
+        </a>
       </div>
     </div>
   </div>

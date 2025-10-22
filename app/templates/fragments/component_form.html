@@ -34,23 +34,27 @@
           <div class="field-error text-red-400 text-xs mt-1 hidden" data-error-for="name"></div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">Version Label</label>
-          <input type="text" name="version" value="" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g., 1.0.3">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Short Description</label>
+          <input type="text" name="short_description" value="{{ form.short_description.data or '' }}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Brief one-liner (max 200 chars)">
+          <div class="field-error text-red-400 text-xs mt-1 hidden" data-error-for="short_description"></div>
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
-          <textarea name="description" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-vertical" placeholder="Brief description">{{ form.description.data or '' }}</textarea>
+          <textarea name="description" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-vertical" placeholder="Detailed description">{{ form.description.data or '' }}</textarea>
+          <div class="field-error text-red-400 text-xs mt-1 hidden" data-error-for="description"></div>
         </div>
       </div>
     </div>
 
-    <!-- Issues -->
+    <!-- Additional Metadata (JSON) -->
     <div class="form-section">
       <h3 class="text-lg font-semibold text-white mb-4 flex items-center border-b border-slate-600 pb-2">
-        <svg class="w-5 h-5 mr-2 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.518 11.602c.75 1.335-.213 2.999-1.742 2.999H3.48c-1.53 0-2.493-1.664-1.743-2.999L8.257 3.1zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v2a1 1 0 01-1 1z" clip-rule="evenodd"/></svg>
-        Known Issues
+        <svg class="w-5 h-5 mr-2 text-cyan-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3 2a1 1 0 000 2h10a1 1 0 100-2H5z"/></svg>
+        Additional Metadata
       </h3>
-      <textarea name="known_issues" rows="3" class="component-field w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 resize-vertical" placeholder="List any known issues"></textarea>
+      <textarea name="additional_metadata" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 resize-vertical" placeholder='{"key": "value"}'>{{ form.additional_metadata.data or '' }}</textarea>
+      <p class="text-xs text-slate-500 mt-1">JSON only. Example: {"key": "value"}</p>
+      <div class="field-error text-red-400 text-xs mt-1 hidden" data-error-for="additional_metadata"></div>
     </div>
 
     <!-- Actions -->
@@ -68,7 +72,7 @@
         </button>
         <button type="button" onclick="closeComponentForm()" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors text-white">Cancel</button>
         {% if component %}
-        <button type="button" id="component-delete" onclick="deleteComponent({{ component.id }})" class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">Delete</button>
+        <button type="button" id="component-delete" data-component-id="{{ component.id }}" class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors text-white">Delete</button>
         {% endif %}
       </div>
     </div>
@@ -99,7 +103,8 @@ function deleteComponent(id) {
   if (!confirm('Delete this component? This cannot be undone.')) return;
   const delBtn = document.getElementById('component-delete');
   if (delBtn) { delBtn.disabled = true; delBtn.textContent = 'Deleting...'; }
-  fetch(`/api/components/${id}`, { method: 'DELETE' })
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  fetch(`/api/components/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': token, 'Accept': 'application/json' } })
     .then(r=>r.json())
     .then(data=>{
       showToast(data.message, data.status==='success');
@@ -110,14 +115,24 @@ function deleteComponent(id) {
     })
     .catch(()=>{ showToast('Delete failed', false); if (delBtn){delBtn.disabled=false; delBtn.textContent='Delete';}});
 }
+// Attach delete handler when button exists
+(function(){
+  const btn = document.getElementById('component-delete');
+  if (btn) {
+    btn.addEventListener('click', function(){
+      const id = this.getAttribute('data-component-id');
+      if (id) deleteComponent(id);
+    });
+  }
+})();
 // HTMX events for form
-document.addEventListener('htmx:beforeRequest', function(e){ if(e.target.id==='component-form'){ showComponentSubmitLoading(); }});
-document.addEventListener('htmx:afterRequest', function(e){ if(e.target.id==='component-form'){ hideComponentSubmitLoading(); try { const resp = JSON.parse(e.detail.xhr.response); showToast(resp.message, resp.status==='success'); if(resp.status==='success'){ closeComponentForm(); htmx.trigger('#components-list','refresh'); } } catch(err){ showToast('Error processing response', false);} }});
-document.addEventListener('htmx:responseError', function(e){ if(e.target.id==='component-form'){ hideComponentSubmitLoading(); showToast('Network error', false); }});
+document.addEventListener('htmx:beforeRequest', function(e){ if(e.target && e.target.id==='component-form'){ showComponentSubmitLoading(); }});
+document.addEventListener('htmx:afterRequest', function(e){ if(e.target && e.target.id==='component-form'){ hideComponentSubmitLoading(); try { const resp = JSON.parse(e.detail.xhr.response); showToast(resp.message, resp.status==='success'); if(resp.status==='success'){ closeComponentForm(); htmx.trigger('#components-list','refresh'); } } catch(err){ showToast('Error processing response', false);} }});
+document.addEventListener('htmx:responseError', function(e){ if(e.target && e.target.id==='component-form'){ hideComponentSubmitLoading(); showToast('Network error', false); }});
 
 // Enhance validation error display (expects JSON validation_error with errors map)
 document.addEventListener('htmx:afterRequest', function(e){
-  if(e.target.id==='component-form'){
+  if(e.target && e.target.id==='component-form'){
     try { const resp = JSON.parse(e.detail.xhr.response); console.log('Component form response', resp); if(resp.status==='validation_error' && resp.errors){
       Object.entries(resp.errors).forEach(([field,msg])=>{
         const input = document.querySelector(`#component-form [name="${field}"]`);

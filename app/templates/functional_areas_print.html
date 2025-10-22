@@ -1,0 +1,74 @@
+<!-- app/templates/functional_areas_print.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-6 py-8 print:px-0">
+  <!-- Header / Controls (hidden when printing) -->
+  <div class="flex items-center justify-between mb-6 no-print">
+    <h1 class="text-3xl font-semibold">Functional Areas – Print View</h1>
+    <div class="space-x-2">
+      <a href="{{ url_for('main.functional_areas_page') }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg">Back</a>
+      <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Print</button>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="no-print mb-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-red-300">
+      Error loading functional areas: {{ error }}
+    </div>
+  {% endif %}
+
+  <!-- Print Container (force light theme colors for paper) -->
+  <div class="bg-white text-black rounded-xl p-6 shadow print:shadow-none print:rounded-none print:p-0">
+    <!-- Title for printed page -->
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold">Functional Areas</h2>
+    </div>
+
+    {% if functional_areas and functional_areas|length > 0 %}
+      <!-- Responsive grid that translates well to print -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-3">
+        {% for area in functional_areas %}
+          <div class="border border-slate-200 rounded-lg p-4 break-inside-avoid print:break-inside-avoid page-break-inside-avoid">
+            <div class="flex items-start justify-between mb-2">
+              <h3 class="text-lg font-semibold">{{ area.name }}</h3>
+              <span class="text-xs text-slate-500">{{ area.functions|length }} functions</span>
+            </div>
+            {% if area.description %}
+              <p class="text-slate-700 text-sm leading-snug">{{ area.description }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="border border-slate-200 rounded-lg p-6 text-slate-600">
+        No functional areas available.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Print-focused adjustments */
+  @media print {
+    html, body { background: #fff !important; color: #000 !important; }
+    nav, footer, .no-print { display: none !important; }
+    .glass-effect { background: transparent !important; border: none !important; }
+    .print\:shadow-none { box-shadow: none !important; }
+    .print\:rounded-none { border-radius: 0 !important; }
+    .print\:p-0 { padding: 0 !important; }
+    .print\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+    /* Prevent orphaned halves of a card across pages */
+    .break-inside-avoid, .print\:break-inside-avoid, .page-break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    @page { margin: 12mm; }
+  }
+</style>
+{% endblock %}

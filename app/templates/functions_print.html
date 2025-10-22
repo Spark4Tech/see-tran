@@ -1,0 +1,101 @@
+<!-- app/templates/functions_print.html -->
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-6 py-8 print:px-0">
+  <!-- Header / Controls (hidden when printing) -->
+  <div class="flex items-center justify-between mb-6 no-print">
+    <h1 class="text-3xl font-semibold">Functions – Print View</h1>
+    <div class="space-x-2">
+      <a href="{{ url_for('main.functional_areas_page') }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg">Back</a>
+      <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Print</button>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="no-print mb-4 p-3 rounded border border-red-500/30 bg-red-500/10 text-red-300">
+      Error loading functions: {{ error }}
+    </div>
+  {% endif %}
+
+  <!-- Print Container -->
+  <div class="bg-white text-black rounded-xl p-6 shadow print:shadow-none print:rounded-none print:p-0">
+    {% if functional_areas and functional_areas|length > 0 %}
+      {% for area in functional_areas %}
+        <section class="mb-8 break-inside-avoid page-break-inside-avoid">
+          <div class="flex items-baseline justify-between mb-3">
+            <h2 class="text-xl font-bold">{{ area.name }}</h2>
+            <div class="text-xs text-slate-500">{{ area.sorted_functions|length if area.sorted_functions else (area.functions|length) }} functions</div>
+          </div>
+          {% if area.description %}
+            <p class="text-slate-700 text-sm leading-snug mb-3">{{ area.description }}</p>
+          {% endif %}
+
+          {% if area.sorted_functions and area.sorted_functions|length > 0 %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-3">
+              {% for function in area.sorted_functions %}
+                <div class="border border-slate-200 rounded-lg p-4 break-inside-avoid print:break-inside-avoid page-break-inside-avoid">
+                  <div class="flex items-start justify-between">
+                    <div class="min-w-0 pr-3">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full
+                          {% if function.criticality.value == 'high' %}bg-red-500
+                          {% elif function.criticality.value == 'medium' %}bg-yellow-500
+                          {% else %}bg-green-500{% endif %}"></span>
+                        <h3 class="text-base font-semibold truncate">{{ function.name }}</h3>
+                      </div>
+                      {% if function.description %}
+                        <p class="text-slate-700 text-sm leading-snug">{{ function.description }}</p>
+                      {% endif %}
+                    </div>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border self-start
+                      {% if function.criticality.value == 'high' %}bg-red-100 text-red-700 border-red-200
+                      {% elif function.criticality.value == 'medium' %}bg-yellow-100 text-yellow-700 border-yellow-200
+                      {% else %}bg-green-100 text-green-700 border-green-200{% endif %}">
+                      {{ function.criticality.value.title() }}
+                    </span>
+                  </div>
+                  <div class="mt-2 text-xs text-slate-600 flex items-center gap-4">
+                    <span>🔧 {{ function.component_count|default(0) }} components</span>
+                    <span>🏛️ {{ function.agency_count|default(0) }} agencies</span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="border border-slate-200 rounded-lg p-4 text-slate-600">No functions in this area.</div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    {% else %}
+      <div class="border border-slate-200 rounded-lg p-6 text-slate-600">
+        No functions available.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Print-focused adjustments */
+  @media print {
+    html, body { background: #fff !important; color: #000 !important; }
+    nav, footer, .no-print { display: none !important; }
+    .glass-effect { background: transparent !important; border: none !important; }
+    .print\:shadow-none { box-shadow: none !important; }
+    .print\:rounded-none { border-radius: 0 !important; }
+    .print\:p-0 { padding: 0 !important; }
+    .print\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+    /* Prevent orphaned halves of a card across pages */
+    .break-inside-avoid, .print\:break-inside-avoid, .page-break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    @page { margin: 12mm; }
+  }
+</style>
+{% endblock %}

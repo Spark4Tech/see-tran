@@ -181,6 +181,7 @@ class Component(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(1000))
+    short_description = db.Column(db.String(200))
     additional_metadata = db.Column(db.JSON)
 
     functions = db.relationship('Function', secondary='function_component', back_populates='components')
