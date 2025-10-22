@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+    <!-- Sidebar -->
+    <aside class="lg:col-span-1 space-y-6">
+      <div class="glass-effect rounded-xl p-5 border border-slate-700">
+        <h2 class="text-sm font-semibold tracking-wide text-slate-300 uppercase mb-3">Documentation</h2>
+        <nav class="space-y-1">
+          {% for f in files %}
+            <a href="{{ url_for('main.docs_index') }}?file={{ f.filename }}" class="block text-sm px-3 py-2 rounded transition-colors {{ 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow' if f.filename == selected else 'text-slate-300 hover:text-white hover:bg-slate-700/40' }}">
+              {{ f.title }}
+            </a>
+          {% endfor %}
+        </nav>
+      </div>
+      <div class="glass-effect rounded-lg p-4 text-xs text-slate-400 leading-relaxed">
+        <p class="mb-2">These markdown files live in <code class="text-cyan-300">/docs</code>. Add or edit files and they will auto-appear here.</p>
+        <p>Rendered with Python Markdown (fenced code & tables enabled).</p>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <section class="lg:col-span-4">
+      <div class="glass-effect rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+        <div class="px-8 py-6 border-b border-slate-700 flex items-center justify-between bg-slate-800/60">
+          <div>
+            <h1 class="text-xl font-semibold text-slate-100 tracking-tight">{{ (files | selectattr('filename','equalto', selected) | list)[0].title if selected else 'Documentation' }}</h1>
+            <p class="text-slate-400 text-xs mt-1">File: {{ selected }}</p>
+          </div>
+          <div class="flex items-center space-x-3">
+            <a href="{{ url_for('main.docs_index') }}" class="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200">Refresh</a>
+            <a href="/" class="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200">Dashboard</a>
+          </div>
+        </div>
+        <article class="prose prose-invert max-w-none px-8 py-8">
+          {% if content_html %}
+            {{ content_html | safe }}
+          {% else %}
+            <p class="text-slate-400 text-sm">No document selected.</p>
+          {% endif %}
+        </article>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+  // Enhance external links
+  document.querySelectorAll('article a[href^="http"]').forEach(a => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+</script>
+{% endblock %}

@@ -20,6 +20,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 
+
 main = Blueprint("main", __name__)
 
 @main.route("/")
@@ -30,6 +31,45 @@ def index():
 @main.route("/functional-areas")
 def functional_areas_page():
     return render_template('functional_areas.html')
+
+@main.get('/docs')
+@login_required
+def docs_index():
+    import os, glob
+    docs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'docs')
+    # Collect .md files (exclude hidden) and basic metadata
+    files = []
+    for path in sorted(glob.glob(os.path.join(docs_dir, '*.md'))):
+        name = os.path.basename(path)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                first = ''
+                for _ in range(5):
+                    line = f.readline()
+                    if not line: break
+                    if line.strip():
+                        first = line.strip().lstrip('# ').strip()
+                        break
+                title = first or name
+        except Exception:
+            title = name
+        files.append({'filename': name, 'title': title})
+    # Default: show first doc
+    selected = request.args.get('file') or (files[0]['filename'] if files else None)
+    content_html = ''
+    if selected:
+        sel_path = os.path.join(docs_dir, selected)
+        if os.path.isfile(sel_path):
+            try:
+                import markdown
+                with open(sel_path, 'r', encoding='utf-8') as f:
+                    raw = f.read()
+                content_html = markdown.markdown(raw, extensions=['fenced_code', 'tables', 'toc'])
+            except Exception as e:
+                content_html = f"<p class='text-red-400 text-sm'>Error rendering: {e}</p>"
+        else:
+            content_html = "<p class='text-red-400 text-sm'>File not found.</p>"
+    return render_template('docs.html', files=files, selected=selected, content_html=content_html)
 
 # Print-friendly grid of all Functional Areas
 @main.route("/functional-areas/print")

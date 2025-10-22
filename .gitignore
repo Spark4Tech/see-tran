@@ -4,6 +4,7 @@ prompts/
 combined.txt
 setup.sh 
 scripts/
+.venv/
 
 # Python
 __pycache__/
