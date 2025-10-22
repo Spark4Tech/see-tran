@@ -2,11 +2,17 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
   <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-    <!-- Sidebar -->
-    <aside class="lg:col-span-1 space-y-6">
+    <!-- Sidebar (sticky on large screens) -->
+    <aside class="lg:col-span-1 space-y-6 lg:sticky lg:top-24 h-max">
       <div class="glass-effect rounded-xl p-5 border border-slate-700">
-        <h2 class="text-sm font-semibold tracking-wide text-slate-300 uppercase mb-3">Documentation</h2>
-        <nav class="space-y-1">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold tracking-wide text-slate-300 uppercase">Documentation</h2>
+          <!-- Mobile: open drawer -->
+          <button type="button" class="lg:hidden px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700/60" onclick="openDocsDrawer()">
+            Contents
+          </button>
+        </div>
+        <nav class="space-y-1 hidden lg:block">
           {% for f in files %}
             <a href="{{ url_for('main.docs_index') }}?file={{ f.filename }}" class="block text-sm px-3 py-2 rounded transition-colors {{ 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow' if f.filename == selected else 'text-slate-300 hover:text-white hover:bg-slate-700/40' }}">
               {{ f.title }}
@@ -15,25 +21,28 @@
         </nav>
       </div>
       <div class="glass-effect rounded-lg p-4 text-xs text-slate-400 leading-relaxed">
-        <p class="mb-2">These markdown files live in <code class="text-cyan-300">/docs</code>. Add or edit files and they will auto-appear here.</p>
-        <p>Rendered with Python Markdown (fenced code & tables enabled).</p>
+        <p class="mb-2">Markdown files live in <code class="text-cyan-300">/docs</code>. Add or edit files and they appear here.</p>
+        <p>Rendered with Python Markdown (fenced code & tables).</p>
       </div>
     </aside>
 
     <!-- Content -->
     <section class="lg:col-span-4">
       <div class="glass-effect rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
-        <div class="px-8 py-6 border-b border-slate-700 flex items-center justify-between bg-slate-800/60">
-          <div>
-            <h1 class="text-xl font-semibold text-slate-100 tracking-tight">{{ (files | selectattr('filename','equalto', selected) | list)[0].title if selected else 'Documentation' }}</h1>
-            <p class="text-slate-400 text-xs mt-1">File: {{ selected }}</p>
+        <div class="px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-700 flex items-center justify-between bg-slate-800/60">
+          <div class="min-w-0">
+            {% set _current = (files | selectattr('filename','equalto', selected) | list) %}
+            <h1 class="text-lg sm:text-xl font-semibold text-slate-100 tracking-tight truncate">{{ _current[0].title if _current|length > 0 else (selected or 'Documentation') }}</h1>
+            <p class="text-slate-400 text-xs mt-1 truncate">File: {{ selected }}</p>
           </div>
-          <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- Mobile contents shortcut -->
+            <button type="button" class="lg:hidden text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200" onclick="openDocsDrawer()">Contents</button>
             <a href="{{ url_for('main.docs_index') }}" class="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200">Refresh</a>
             <a href="/" class="text-xs px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200">Dashboard</a>
           </div>
         </div>
-        <article class="prose prose-invert max-w-none px-8 py-8">
+        <article class="prose prose-invert max-w-none px-4 sm:px-8 py-6 sm:py-8">
           {% if content_html %}
             {{ content_html | safe }}
           {% else %}
@@ -44,11 +53,69 @@
     </section>
   </div>
 </div>
+
+<!-- Mobile Drawer for Contents -->
+<div id="docsDrawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-slate-900/70" onclick="closeDocsDrawer()"></div>
+  <div class="absolute left-0 top-0 h-full w-80 max-w-full bg-slate-900 border-r border-slate-700 shadow-xl transform transition-transform duration-200 ease-out" id="docsDrawerPanel">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <h3 class="text-sm font-semibold text-slate-200">Contents</h3>
+      <button class="p-2 rounded hover:bg-slate-800" onclick="closeDocsDrawer()" aria-label="Close">
+        <svg class="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <nav class="p-3 space-y-1 overflow-y-auto h-[calc(100%-3rem)]">
+      {% for f in files %}
+        <a href="{{ url_for('main.docs_index') }}?file={{ f.filename }}" class="block text-sm px-3 py-2 rounded transition-colors {{ 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow' if f.filename == selected else 'text-slate-300 hover:text-white hover:bg-slate-700/40' }}" onclick="closeDocsDrawer()">
+          {{ f.title }}
+        </a>
+      {% endfor %}
+    </nav>
+  </div>
+  <span id="docsDrawerSentinel" tabindex="0" class="absolute opacity-0">&nbsp;</span>
+</div>
 {% endblock %}
+
 {% block scripts %}
 {{ super() }}
 <script>
-  // Enhance external links
+  // Enhance external links (open in new tab)
   document.querySelectorAll('article a[href^="http"]').forEach(a => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+
+  // Mobile drawer logic
+  const docsDrawer = document.getElementById('docsDrawer');
+  const docsPanel = document.getElementById('docsDrawerPanel');
+  function openDocsDrawer(){
+    if (!docsDrawer || !docsPanel) return;
+    docsDrawer.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    requestAnimationFrame(() => { docsPanel.classList.remove('-translate-x-full'); });
+  }
+  function closeDocsDrawer(){
+    if (!docsDrawer || !docsPanel) return;
+    docsPanel.classList.add('-translate-x-full');
+    setTimeout(() => { docsDrawer.classList.add('hidden'); document.body.classList.remove('overflow-hidden'); }, 150);
+  }
+  // Initialize hidden state transform
+  if (docsPanel) docsPanel.classList.add('-translate-x-full');
+  // Close on Escape
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDocsDrawer(); });
+
+  // Improve markdown tables & code blocks on mobile
+  (function(){
+    const article = document.querySelector('article');
+    if (!article) return;
+    // Wrap tables in overflow container
+    article.querySelectorAll('table').forEach(t => {
+      const w = document.createElement('div');
+      w.className = 'overflow-x-auto -mx-2 sm:mx-0';
+      t.parentNode.insertBefore(w, t);
+      w.appendChild(t);
+      t.classList.add('min-w-full');
+    });
+    // Ensure code blocks scroll nicely
+    article.querySelectorAll('pre').forEach(p => p.classList.add('overflow-x-auto', 'whitespace-pre')); 
+    article.querySelectorAll('code').forEach(c => c.classList.add('break-words'));
+  })();
 </script>
 {% endblock %}

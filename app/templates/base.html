@@ -88,6 +88,7 @@
               <a href="/vendors" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Vendors</a>
               <a href="/integrations" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Integrations</a>
               <a href="/reports" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Reports</a>
+              <a href="{{ url_for('main.docs_index') }}" class="block px-3 py-2 rounded text-slate-200 hover:text-white hover:bg-slate-700/40 text-sm">Docs</a>
               {% if session.get('user') and session['user'].get('is_super_admin') %}
               <a href="/admin" class="block px-3 py-2 rounded text-amber-300 hover:text-amber-200 hover:bg-slate-700/40 text-sm">Admin</a>
               {% endif %}
