@@ -1,5 +1,5 @@
 # app/routes/main.py
-from flask import Blueprint, render_template, jsonify, request, url_for, redirect  # added redirect
+from flask import Blueprint, render_template, jsonify, request, url_for, redirect, send_file  # added redirect, send_file
 from app import db
 from app.models.tran import (
     Agency, FunctionalArea, Component, Vendor, IntegrationPoint,
@@ -19,6 +19,7 @@ from sqlalchemy import func, case, distinct
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
+import io  # for Excel streaming
 
 
 main = Blueprint("main", __name__)
@@ -31,6 +32,156 @@ def index():
 @main.route("/functional-areas")
 def functional_areas_page():
     return render_template('functional_areas.html')
+
+@main.get('/functional-areas/export.xlsx')
+def export_functional_areas_excel():
+    """Download an Excel export of Functional Areas with their Functions.
+
+    Columns: Functional Area, Function, Criticality, # Components, # Agencies
+    Styling: title row, header styling, borders, auto-width, frozen header, autofilter,
+    conditional fill by criticality. Import of openpyxl is lazy to avoid import errors
+    when the package isn't installed during unrelated operations/tests.
+    """
+    try:
+        # Optional filter parity with the page (currently only a search box)
+        search = (request.args.get('search') or '').strip()
+
+        q = (FunctionalArea.query
+             .options(joinedload(FunctionalArea.functions))
+             .order_by(FunctionalArea.name.asc()))
+        if search:
+            q = q.filter(FunctionalArea.name.ilike(f"%{search}%"))
+        areas = q.all()
+
+        # Lazy import for safety in environments without openpyxl preinstalled
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+        except Exception as ie:
+            return json_error_response(f"Excel export unavailable (dependency): {ie}", 500)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Functional Areas"
+
+        # Styles
+        title_font = Font(size=14, bold=True)
+        subtitle_font = Font(size=10, color="6B7280")
+        header_font = Font(color="FFFFFF", bold=True)
+        header_fill = PatternFill("solid", fgColor="1F2937")  # slate-800
+        thin = Side(style="thin", color="374151")  # slate-700
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        # Title and metadata
+        ws["A1"] = "Functional Areas Export"
+        ws["A1"].font = title_font
+        ws["A2"] = f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+        ws["A2"].font = subtitle_font
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=5)
+
+        # Header row
+        headers = [
+            "Functional Area",
+            "Function",
+            "Criticality",
+            "# Components",
+            "# Agencies",
+        ]
+        ws.append([None])  # row 3 spacer so header lands at row 4 consistently
+        ws.append(headers)  # this becomes row 4
+        header_row_idx = 4
+        for cell in ws[header_row_idx]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(vertical="center")
+            cell.border = border
+
+        # Data rows
+        row = header_row_idx + 1
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        crit_fills = {
+            "high": PatternFill("solid", fgColor="B91C1C"),    # red-700
+            "medium": PatternFill("solid", fgColor="B45309"),  # amber-700
+            "low": PatternFill("solid", fgColor="065F46"),     # emerald-800
+        }
+
+        # Precompute agency counts per function using Configuration
+        # Note: simple per-function query to keep it readable; acceptable for moderate sizes
+        for area in areas:
+            # Sort functions by criticality then name for consistency with print view
+            functions = sorted(
+                list(area.functions),
+                key=lambda fx: (
+                    severity_order.get(getattr(getattr(fx, 'criticality', None), 'value', 'medium'), 1),
+                    (fx.name or '').lower(),
+                ),
+            )
+            if not functions:
+                # Emit an area line with em dash if no functions yet
+                ws.cell(row=row, column=1, value=area.name)
+                ws.cell(row=row, column=2, value="—")
+                for c in range(1, len(headers) + 1):
+                    ws.cell(row=row, column=c).border = border
+                row += 1
+                continue
+
+            for f in functions:
+                # Component count via association
+                try:
+                    component_count = len(f.components)
+                except Exception:
+                    component_count = 0
+                # Distinct agencies with configurations for this function
+                agency_count = db.session.query(
+                    func.count(func.distinct(Configuration.agency_id))
+                ).filter(Configuration.function_id == f.id).scalar() or 0
+
+                crit_val = getattr(getattr(f, 'criticality', None), 'value', None)
+                crit_disp = crit_val.title() if crit_val else None
+
+                ws.cell(row=row, column=1, value=area.name)
+                ws.cell(row=row, column=2, value=f.name)
+                crit_cell = ws.cell(row=row, column=3, value=crit_disp)
+                ws.cell(row=row, column=4, value=component_count)
+                ws.cell(row=row, column=5, value=agency_count)
+
+                # Borders and criticality color badges (fill only the crit cell for subtlety)
+                for c in range(1, len(headers) + 1):
+                    ws.cell(row=row, column=c).border = border
+                    if c == 3 and crit_val in crit_fills:
+                        ws.cell(row=row, column=c).fill = crit_fills[crit_val]
+                        ws.cell(row=row, column=c).font = Font(color="FFFFFF", bold=True)
+                        ws.cell(row=row, column=c).alignment = Alignment(horizontal="center")
+
+                row += 1
+
+        # Freeze header and add auto-filter
+        ws.freeze_panes = f"A{header_row_idx + 1}"
+        ws.auto_filter.ref = f"A{header_row_idx}:" + get_column_letter(len(headers)) + f"{row - 1}"
+
+        # Auto-fit columns
+        for col_idx in range(1, len(headers) + 1):
+            letter = get_column_letter(col_idx)
+            max_len = 0
+            for r in range(1, row):
+                v = ws.cell(r, col_idx).value
+                max_len = max(max_len, len(str(v)) if v is not None else 0)
+            ws.column_dimensions[letter].width = min(max_len + 2, 48)
+
+        # Stream workbook to response
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        filename = f"functional_areas_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.xlsx"
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as e:
+        return json_error_response(f"Error generating export: {str(e)}", 500)
 
 @main.get('/docs')
 @login_required

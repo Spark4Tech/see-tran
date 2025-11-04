@@ -38,9 +38,12 @@
           </svg>
           Add Functional Area
         </button>
-        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+        <a id="fa-export-btn"
+           href="{{ url_for('main.export_functional_areas_excel') }}"
+           class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors"
+           title="Download Excel export">
           Export
-        </button>
+        </a>
         <a href="{{ url_for('main.functional_areas_print_page') }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-medium transition-colors" title="Open print-friendly Functional Areas view">
           Print Areas
         </a>
@@ -106,6 +109,20 @@ document.body.addEventListener('htmx:afterRequest', function(e) {
     // Refresh list and leave form in place
     htmx.trigger('#functional-areas-list', 'refresh');
   }
+});
+
+// Enhance Export link to include current search value as query param
+document.getElementById('fa-export-btn')?.addEventListener('click', function(ev) {
+  const searchEl = document.getElementById('area-search');
+  if (!searchEl) return; // no filter visible
+  const base = this.getAttribute('href') || '/functional-areas/export.xlsx';
+  const qs = new URLSearchParams();
+  if (searchEl.value && searchEl.value.trim() !== '') {
+    qs.set('search', searchEl.value.trim());
+  }
+  // Build final URL (preserve base only if qs is empty)
+  const finalUrl = qs.toString() ? `${base}?${qs.toString()}` : base;
+  this.setAttribute('href', finalUrl);
 });
 </script>
 {% endblock %}
