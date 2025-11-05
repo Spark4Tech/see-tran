@@ -1,10 +1,41 @@
 <div class="p-4 bg-slate-800 border border-slate-700 rounded">
   <h3 class="text-white font-semibold mb-3 text-sm">Step 1: Pick Agency & Function</h3>
   <form hx-get="/api/wizard/config/step2" hx-target="#wizard" class="space-y-2">
+    <label class="text-xs text-slate-300">Agency</label>
     <select name="agency_id" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-full">
-      {% for a in agencies %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+      {% for a in agencies %}
+        <option value="{{ a.id }}" {% if selected_agency_id and a.id == selected_agency_id %}selected{% endif %}>{{ a.name }}</option>
+      {% endfor %}
     </select>
-    <select name="function_id" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-full">
+
+    <label class="text-xs text-slate-300">Functional Area</label>
+    <select id="wizard-fa"
+            class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-full"
+            hx-get="/api/options/functions"
+            hx-target="#wizard-function"
+            hx-trigger="change"
+            hx-include="#wizard-fa,#wizard-function-search">
+      <option value="">All Functional Areas</option>
+      {% if functional_areas %}
+        {% for fa in functional_areas %}
+          <option value="{{ fa.id }}">{{ fa.name }}</option>
+        {% endfor %}
+      {% endif %}
+    </select>
+
+    <input id="wizard-function-search"
+           name="q"
+           type="text"
+           placeholder="Search functions…"
+           class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-full"
+           hx-get="/api/options/functions"
+           hx-target="#wizard-function"
+           hx-trigger="keyup changed delay:300ms"
+           hx-include="#wizard-fa,#wizard-function-search" />
+
+    <label class="text-xs text-slate-300">Function</label>
+    <select name="function_id" id="wizard-function" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-full">
+      <option value="">Select a function</option>
       {% for f in functions %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}
     </select>
     <button class="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs text-white">Next</button>

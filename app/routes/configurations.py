@@ -4,7 +4,7 @@ from app import db
 from app.auth import login_required, get_updated_by
 from app.models.tran import (
     Configuration, ConfigurationHistory, ConfigurationProduct,
-    Product, ProductVersion, Agency, Function, Component, Vendor
+    Product, ProductVersion, Agency, Function, Component, Vendor, FunctionalArea
 )
 from app.forms.forms import (
     ConfigurationForm, ConfigurationProductForm, ProductForm, ProductVersionForm
@@ -312,9 +312,11 @@ def product_version_create(product_id):
 @config_bp.route('/api/wizard/config/step1')
 @login_required
 def wizard_config_step1():
+    selected_agency_id = request.args.get('agency_id', type=int)
     agencies = Agency.query.order_by(Agency.name.asc()).all()
     functions = Function.query.order_by(Function.name.asc()).all()
-    return render_template('fragments/wizard_config_step1.html', agencies=agencies, functions=functions)
+    functional_areas = FunctionalArea.query.order_by(FunctionalArea.name.asc()).all()
+    return render_template('fragments/wizard_config_step1.html', agencies=agencies, functions=functions, functional_areas=functional_areas, selected_agency_id=selected_agency_id)
 
 @config_bp.route('/api/wizard/config/step2')
 @login_required
@@ -431,3 +433,55 @@ def configuration_edit_form(config_id):
     functions = Function.query.order_by(Function.name.asc()).all()
     components = Component.query.order_by(Component.name.asc()).all()
     return render_template('fragments/configuration_edit_form.html', form=form, c=c, agencies=agencies, functions=functions, components=components)
+
+# --------- Options (for HTMX dependent selects) ---------
+
+@config_bp.route('/api/options/functional-areas')
+@login_required
+def option_functional_areas():
+    areas = FunctionalArea.query.order_by(FunctionalArea.name.asc()).all()
+    html = '<option value="">All Functional Areas</option>'
+    for a in areas:
+        html += f'<option value="{a.id}">{a.name}</option>'
+    return html
+
+@config_bp.route('/api/options/functions')
+@login_required
+def option_functions():
+    # Support multiple param names from different UIs
+    fa_id = request.args.get('qc-fa') or request.args.get('functional_area_id') or request.args.get('functional_area') or request.args.get('fa_id')
+    try:
+        fa_id = int(fa_id) if fa_id else None
+    except (TypeError, ValueError):
+        fa_id = None
+    q = (request.args.get('q') or '').strip()
+
+    qry = Function.query
+    if fa_id:
+        qry = qry.filter(Function.functional_area_id == fa_id)
+    if q:
+        qry = qry.filter(Function.name.ilike(f"%{q}%"))
+    functions = qry.order_by(Function.name.asc()).limit(200).all()
+
+    html = '<option value="">Select a function</option>'
+    for f in functions:
+        html += f'<option value="{f.id}">{f.name}</option>'
+    return html
+
+@config_bp.route('/api/options/components')
+@login_required
+def option_components():
+    function_id = request.args.get('function_id', type=int)
+    components = []
+    if function_id:
+        fn = Function.query.get(function_id)
+        if fn:
+            # fn.components is a list; sort case-insensitively
+            components = sorted(fn.components, key=lambda c: (c.name or '').lower())
+    if not components:
+        components = Component.query.order_by(Component.name.asc()).limit(200).all()
+
+    html = '<option value="">Select a component</option>'
+    for c in components:
+        html += f'<option value="{c.id}">{c.name}</option>'
+    return html
