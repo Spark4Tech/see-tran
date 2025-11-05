@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>See-Tran · Transit System Intelligence Platform</title>
+  <meta name="description" content="Open-source app for modeling a transit agency’s technology landscape and benchmarking across agencies." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚌</text></svg>">
+  <link rel="stylesheet" href="/assets/site.css" />
+  <!-- Tailwind via CDN (static; fine for a simple landing page) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX (optional; ready for fragment updates later) -->
+  <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <!-- Top nav -->
+  <header class="border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+        <span class="inline-grid place-items-center w-8 h-8 rounded-lg bg-sky-500/20">🚌</span>
+        <span class="text-slate-100">see-tran</span>
+      </a>
+      <nav class="flex items-center gap-6 text-sm">
+        <a href="#features" class="hover:text-sky-300">Features</a>
+        <a href="/docs/" class="hover:text-sky-300">Docs</a>
+        <a href="https://github.com/<YOUR-GH-USER-OR-ORG>/see-tran" class="hover:text-sky-300">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="bg-gradient-to-b from-slate-900 to-slate-950">
+    <div class="max-w-6xl mx-auto px-4 py-20 text-center">
+      <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight">
+        <span class="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-teal-300">
+          Transit System
+        </span>
+        <span class="block mt-2">Intelligence Platform</span>
+      </h1>
+      <p class="mt-6 text-slate-300 max-w-3xl mx-auto">
+        Comprehensive visibility into transit system infrastructure, vendor relationships, and system integrations —
+        with fast, printable summaries and lightweight analytics.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="#health" class="px-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold">
+          Test System Health
+        </a>
+        <a href="/docs/" class="px-6 py-3 rounded-xl border border-slate-700 hover:border-slate-600">
+          View the Docs
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPI cards -->
+  <section class="py-12" id="features">
+    <div class="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/40">
+        <div class="text-4xl font-bold">10</div>
+        <div class="mt-1 text-sm text-slate-400">Transit Agencies</div>
+      </div>
+      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/40">
+        <div class="text-4xl font-bold">14</div>
+        <div class="mt-1 text-sm text-slate-400">Vendors</div>
+      </div>
+      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/40">
+        <div class="text-4xl font-bold">12</div>
+        <div class="mt-1 text-sm text-slate-400">Active Components</div>
+      </div>
+      <div class="rounded-2xl border border-slate-800 p-6 bg-slate-900/40">
+        <div class="text-4xl font-bold">17</div>
+        <div class="mt-1 text-sm text-slate-400">Products</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- “What the app does” -->
+  <section class="py-6 border-t border-slate-800">
+    <div class="max-w-4xl mx-auto px-4 space-y-4 leading-7 text-slate-300">
+      <h2 class="text-2xl font-bold text-slate-100">What the app does</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Catalogs the architecture: agencies → functional areas → functions → components</li>
+        <li>Tracks deployments via <em>Configurations</em> (Agency + Function + Component)</li>
+        <li>Links vendor <em>Products</em> and <em>Product Versions</em> used in configurations</li>
+        <li>Provides fast, printable summaries and lightweight analytics</li>
+        <li>Uses HTMX for fragment-level updates (no full page reloads)</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-10 text-center text-sm text-slate-500 border-t border-slate-800">
+    See-Tran is open source. Contribute on GitHub.
+  </footer>
+</body>
+</html>
